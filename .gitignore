@@ -1,0 +1,6 @@
+# codeblocks generated files #
+######################
+obj/*
+.layout
+.depend
+.cbp
