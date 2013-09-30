@@ -4,8 +4,8 @@ program minimum_tension
   ! produce minimum tension.
 
   implicit none
-  real, parameter :: g = 9.81
-  doubleprecision :: min_T, T, W = 200 * g, lc = 8, lp = 8, opt_d, d = 1.0
+  real, parameter :: W = 200, lc = 8, lp = 8
+  doubleprecision :: min_T, T, opt_d, d = 1.0
 
 
   do d = 1, 7, 0.1
