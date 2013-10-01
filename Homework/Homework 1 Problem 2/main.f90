@@ -4,11 +4,11 @@ program minimum_tension
   ! produce minimum tension.
 
   implicit none
-  real, parameter :: W = 200, lc = 8, lp = 8
-  doubleprecision :: min_T, T, opt_d, d = 1.0
+  real, parameter :: W = 200., lc = 8., lp = 8.
+  double precision :: min_T = 999., T, opt_d, d = 1.
 
 
-  do while (d < 7.0)
+  do while (d < 7.)
     ! Calculate the tension on the cable.
     T = W * lc * lp / (d * sqrt(lp ** 2 - d ** 2))
 
@@ -22,7 +22,7 @@ program minimum_tension
     d = d + 0.1
   end do
 
-  write (*,'(1x,a12,f6.2,a5,5x,a12,f8.2,a8)') &
-      'Optimal d = ',opt_d,' feet','Minimum T = ',min_T,' Newtons'
+  write (*,'(1x,a12,f6.2,a5)') &
+      'Optimal d = ',opt_d,' feet'
 
 end program minimum_tension
