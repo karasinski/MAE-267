@@ -8,7 +8,7 @@ program minimum_tension
   doubleprecision :: min_T, T, opt_d, d = 1.0
 
 
-  do d = 1, 7, 0.1
+  do while (d < 7.0)
     ! Calculate the tension on the cable.
     T = W * lc * lp / (d * sqrt(lp ** 2 - d ** 2))
 
@@ -19,6 +19,7 @@ program minimum_tension
       opt_d = d
     end if
 
+    d = d + 0.1
   end do
 
   write (*,'(1x,a12,f6.2,a5,5x,a12,f8.2,a8)') &
