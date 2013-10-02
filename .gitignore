@@ -3,6 +3,8 @@
 
 /Homework/**/bin/
 /Homework/**/obj/
+/Project/**/bin/
+/Project/**/obj/
 *.layout
 *.depend
 *.cbp
