@@ -1,6 +1,9 @@
 # codeblocks generated files #
 ######################
-obj/*
-.layout
-.depend
-.cbp
+
+/Homework/**/bin/
+/Homework/**/obj/
+*.layout
+*.depend
+*.cbp
+*.exe
