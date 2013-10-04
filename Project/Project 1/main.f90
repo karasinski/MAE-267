@@ -3,62 +3,85 @@ module constants
   real, parameter, public :: pi = 3.141592654, rot = 30.*pi/180.
   integer :: IMAX, JMAX !101 or 501 (2 cases)
 contains
-  subroutine calc(length)
+  subroutine grid_size(length)
     IMAX = length
     JMAX = length
-  end subroutine calc
+  end subroutine grid_size
 end module
 
-module clock
-  integer clock_start,clock_end,clock_max,clock_rate
-  real*4 wall_time
+module GridPointModule
+  use constants
+
+  public
+  type GridPoint
+    integer :: i, j
+    real :: x, xp, y, yp, T
+  end type GridPoint
 
 contains
-  subroutine start_clock()
-    ! call system time to determine flow solver wall time
-    call system_clock(count_max=clock_max,count_rate=clock_rate)
-    call system_clock(clock_start)
-  end subroutine start_clock
+  subroutine initialize(p, i, j)
+    type(GridPoint), intent(inout) :: p
+    integer :: i, j
 
-  subroutine end_clock()
-    ! determine total wall time for solver
-    call system_clock(clock_end)
-    wall_time=float(clock_end-clock_start)/float(clock_rate)
-    print*,'solver wall clock time (seconds)',wall_time
-  end subroutine end_clock
-end module
+    p%i = i
+    p%j = j
 
-subroutine compute()
+    p%xp = cos(0.5*pi*(IMAX-real(i))/(IMAX-1))
+    p%yp = cos(0.5*pi*(JMAX-real(j))/(JMAX-1))
+
+    p%x = p%xp*cos(rot)+(1.-p%yp)*sin(rot)
+    p%y = p%yp*cos(rot)+(p%xp)*sin(rot)
+
+  end subroutine initialize
+
+  subroutine set_temperature(p, iT)
+    type(GridPoint), intent(inout) :: p
+    real, optional :: iT
+
+    if (present(iT)) then
+      p%T = iT
+    else
+      p%T = 3.5
+    endif
+  end subroutine set_temperature
+
+  real function kineticenergy(p)
+    type(GridPoint), intent(in) :: p
+    integer i
+    real :: ke = 0.0
+
+    do i=0,2
+      ke = ke + 1
+    end do
+    kineticenergy = p%T * ke
+    return
+  end function kineticenergy
+end module GridPointModule
+
+program heat
   use constants
+  use GridPointModule
 
-  implicit none
-  integer :: i, j
-  real :: xp, yp
+  integer :: a, b
+  type (GridPoint) :: Point
+  type (GridPoint), allocatable :: Points(:)
 
-  call calc(101)
-  write (*,*), xp(1), IMAX
-end subroutine compute
+  call grid_size(101)
+  allocate(Points(1: IMAX))
 
-program heat_conduction
-  use clock
+  open (unit = 1, file = "data.dat")
+  do a = 1, IMAX
+    do b = 1, IMAX
+      Point = Points((a+b-1))
 
-  call start_clock()
-  call compute()
-  call end_clock()
-end program
+      call set_temperature(Point, 50.)
+      call initialize(Point, a, b)
+      write (1,*), Point
+      write (1,*)
+    end do
+  end do
+  close(1)
 
-real function xp(i)
-  use constants
-  implicit none
-  integer, intent(in) :: i
 
-  xp = cos(0.5*pi*(IMAX-i)/(IMAX-1))
-end function
 
-real function yp(j)
-  use constants
-  implicit none
-  integer, intent(in) :: j
-
-  yp = cos(0.5*pi*(JMAX-j)/(JMAX-1))
-end function
+end program heat
