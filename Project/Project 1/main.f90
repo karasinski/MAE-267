@@ -67,7 +67,7 @@ program heat
   use constants
   use GridPointModule
 
-  integer :: a, b, max_a, max_b, num, step = 1
+  integer :: i, j, max_i = 0, max_j = 0, num, step = 1
   type (GridPoint), pointer :: Point, upperPoint, lowerPoint, leftPoint, rightPoint
   type (GridPoint), target, allocatable :: Points(:)
   real*8, pointer :: Temperature(:), tempTemperature(:)
@@ -80,11 +80,11 @@ program heat
 
   !  Initialize grid.
   open (unit = 1, file = "data.dat")
-  do a = 1, IMAX
-    do b = 1, IMAX
-      Point => Points( (a - 1) * IMAX + b )
+  do i = 1, IMAX
+    do j = 1, IMAX
+      Point => Points( (i - 1) * IMAX + j)
 
-      call initialize(Point, a, b)
+      call initialize(Point, i, j)
       !      call set_temperature(Point, DFLOAT(INT(RAND(0)*100)))
 
       !      write (1,'(F10.5, 5X, F10.5, 5X, F10.5)'), Point%x, Point%y, Point%T
@@ -93,23 +93,23 @@ program heat
   !  End initialization.
 
   !  Set up Dirichlet condition.
-  do a = 1, IMAX
-    b = 1
-    Point => Points( (a - 1) * IMAX + b )
+  do i = 1, IMAX
+    j = 1
+    Point => Points( (i - 1) * IMAX + j )
     call set_temperature(Point, abs(cos(pi * Point%xp)) + 1.)
 
-    b = IMAX
-    Point => Points( (a - 1) * IMAX + b )
+    j = IMAX
+    Point => Points( (i- 1) * IMAX + j )
     call set_temperature(Point, 5. * (sin(pi * Point%xp) + 1.) )
   end do
 
-  do b = 1, IMAX
-    a = 1
-    Point => Points( (a - 1) * IMAX + b )
+  do j = 1, IMAX
+    i = 1
+    Point => Points( (i - 1) * IMAX + j )
     call set_temperature(Point, 3. * Point%yp + 2.)
 
-    a = IMAX
-    Point => Points( (a - 1) * IMAX + b )
+    i = IMAX
+    Point => Points( (i - 1) * IMAX + j)
     call set_temperature(Point, 3. * Point%yp + 2.)
   end do
 
@@ -118,13 +118,14 @@ program heat
 
   !  Begin main loop.
   do while (residual > .00001 .and. step <= 15000)
+    Temperature = tempTemperature
 
     write(*,*), 'step = ', step
     !    write (*, *), 'cell ', maxloc(Temperature), 'has max temp = ', maxval(Temperature)
 
-    do a = 2, IMAX - 1
-      do b = 2, IMAX - 1
-        Point      => Points( (a - 1) * IMAX + (b) )
+    do i = 2, IMAX - 1
+      do j = 2, IMAX - 1
+        Point      => Points( (i - 1) * IMAX + (j) )
 
         temp = 0.
         num = 0
@@ -133,26 +134,26 @@ program heat
         !       I probably have the wrong labels here, but the idea should be correct
         !       and as long as I use consistent logic it shouldn't matter?
 
-        if ( ((a - 1) * IMAX + (b - 1)) > 0 .and. ((a - 1) * IMAX + (b - 1)) < IMAX ** 2 ) then
-          upperPoint => Points( (a - 1) * IMAX + (b - 1) )
+        if ( ((i - 1) * IMAX + (j - 1)) > 0 .and. ((i - 1) * IMAX + (j - 1)) < IMAX ** 2 ) then
+          upperPoint => Points( (i - 1) * IMAX + (j - 1) )
           temp = temp + upperPoint%T
           num = num + 1
         end if
 
-        if (( (a) * IMAX + (b) ) > 0 .and. ( (a) * IMAX + (b) ) < IMAX ** 2 ) then
-          rightPoint => Points( (a) * IMAX + (b) )
+        if (( (i) * IMAX + (j) ) > 0 .and. ( (i) * IMAX + (j) ) < IMAX ** 2 ) then
+          rightPoint => Points( (i) * IMAX + (j) )
           temp = temp + rightPoint%T
           num = num + 1
         end if
 
-        if (( (a - 1) * IMAX + (b + 1) ) > 0 .and. ( (a - 1) * IMAX + (b + 1) < IMAX ** 2 )) then
-          lowerPoint => Points( (a - 1) * IMAX + (b + 1) )
+        if (( (i - 1) * IMAX + (j + 1) ) > 0 .and. ( (i - 1) * IMAX + (j + 1) < IMAX ** 2 )) then
+          lowerPoint => Points( (i - 1) * IMAX + (j + 1) )
           temp = temp + lowerPoint%T
           num = num + 1
         end if
 
-        if (( (a - 2) * IMAX + (b) ) > 0 .and. ( (a - 2) * IMAX + (b) < IMAX ** 2 )) then
-          leftPoint  => Points( (a - 2) * IMAX + (b) )
+        if (( (i - 2) * IMAX + (j) ) > 0 .and. ( (i - 2) * IMAX + (j) < IMAX ** 2 )) then
+          leftPoint  => Points( (i - 2) * IMAX + (j) )
           temp = temp + leftPoint%T
           num = num + 1
         end if
@@ -171,26 +172,25 @@ program heat
 
     residual = maxval(abs(Temperature - tempTemperature))
     write(*, *), "residual ", residual
-    Temperature = tempTemperature
 
     step = step + 1
   end do
 
-  do a = 2, IMAX - 1
-    do b = 2, IMAX - 1
-      Point      => Points( (a - 1) * IMAX + (b) )
+  do i = 2, IMAX - 1
+    do j = 2, IMAX - 1
+      Point      => Points( (i - 1) * IMAX + (j) )
 
       if (abs(Point%T - Point%tempT) > maxDiff) then
         maxDiff = abs(Point%T - Point%tempT)
-        max_a = a
-        max_b = b
+        max_i = i
+        max_j = j
       end if
 
       write (1,'(I5, 5X, F10.8, 5X, F10.8, 5X, F10.8)'), step, Point%x, Point%y, Point%T
     end do
   end do
 
-  write (*,*), maxDiff, max_a, max_b
+  write (*,*), maxDiff, max_i, max_j
   !  End main loop.
 
   close(1)
