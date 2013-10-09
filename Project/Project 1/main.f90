@@ -48,10 +48,42 @@ contains
 
   end subroutine set_temperature
 
+end module GridPointModule
+
+module GridCellModule
+  use constants
+  save
+
+  public
+  type GridCell
+    integer :: i, j
+    real*8 :: V, T, tempT
+  end type GridCell
+
+contains
+  subroutine initialize(p, i, j)
+    save
+    type(GridCell), intent(inout) :: p
+    integer :: i, j
+
+    p%T = 3.5
+    p%tempT = 3.5
+
+  end subroutine initialize
+
+  subroutine set_temperature(p, iT)
+    save
+    type(GridCell), intent(inout) :: p
+    real*8, optional :: iT
+
+    p%tempT = iT
+
+  end subroutine set_temperature
+
   subroutine update_temperature(p)
     ! subroutine should use update gridpoint temperature based on neighbors t
     save
-    type(GridPoint), intent(inout) :: p
+    type(GridCell), intent(inout) :: p
 
     p%T = p%T / 2.
     !    if (present(iT)) then
@@ -61,33 +93,35 @@ contains
     !    endif
   end subroutine
 
-end module GridPointModule
+end module GridCellModule
 
 program heat
   use constants
   use GridPointModule
+  !  use GridCellModule
 
   integer :: i, j, max_i = 0, max_j = 0, num, step = 1
   type (GridPoint), pointer :: Point, upperPoint, lowerPoint, leftPoint, rightPoint
-  type (GridPoint), target, allocatable :: Points(:)
-  real*8, pointer :: Temperature(:), tempTemperature(:)
+  type (GridPoint), target, allocatable :: Points(:,:)
+  real*8, pointer :: Temperature(:,:), tempTemperature(:,:)
   real*8 :: maxDiff = 0., temp, residual = 999.
 
   call SetGridSize(101)
-  allocate(Points(1: IMAX * IMAX))
+  allocate(Points(1:IMAX, 1:JMAX))
   Temperature => Points%T
   tempTemperature => Points%tempT
 
   !  Initialize grid.
-  open (unit = 1, file = "data.dat")
   do i = 1, IMAX
-    do j = 1, IMAX
-      Point => Points( (i - 1) * IMAX + j)
+    do j = 1, JMAX
+      Point => Points(i,j)
 
       call initialize(Point, i, j)
-      !      call set_temperature(Point, DFLOAT(INT(RAND(0)*100)))
+    end do
+  end do
 
-      !      write (1,'(F10.5, 5X, F10.5, 5X, F10.5)'), Point%x, Point%y, Point%T
+  do i = 1, IMAX
+    do j = 1, JMAX
     end do
   end do
   !  End initialization.
@@ -95,21 +129,21 @@ program heat
   !  Set up Dirichlet condition.
   do i = 1, IMAX
     j = 1
-    Point => Points( (i - 1) * IMAX + j )
+    Point => Points(i,j)
     call set_temperature(Point, abs(cos(pi * Point%xp)) + 1.)
 
     j = IMAX
-    Point => Points( (i- 1) * IMAX + j )
+    Point => Points(i,j)
     call set_temperature(Point, 5. * (sin(pi * Point%xp) + 1.) )
   end do
 
-  do j = 1, IMAX
+  do j = 1, JMAX
     i = 1
-    Point => Points( (i - 1) * IMAX + j )
+    Point => Points(i,j)
     call set_temperature(Point, 3. * Point%yp + 2.)
 
     i = IMAX
-    Point => Points( (i - 1) * IMAX + j)
+    Point => Points(i,j)
     call set_temperature(Point, 3. * Point%yp + 2.)
   end do
 
@@ -124,8 +158,8 @@ program heat
     !    write (*, *), 'cell ', maxloc(Temperature), 'has max temp = ', maxval(Temperature)
 
     do i = 2, IMAX - 1
-      do j = 2, IMAX - 1
-        Point      => Points( (i - 1) * IMAX + (j) )
+      do j = 2, JMAX - 1
+        Point      => Points(i,j)
 
         temp = 0.
         num = 0
@@ -134,26 +168,26 @@ program heat
         !       I probably have the wrong labels here, but the idea should be correct
         !       and as long as I use consistent logic it shouldn't matter?
 
-        if ( ((i - 1) * IMAX + (j - 1)) > 0 .and. ((i - 1) * IMAX + (j - 1)) < IMAX ** 2 ) then
-          upperPoint => Points( (i - 1) * IMAX + (j - 1) )
+        if ( j - 1 > 0 ) then
+          upperPoint => Points(i,j-1)
           temp = temp + upperPoint%T
           num = num + 1
         end if
 
-        if (( (i) * IMAX + (j) ) > 0 .and. ( (i) * IMAX + (j) ) < IMAX ** 2 ) then
-          rightPoint => Points( (i) * IMAX + (j) )
+        if ( i + 1 <= IMAX ) then
+          rightPoint => Points(i+1,j)
           temp = temp + rightPoint%T
           num = num + 1
         end if
 
-        if (( (i - 1) * IMAX + (j + 1) ) > 0 .and. ( (i - 1) * IMAX + (j + 1) < IMAX ** 2 )) then
-          lowerPoint => Points( (i - 1) * IMAX + (j + 1) )
+        if ( j + 1 <= JMAX ) then
+          lowerPoint => Points(i,j+1)
           temp = temp + lowerPoint%T
           num = num + 1
         end if
 
-        if (( (i - 2) * IMAX + (j) ) > 0 .and. ( (i - 2) * IMAX + (j) < IMAX ** 2 )) then
-          leftPoint  => Points( (i - 2) * IMAX + (j) )
+        if ( i - 1 > 0 ) then
+          leftPoint  => Points(i-1, j)
           temp = temp + leftPoint%T
           num = num + 1
         end if
@@ -175,10 +209,15 @@ program heat
 
     step = step + 1
   end do
+  !  End main loop.
+
+
+  ! Write some output.
+  open (unit = 1, file = "data.dat")
 
   do i = 2, IMAX - 1
-    do j = 2, IMAX - 1
-      Point      => Points( (i - 1) * IMAX + (j) )
+    do j = 2, JMAX - 1
+      Point      => Points(i,j)
 
       if (abs(Point%T - Point%tempT) > maxDiff) then
         maxDiff = abs(Point%T - Point%tempT)
@@ -191,7 +230,7 @@ program heat
   end do
 
   write (*,*), maxDiff, max_i, max_j
-  !  End main loop.
-
   close(1)
+  ! End output.
+
 end program heat
