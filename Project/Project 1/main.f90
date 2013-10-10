@@ -79,21 +79,21 @@ contains
 
     c%V = (upperRightPoint%x - upperLeftPoint%x) * (lowerRightPoint%y - lowerLeftPoint%y)
 
-    c%T = (upperRightPoint%T + upperLeftPoint%T + lowerRightPoint%T + lowerLeftPoint%T)/4.
+    c%T = 3.5
     c%tempT = c%T
 
   end subroutine initialize_cells
 
-!  subroutine find_neighbor_cells(c, i, j)
-!    save
-!    type(GridCell), intent(inout) :: c
-!
-!    if (( i > 0 .and. i <= IMAX ) .and. ( j > 0 .and. j <= JMAX )) then
-!      c => Cells(i,j)
-!      temp = temp + c%T
-!      num = num + 1
-!    end if
-!  end subroutine
+  !  subroutine find_neighbor_cells(c, i, j)
+  !    save
+  !    type(GridCell), intent(inout) :: c
+  !
+  !    if (( i > 0 .and. i <= IMAX ) .and. ( j > 0 .and. j <= JMAX )) then
+  !      c => Cells(i,j)
+  !      temp = temp + c%T
+  !      num = num + 1
+  !    end if
+  !  end subroutine
 
   subroutine update_temperature(c, T)
     save
@@ -111,7 +111,7 @@ program heat
   use GridPointModule
   use GridCellModule
 
-  integer :: i, j, max_i = 0, max_j = 0, num, step = 1
+  integer :: i, j, max_i = 0, max_j = 0, num = 0, step = 1
 
   type (GridPoint), pointer :: Point
   type (GridPoint), target, allocatable :: Points(:,:)
@@ -135,28 +135,6 @@ program heat
     end do
   end do
 
-  !  Set up Dirichlet condition.
-  do i = 1, IMAX
-    j = 1
-    Point => Points(i,j)
-    call set_temperature(Point, abs(cos(pi * Point%xp)) + 1.)
-
-    j = IMAX
-    Point => Points(i,j)
-    call set_temperature(Point, 5. * (sin(pi * Point%xp) + 1.) )
-  end do
-
-  do j = 1, JMAX
-    i = 1
-    Point => Points(i,j)
-    call set_temperature(Point, 3. * Point%yp + 2.)
-
-    i = IMAX
-    Point => Points(i,j)
-    call set_temperature(Point, 3. * Point%yp + 2.)
-  end do
-  !  End Dirichlet condition.
-
   !  Initialize Cells.
   do i = 1, IMAX-1
     do j = 1, JMAX-1
@@ -165,10 +143,35 @@ program heat
     end do
   end do
 
+  !  Set up Dirichlet condition.
+  do i = 1, IMAX-1
+    j = 1
+    Cell => Cells(i,j)
+    Point => Points(i,j)
+    call update_temperature(Cell, abs(cos(pi * Point%xp)) + 1.)
+
+    j = IMAX-1
+    Cell => Cells(i,j)
+    Point => Points(i,j)
+    call update_temperature(Cell, 5. * (sin(pi * Point%xp) + 1.) )
+  end do
+
+  do j = 1, JMAX-1
+    i = 1
+    Cell => Cells(i,j)
+    Point => Points(i,j)
+    call update_temperature(Cell, 3. * Point%yp + 2.)
+
+    i = IMAX-1
+    Cell => Cells(i,j)
+    Point => Points(i,j)
+    call update_temperature(Cell, 3. * Point%yp + 2.)
+  end do
+  !  End Dirichlet condition.
+
   !  Set some useful pointers.
   Temperature => Cells%T
   tempTemperature => Cells%tempT
-
   !  End set up.
 
   !  Begin main loop, stop if we hit our mark or after 100,000 iterations.
