@@ -172,14 +172,13 @@ program heat
   !  End set up.
 
   !  Begin main loop, stop if we hit our mark or after 100,000 iterations.
-  timesteps: do while (residual > .00001 .and. step <= 100000)
+  timesteps: do while (residual >= .00001 .and. step <= 100000)
     Temperature = tempTemperature
 
     write(*,*), 'step = ', step
-    !    write (*, *), 'cell ', maxloc(Temperature), 'has max temp = ', maxval(Temperature)
 
-    i_loop: do i = 1, size(Cells,1)
-      j_loop: do j = 1, size(Cells,2)
+    i_loop: do i = 2, size(Cells,1) - 1
+      j_loop: do j = 2, size(Cells,2) - 1
         Cell => Cells(i,j)
 
         temp = 0.
@@ -241,6 +240,8 @@ program heat
   end do
 
   write (*,*), "Max residual = ", maxDiff, "At i ", max_i, ", j ", max_j
+  write (*,*), "Max temperature = ", maxval(Temperature), " Low temperature = ", minval(Temperature)
+
   close(1)
   ! End output.
 
