@@ -12,7 +12,7 @@ program heat
   type (GridCell), target, allocatable :: Cells(:,:)
 
   real*8, pointer :: Temperature(:,:), tempTemperature(:,:)
-  real*8 :: maxDiff = 0., residual = 999.
+  real*8 :: maxDiff = 0., residual = 999. !Arbitrary large number for residual.
 
   ! Set up our grid size, grid points, grid cells and our arrays.
   call SetGridSize(101)
@@ -22,42 +22,30 @@ program heat
   !  Initialize grid.
   do i = 1, IMAX
     do j = 1, JMAX
-      Point => Points(i,j)
-      call initialize_points(Point, i, j)
+      call initialize_points(Points(i,j), i, j)
     end do
   end do
 
   !  Initialize Cells.
   do i = 1, IMAX-1
     do j = 1, JMAX-1
-      Cell => Cells(i,j)
-      call initialize_cells(Cell, Points, i, j)
+      call initialize_cells(Cells(i,j), Points, i, j)
     end do
   end do
 
   !  Set up Dirichlet condition.
   do i = 1, IMAX-1
     j = 1
-    Cell => Cells(i,j)
-    Point => Points(i,j)
-    call set_temperature(Cell, abs(cos(pi * Point%xp)) + 1.)
-
+    call set_temperature(Cells(i,j), abs(cos(pi * Points(i,j)%xp)) + 1.)
     j = IMAX-1
-    Cell => Cells(i,j)
-    Point => Points(i,j)
-    call set_temperature(Cell, 5. * (sin(pi * Point%xp) + 1.) )
+    call set_temperature(Cells(i,j), 5. * (sin(pi * Points(i,j)%xp) + 1.))
   end do
 
   do j = 1, JMAX-1
     i = 1
-    Cell => Cells(i,j)
-    Point => Points(i,j)
-    call set_temperature(Cell, 3. * Point%yp + 2.)
-
+    call set_temperature(Cells(i,j), 3. * Points(i,j)%yp + 2.)
     i = IMAX-1
-    Cell => Cells(i,j)
-    Point => Points(i,j)
-    call set_temperature(Cell, 3. * Point%yp + 2.)
+    call set_temperature(Cells(i,j), 3. * Points(i,j)%yp + 2.)
   end do
   !  End Dirichlet condition.
 
@@ -67,22 +55,22 @@ program heat
   !  End set up.
 
   !  Begin main loop, stop if we hit our mark or after 100,000 iterations.
-  timesteps: do while (residual >= .00001 .and. step <= 100000)
+  do while (residual >= .00001 .and. step <= 100000)
     Temperature = tempTemperature
 
     write(*,*), 'step = ', step
 
-    i_loop: do i = 2, size(Cells,1) - 1
-      j_loop: do j = 2, size(Cells,2) - 1
+    do i = 2, size(Cells,1) - 1
+      do j = 2, size(Cells,2) - 1
         call update_temperature(Cells, i, j)
-      end do j_loop
-    end do i_loop
+      end do
+    end do
 
     residual = maxval(abs(Temperature - tempTemperature))
     write(*, *), "residual ", residual
 
     step = step + 1
-  end do timesteps
+  end do
   !  End main loop.
 
   ! Write some output.
@@ -106,7 +94,5 @@ program heat
 
   close(1)
   ! End output.
-
-write(*,*), Cells(5,5)%V, Cells(50,50)%V, Cells(100,100)%V
 
 end program heat

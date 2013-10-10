@@ -62,10 +62,10 @@ contains
     c%i = i
     c%j = j
 
-    p1 => Points(i,j)
-    p2 => Points(i+1,j)
-    p3 => Points(i,j+1)
-    p4 => Points(i+1,j+1)
+    p1 => Points(i+1,j+1)
+    p2 => Points(i,j+1)
+    p3 => Points(i,j)
+    p4 => Points(i+1,j)
 
     c%V = abs( (p1%x *  p2%y - p1%y * p2%x) + &
                (p2%x *  p3%y - p2%y * p3%x) + &
@@ -75,21 +75,22 @@ contains
     c%T = 3.5
     c%tempT = c%T
 
-    if ( j - 1 > 0 ) then
-      c%numberOfNeighbors = c%numberOfNeighbors + 1
-    end if
-
-    if ( i + 1 <= IMAX ) then
-      c%numberOfNeighbors = c%numberOfNeighbors + 1
-    end if
-
-    if ( j + 1 <= JMAX ) then
-      c%numberOfNeighbors = c%numberOfNeighbors + 1
-    end if
-
-    if ( i - 1 > 0 ) then
-      c%numberOfNeighbors = c%numberOfNeighbors + 1
-    end if
+    c%numberOfNeighbors = 4
+!    if ( j - 1 > 0 ) then
+!      c%numberOfNeighbors = c%numberOfNeighbors + 1
+!    end if
+!
+!    if ( i + 1 <= IMAX ) then
+!      c%numberOfNeighbors = c%numberOfNeighbors + 1
+!    end if
+!
+!    if ( j + 1 <= JMAX ) then
+!      c%numberOfNeighbors = c%numberOfNeighbors + 1
+!    end if
+!
+!    if ( i - 1 > 0 ) then
+!      c%numberOfNeighbors = c%numberOfNeighbors + 1
+!    end if
 
   end subroutine initialize_cells
 
@@ -123,35 +124,35 @@ contains
     c%tempT = 0
     c%tempT = c%tempT + c%T
 
-    if (c%numberOfNeighbors == 4) then
+!    if (c%numberOfNeighbors == 4) then
       c%tempT = c%tempT + Cells(i,j-1)%T
       c%tempT = c%tempT + Cells(i+1,j)%T
       c%tempT = c%tempT + Cells(i,j+1)%T
       c%tempT = c%tempT + Cells(i-1, j)%T
       num = 5
-    else
-      num = 1
-
-      if ( j - 1 > 0 ) then
-        c%tempT = c%tempT + Cells(i,j-1)%T
-        num = num + 1
-      end if
-
-      if ( i + 1 <= IMAX ) then
-        c%tempT = c%tempT + Cells(i+1,j)%T
-        num = num + 1
-      end if
-
-      if ( j + 1 <= JMAX ) then
-        c%tempT = c%tempT + Cells(i,j+1)%T
-        num = num + 1
-      end if
-
-      if ( i - 1 > 0 ) then
-        c%tempT = c%tempT + Cells(i-1, j)%T
-        num = num + 1
-      end if
-    end if
+!    else
+!      num = 1
+!
+!      if ( j - 1 > 0 ) then
+!        c%tempT = c%tempT + Cells(i,j-1)%T
+!        num = num + 1
+!      end if
+!
+!      if ( i + 1 <= IMAX ) then
+!        c%tempT = c%tempT + Cells(i+1,j)%T
+!        num = num + 1
+!      end if
+!
+!      if ( j + 1 <= JMAX ) then
+!        c%tempT = c%tempT + Cells(i,j+1)%T
+!        num = num + 1
+!      end if
+!
+!      if ( i - 1 > 0 ) then
+!        c%tempT = c%tempT + Cells(i-1, j)%T
+!        num = num + 1
+!      end if
+!    end if
 
     c%tempT = c%tempT/dfloat(num)
 
