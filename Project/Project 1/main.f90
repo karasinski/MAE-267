@@ -1,126 +1,18 @@
-module constants
-  real*8, parameter, public :: k = 18.8, rho = 8000., c_p = 500.
-  real*8, parameter, public :: pi = 3.141592654, rot = 30.*pi/180.
-  integer :: IMAX, JMAX !101 or 501 (2 cases)
-contains
-  subroutine SetGridSize(length)
-    IMAX = length
-    JMAX = length
-  end subroutine SetGridSize
-end module
-
-module GridPointModule
-  use constants
-  save
-
-  public
-  type GridPoint
-    integer :: i, j
-    real*8 :: x, xp, y, yp, T
-  end type GridPoint
-
-contains
-  subroutine initialize_points(p, i, j)
-    save
-    type(GridPoint), intent(inout) :: p
-    integer :: i, j
-
-    p%i = i
-    p%j = j
-
-    p%xp = cos(0.5*pi*real((IMAX-i))/real((IMAX-1)))
-    p%yp = cos(0.5*pi*real((JMAX-j))/real((JMAX-1)))
-
-    p%x = p%xp*cos(rot)+(1.-p%yp)*sin(rot)
-    p%y = p%yp*cos(rot)+(p%xp)*sin(rot)
-
-    p%T = 3.5
-
-  end subroutine initialize_points
-
-  subroutine set_temperature(p, iT)
-    save
-    type(GridPoint), intent(inout) :: p
-    real*8, optional :: iT
-
-    p%T = iT
-
-  end subroutine set_temperature
-
-end module GridPointModule
-
-module GridCellModule
-  use constants
-  use GridPointModule
-  save
-
-  public
-  type GridCell
-    integer :: i, j
-    real*8 :: V, T, tempT
-  end type GridCell
-
-contains
-  subroutine initialize_cells(c, points, i, j)
-    save
-    type(GridCell), intent(inout) :: c
-    type (GridPoint), pointer :: upperLeftPoint, upperRightPoint, lowerLeftPoint, lowerRightPoint
-    type (GridPoint), target :: points(1:IMAX, 1:JMAX)
-    integer :: i, j
-    real*8 :: V
-
-    upperLeftPoint => Points(i,j)
-    upperRightPoint => Points(i+1,j)
-    lowerLeftPoint => Points(i,j+1)
-    lowerRightPoint => Points(i+1,j+1)
-
-    c%i = i
-    c%j = j
-
-    c%V = (upperRightPoint%x - upperLeftPoint%x) * (lowerRightPoint%y - lowerLeftPoint%y)
-
-    c%T = 3.5
-    c%tempT = c%T
-
-  end subroutine initialize_cells
-
-  !  subroutine find_neighbor_cells(c, i, j)
-  !    save
-  !    type(GridCell), intent(inout) :: c
-  !
-  !    if (( i > 0 .and. i <= IMAX ) .and. ( j > 0 .and. j <= JMAX )) then
-  !      c => Cells(i,j)
-  !      temp = temp + c%T
-  !      num = num + 1
-  !    end if
-  !  end subroutine
-
-  subroutine update_temperature(c, T)
-    save
-    type(GridCell), intent(inout) :: c
-    real*8 :: T
-
-    c%tempT = T
-
-  end subroutine update_temperature
-
-end module GridCellModule
-
 program heat
   use constants
   use GridPointModule
   use GridCellModule
 
-  integer :: i, j, max_i = 0, max_j = 0, num = 0, step = 1
+  integer :: i, j, max_i = 0, max_j = 0, step = 1
 
   type (GridPoint), pointer :: Point
   type (GridPoint), target, allocatable :: Points(:,:)
 
-  type (GridCell), pointer :: Cell, upperCell, lowerCell, leftCell, rightCell
+  type (GridCell), pointer :: Cell
   type (GridCell), target, allocatable :: Cells(:,:)
 
   real*8, pointer :: Temperature(:,:), tempTemperature(:,:)
-  real*8 :: maxDiff = 0., temp, residual = 999.
+  real*8 :: maxDiff = 0., residual = 999.
 
   ! Set up our grid size, grid points, grid cells and our arrays.
   call SetGridSize(101)
@@ -148,24 +40,24 @@ program heat
     j = 1
     Cell => Cells(i,j)
     Point => Points(i,j)
-    call update_temperature(Cell, abs(cos(pi * Point%xp)) + 1.)
+    call set_temperature(Cell, abs(cos(pi * Point%xp)) + 1.)
 
     j = IMAX-1
     Cell => Cells(i,j)
     Point => Points(i,j)
-    call update_temperature(Cell, 5. * (sin(pi * Point%xp) + 1.) )
+    call set_temperature(Cell, 5. * (sin(pi * Point%xp) + 1.) )
   end do
 
   do j = 1, JMAX-1
     i = 1
     Cell => Cells(i,j)
     Point => Points(i,j)
-    call update_temperature(Cell, 3. * Point%yp + 2.)
+    call set_temperature(Cell, 3. * Point%yp + 2.)
 
     i = IMAX-1
     Cell => Cells(i,j)
     Point => Points(i,j)
-    call update_temperature(Cell, 3. * Point%yp + 2.)
+    call set_temperature(Cell, 3. * Point%yp + 2.)
   end do
   !  End Dirichlet condition.
 
@@ -182,40 +74,7 @@ program heat
 
     i_loop: do i = 2, size(Cells,1) - 1
       j_loop: do j = 2, size(Cells,2) - 1
-        Cell => Cells(i,j)
-
-        temp = 0.
-        num = 0
-
-        if ( j - 1 > 0 ) then
-          upperCell => Cells(i,j-1)
-          temp = temp + upperCell%T
-          num = num + 1
-        end if
-
-        if ( i + 1 <= IMAX ) then
-          rightCell => Cells(i+1,j)
-          temp = temp + rightCell%T
-          num = num + 1
-        end if
-
-        if ( j + 1 <= JMAX ) then
-          lowerCell => Cells(i,j+1)
-          temp = temp + lowerCell%T
-          num = num + 1
-        end if
-
-        if ( i - 1 > 0 ) then
-          leftCell  => Cells(i-1, j)
-          temp = temp + leftCell%T
-          num = num + 1
-        end if
-
-        temp = temp + Cell%T
-        num = num + 1
-        temp = temp/dfloat(num)
-        call update_temperature(Cell, temp)
-
+        call update_temperature(Cells, i, j)
       end do j_loop
     end do i_loop
 
@@ -247,5 +106,7 @@ program heat
 
   close(1)
   ! End output.
+
+write(*,*), Cells(5,5)%V, Cells(50,50)%V, Cells(100,100)%V
 
 end program heat
