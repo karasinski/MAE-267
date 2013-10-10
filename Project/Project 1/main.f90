@@ -20,7 +20,7 @@ module GridPointModule
   end type GridPoint
 
 contains
-  subroutine initialize(p, i, j)
+  subroutine initialize_points(p, i, j)
     save
     type(GridPoint), intent(inout) :: p
     integer :: i, j
@@ -37,7 +37,7 @@ contains
     p%T = 3.5
     p%tempT = 3.5
 
-  end subroutine initialize
+  end subroutine initialize_points
 
   subroutine set_temperature(p, iT)
     save
@@ -52,62 +52,71 @@ end module GridPointModule
 
 module GridCellModule
   use constants
+  use GridPointModule
   save
 
   public
   type GridCell
     integer :: i, j
-    real*8 :: V, T, tempT
+    real*8 :: V, T, oldT
   end type GridCell
 
 contains
-  subroutine initialize(p, i, j)
+  subroutine initialize_cells(c, points, i, j)
     save
-    type(GridCell), intent(inout) :: p
+    type(GridCell), intent(inout) :: c
+    type (GridPoint), pointer :: upperLeftPoint, upperRightPoint, lowerLeftPoint, lowerRightPoint
+    type (GridPoint), target :: points(1:IMAX, 1:JMAX)
     integer :: i, j
+    real*8 :: V
 
-    p%T = 3.5
-    p%tempT = 3.5
+    upperLeftPoint => Points(i,j)
+    upperRightPoint => Points(i+1,j)
+    lowerLeftPoint => Points(i,j+1)
+    lowerRightPoint => Points(i+1,j+1)
 
-  end subroutine initialize
+    c%i = i
+    c%j = j
 
-  subroutine set_temperature(p, iT)
+    c%V = (upperRightPoint%x - upperLeftPoint%x) * (lowerRightPoint%y - lowerLeftPoint%y)
+
+    c%T = 3.5
+    c%oldT = 3.5
+
+  end subroutine initialize_cells
+
+  subroutine update_temperature(c, T)
     save
-    type(GridCell), intent(inout) :: p
-    real*8, optional :: iT
+    type(GridCell), intent(inout) :: c
+    real*8 :: T
 
-    p%tempT = iT
+    c%T = T
 
-  end subroutine set_temperature
-
-  subroutine update_temperature(p)
-    ! subroutine should use update gridpoint temperature based on neighbors t
-    save
-    type(GridCell), intent(inout) :: p
-
-    p%T = p%T / 2.
-    !    if (present(iT)) then
-    !      p%T = iT
-    !    else
-    !      p%T = 3.5
-    !    endif
-  end subroutine
+  end subroutine update_temperature
 
 end module GridCellModule
 
 program heat
   use constants
   use GridPointModule
-  !  use GridCellModule
+  use GridCellModule
 
   integer :: i, j, max_i = 0, max_j = 0, num, step = 1
+
   type (GridPoint), pointer :: Point, upperPoint, lowerPoint, leftPoint, rightPoint
   type (GridPoint), target, allocatable :: Points(:,:)
+
+  type (GridCell), pointer :: Cell
+  type (GridCell), target, allocatable :: Cells(:,:)
+
   real*8, pointer :: Temperature(:,:), tempTemperature(:,:)
   real*8 :: maxDiff = 0., temp, residual = 999.
 
+  ! Set up our grid size, grid points, grid cells and our arrays.
   call SetGridSize(101)
   allocate(Points(1:IMAX, 1:JMAX))
+  allocate(Cells(1:IMAX-1, 1:JMAX-1))
+
   Temperature => Points%T
   tempTemperature => Points%tempT
 
@@ -115,16 +124,18 @@ program heat
   do i = 1, IMAX
     do j = 1, JMAX
       Point => Points(i,j)
-
-      call initialize(Point, i, j)
+      call initialize_points(Point, i, j)
     end do
   end do
 
-  do i = 1, IMAX
-    do j = 1, JMAX
+  !  Initialize Cells.
+  do i = 1, IMAX-1
+    do j = 1, JMAX-1
+      Cell => Cells(i,j)
+      call initialize_cells(Cell, Points, i, j)
     end do
   end do
-  !  End initialization.
+  !  End set up.
 
   !  Set up Dirichlet condition.
   do i = 1, IMAX
