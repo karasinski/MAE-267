@@ -16,7 +16,7 @@ module GridPointModule
   public
   type GridPoint
     integer :: i, j
-    real*8 :: x, xp, y, yp, T, tempT
+    real*8 :: x, xp, y, yp, T
   end type GridPoint
 
 contains
@@ -35,7 +35,6 @@ contains
     p%y = p%yp*cos(rot)+(p%xp)*sin(rot)
 
     p%T = 3.5
-    p%tempT = 3.5
 
   end subroutine initialize_points
 
@@ -44,7 +43,7 @@ contains
     type(GridPoint), intent(inout) :: p
     real*8, optional :: iT
 
-    p%tempT = iT
+    p%T = iT
 
   end subroutine set_temperature
 
@@ -58,7 +57,7 @@ module GridCellModule
   public
   type GridCell
     integer :: i, j
-    real*8 :: V, T, oldT
+    real*8 :: V, T, tempT
   end type GridCell
 
 contains
@@ -80,17 +79,28 @@ contains
 
     c%V = (upperRightPoint%x - upperLeftPoint%x) * (lowerRightPoint%y - lowerLeftPoint%y)
 
-    c%T = 3.5
-    c%oldT = 3.5
+    c%T = (upperRightPoint%T + upperLeftPoint%T + lowerRightPoint%T + lowerLeftPoint%T)/4.
+    c%tempT = c%T
 
   end subroutine initialize_cells
+
+!  subroutine find_neighbor_cells(c, i, j)
+!    save
+!    type(GridCell), intent(inout) :: c
+!
+!    if (( i > 0 .and. i <= IMAX ) .and. ( j > 0 .and. j <= JMAX )) then
+!      c => Cells(i,j)
+!      temp = temp + c%T
+!      num = num + 1
+!    end if
+!  end subroutine
 
   subroutine update_temperature(c, T)
     save
     type(GridCell), intent(inout) :: c
     real*8 :: T
 
-    c%T = T
+    c%tempT = T
 
   end subroutine update_temperature
 
@@ -103,10 +113,10 @@ program heat
 
   integer :: i, j, max_i = 0, max_j = 0, num, step = 1
 
-  type (GridPoint), pointer :: Point, upperPoint, lowerPoint, leftPoint, rightPoint
+  type (GridPoint), pointer :: Point
   type (GridPoint), target, allocatable :: Points(:,:)
 
-  type (GridCell), pointer :: Cell
+  type (GridCell), pointer :: Cell, upperCell, lowerCell, leftCell, rightCell
   type (GridCell), target, allocatable :: Cells(:,:)
 
   real*8, pointer :: Temperature(:,:), tempTemperature(:,:)
@@ -117,9 +127,6 @@ program heat
   allocate(Points(1:IMAX, 1:JMAX))
   allocate(Cells(1:IMAX-1, 1:JMAX-1))
 
-  Temperature => Points%T
-  tempTemperature => Points%tempT
-
   !  Initialize grid.
   do i = 1, IMAX
     do j = 1, JMAX
@@ -127,15 +134,6 @@ program heat
       call initialize_points(Point, i, j)
     end do
   end do
-
-  !  Initialize Cells.
-  do i = 1, IMAX-1
-    do j = 1, JMAX-1
-      Cell => Cells(i,j)
-      call initialize_cells(Cell, Points, i, j)
-    end do
-  end do
-  !  End set up.
 
   !  Set up Dirichlet condition.
   do i = 1, IMAX
@@ -157,90 +155,92 @@ program heat
     Point => Points(i,j)
     call set_temperature(Point, 3. * Point%yp + 2.)
   end do
-
-  Temperature = tempTemperature
   !  End Dirichlet condition.
 
-  !  Begin main loop.
-  do while (residual > .00001 .and. step <= 15000)
+  !  Initialize Cells.
+  do i = 1, IMAX-1
+    do j = 1, JMAX-1
+      Cell => Cells(i,j)
+      call initialize_cells(Cell, Points, i, j)
+    end do
+  end do
+
+  !  Set some useful pointers.
+  Temperature => Cells%T
+  tempTemperature => Cells%tempT
+
+  !  End set up.
+
+  !  Begin main loop, stop if we hit our mark or after 100,000 iterations.
+  timesteps: do while (residual > .00001 .and. step <= 100000)
     Temperature = tempTemperature
 
     write(*,*), 'step = ', step
     !    write (*, *), 'cell ', maxloc(Temperature), 'has max temp = ', maxval(Temperature)
 
-    do i = 2, IMAX - 1
-      do j = 2, JMAX - 1
-        Point      => Points(i,j)
+    i_loop: do i = 1, size(Cells,1)
+      j_loop: do j = 1, size(Cells,2)
+        Cell => Cells(i,j)
 
         temp = 0.
         num = 0
 
-        !       Currently just summing up nearby nodes and averaging.
-        !       I probably have the wrong labels here, but the idea should be correct
-        !       and as long as I use consistent logic it shouldn't matter?
-
         if ( j - 1 > 0 ) then
-          upperPoint => Points(i,j-1)
-          temp = temp + upperPoint%T
+          upperCell => Cells(i,j-1)
+          temp = temp + upperCell%T
           num = num + 1
         end if
 
         if ( i + 1 <= IMAX ) then
-          rightPoint => Points(i+1,j)
-          temp = temp + rightPoint%T
+          rightCell => Cells(i+1,j)
+          temp = temp + rightCell%T
           num = num + 1
         end if
 
         if ( j + 1 <= JMAX ) then
-          lowerPoint => Points(i,j+1)
-          temp = temp + lowerPoint%T
+          lowerCell => Cells(i,j+1)
+          temp = temp + lowerCell%T
           num = num + 1
         end if
 
         if ( i - 1 > 0 ) then
-          leftPoint  => Points(i-1, j)
-          temp = temp + leftPoint%T
+          leftCell  => Cells(i-1, j)
+          temp = temp + leftCell%T
           num = num + 1
         end if
 
-        temp = temp + Point%T
+        temp = temp + Cell%T
         num = num + 1
         temp = temp/dfloat(num)
-        call set_temperature(Point, temp)
+        call update_temperature(Cell, temp)
 
-        !        Currently just divides by two.
-        !        call update_temperature(Point)
-
-        !        write (1,'(I5, 5X, F10.8, 5X, F10.8, 5X, F10.5)'), step, Point%x, Point%y, Point%tempT
-      end do
-    end do
+      end do j_loop
+    end do i_loop
 
     residual = maxval(abs(Temperature - tempTemperature))
     write(*, *), "residual ", residual
 
     step = step + 1
-  end do
+  end do timesteps
   !  End main loop.
-
 
   ! Write some output.
   open (unit = 1, file = "data.dat")
+  do i = 1, size(Cells,1)
+    do j = 1, size(Cells,2)
+      Cell => Cells(i,j)
 
-  do i = 2, IMAX - 1
-    do j = 2, JMAX - 1
-      Point      => Points(i,j)
-
-      if (abs(Point%T - Point%tempT) > maxDiff) then
-        maxDiff = abs(Point%T - Point%tempT)
+      if (abs(Cell%T - Cell%tempT) > maxDiff) then
+        maxDiff = abs(Cell%T - Cell%tempT)
         max_i = i
         max_j = j
       end if
 
-      write (1,'(I5, 5X, F10.8, 5X, F10.8, 5X, F10.8)'), step, Point%x, Point%y, Point%T
+      write (1,'(I5, 5X, I3, 5X, I3, 5X, F10.8)'), step, Cell%i, Cell%j, Cell%T
     end do
   end do
 
-  write (*,*), maxDiff, max_i, max_j
+  write (*,*), "Max residual = ", maxDiff, "At i ", max_i, ", j ", max_j
   close(1)
   ! End output.
 
