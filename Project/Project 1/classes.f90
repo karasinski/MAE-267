@@ -28,8 +28,8 @@ contains
     p%i = i
     p%j = j
 
-    p%xp = cos(0.5*pi*real((IMAX-i))/real((IMAX-1)))
-    p%yp = cos(0.5*pi*real((JMAX-j))/real((JMAX-1)))
+    p%xp = cos(0.5*pi*dfloat((IMAX-i))/dfloat((IMAX-1)))
+    p%yp = cos(0.5*pi*dfloat((JMAX-j))/dfloat((JMAX-1)))
 
     p%x = p%xp*cos(rot)+(1.-p%yp)*sin(rot)
     p%y = p%yp*cos(rot)+(p%xp)*sin(rot)
@@ -62,10 +62,10 @@ contains
     c%i = i
     c%j = j
 
-    p1 => Points(i+1,j+1)
-    p2 => Points(i,j+1)
-    p3 => Points(i,j)
-    p4 => Points(i+1,j)
+    p1 => Points(i,j)
+    p2 => Points(i+1,j)
+    p3 => Points(i+1,j+1)
+    p4 => Points(i,j+1)
 
     c%V = abs( (p1%x *  p2%y - p1%y * p2%x) + &
                (p2%x *  p3%y - p2%y * p3%x) + &
@@ -76,21 +76,21 @@ contains
     c%tempT = c%T
 
     c%numberOfNeighbors = 4
-!    if ( j - 1 > 0 ) then
-!      c%numberOfNeighbors = c%numberOfNeighbors + 1
-!    end if
-!
-!    if ( i + 1 <= IMAX ) then
-!      c%numberOfNeighbors = c%numberOfNeighbors + 1
-!    end if
-!
-!    if ( j + 1 <= JMAX ) then
-!      c%numberOfNeighbors = c%numberOfNeighbors + 1
-!    end if
-!
-!    if ( i - 1 > 0 ) then
-!      c%numberOfNeighbors = c%numberOfNeighbors + 1
-!    end if
+    !    if ( j - 1 > 0 ) then
+    !      c%numberOfNeighbors = c%numberOfNeighbors + 1
+    !    end if
+    !
+    !    if ( i + 1 <= IMAX ) then
+    !      c%numberOfNeighbors = c%numberOfNeighbors + 1
+    !    end if
+    !
+    !    if ( j + 1 <= JMAX ) then
+    !      c%numberOfNeighbors = c%numberOfNeighbors + 1
+    !    end if
+    !
+    !    if ( i - 1 > 0 ) then
+    !      c%numberOfNeighbors = c%numberOfNeighbors + 1
+    !    end if
 
   end subroutine initialize_cells
 
@@ -124,35 +124,35 @@ contains
     c%tempT = 0
     c%tempT = c%tempT + c%T
 
-!    if (c%numberOfNeighbors == 4) then
-      c%tempT = c%tempT + Cells(i,j-1)%T
-      c%tempT = c%tempT + Cells(i+1,j)%T
-      c%tempT = c%tempT + Cells(i,j+1)%T
-      c%tempT = c%tempT + Cells(i-1, j)%T
-      num = 5
-!    else
-!      num = 1
-!
-!      if ( j - 1 > 0 ) then
-!        c%tempT = c%tempT + Cells(i,j-1)%T
-!        num = num + 1
-!      end if
-!
-!      if ( i + 1 <= IMAX ) then
-!        c%tempT = c%tempT + Cells(i+1,j)%T
-!        num = num + 1
-!      end if
-!
-!      if ( j + 1 <= JMAX ) then
-!        c%tempT = c%tempT + Cells(i,j+1)%T
-!        num = num + 1
-!      end if
-!
-!      if ( i - 1 > 0 ) then
-!        c%tempT = c%tempT + Cells(i-1, j)%T
-!        num = num + 1
-!      end if
-!    end if
+    !    if (c%numberOfNeighbors == 4) then
+    c%tempT = c%tempT + Cells(i,j-1)%T
+    c%tempT = c%tempT + Cells(i+1,j)%T
+    c%tempT = c%tempT + Cells(i,j+1)%T
+    c%tempT = c%tempT + Cells(i-1, j)%T
+    num = 5
+    !    else
+    !      num = 1
+    !
+    !      if ( j - 1 > 0 ) then
+    !        c%tempT = c%tempT + Cells(i,j-1)%T
+    !        num = num + 1
+    !      end if
+    !
+    !      if ( i + 1 <= IMAX ) then
+    !        c%tempT = c%tempT + Cells(i+1,j)%T
+    !        num = num + 1
+    !      end if
+    !
+    !      if ( j + 1 <= JMAX ) then
+    !        c%tempT = c%tempT + Cells(i,j+1)%T
+    !        num = num + 1
+    !      end if
+    !
+    !      if ( i - 1 > 0 ) then
+    !        c%tempT = c%tempT + Cells(i-1, j)%T
+    !        num = num + 1
+    !      end if
+    !    end if
 
     c%tempT = c%tempT/dfloat(num)
 

@@ -73,7 +73,7 @@ program heat
   end do
   !  End main loop.
 
-  ! Write some output.
+  ! Let's find the last cell to change temperature and write some output.
   open (unit = 1, file = "data.dat")
   do i = 1, size(Cells,1)
     do j = 1, size(Cells,2)
