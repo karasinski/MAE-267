@@ -61,14 +61,14 @@ contains
     ! nearby points and divide by five. This is a temporary
     ! function to help test display data until I get the
     ! real derivatives working.
-    p => points(i,j)
+    p => points(i, j)
     p%tempT = 0
     p%tempT = p%tempT + p%T
 
-    p%tempT = p%tempT + points(i,j-1)%T
-    p%tempT = p%tempT + points(i+1,j)%T
-    p%tempT = p%tempT + points(i,j+1)%T
-    p%tempT = p%tempT + points(i-1,j)%T
+    p%tempT = p%tempT + points(i, j-1)%T
+    p%tempT = p%tempT + points(i+1, j)%T
+    p%tempT = p%tempT + points(i, j+1)%T
+    p%tempT = p%tempT + points(i-1, j)%T
     num = 5
 
     p%tempT = p%tempT/dfloat(num)
@@ -104,10 +104,10 @@ contains
     c%j = j
 
     ! Find the location of nearby points...
-    p1 => Points(i,j)
-    p2 => Points(i+1,j)
-    p3 => Points(i+1,j+1)
-    p4 => Points(i,j+1)
+    p1 => Points(i, j)
+    p2 => Points(i+1, j)
+    p3 => Points(i+1, j+1)
+    p4 => Points(i, j+1)
 
     ! ...to calculate the volume of each cell.
     c%V = abs( &
@@ -166,19 +166,19 @@ contains
     !These Vs should be V(i+1/2, j+1/2), not clear if this is currently
     !correct or if I need to wiggle it. This is also a mess, so I should
     !cleverly clean it up somehow.
-    c(i,j)%dTdx = &
+    c(i, j)%dTdx = &
       ( (p(i+1, j)%T + p(i+1, j+1)%T ) * c(i+1, j)%Ayi - &
-      (p(i, j)%T   + p(i, j+1)%T )   * c(i, j)%Ayi   - &
-      (p(i, j+1)%T + p(i+1, j+1)%T ) * c(i, j+1)%Ayj + &
-      (  p(i, j)%T   + p(i+1, j)%T )   * c(i, j)%Ayj     &
-      ) / ( 2. * c(i,j)%V )
+        (p(i, j)%T   + p(i, j+1)%T )   * c(i, j)%Ayi   - &
+        (p(i, j+1)%T + p(i+1, j+1)%T ) * c(i, j+1)%Ayj + &
+        (  p(i, j)%T + p(i+1, j)%T )   * c(i, j)%Ayj     &
+      ) / ( 2. * c(i, j)%V )
 
-    c(i,j)%dTdy = &
+    c(i, j)%dTdy = &
       ( (p(i+1, j)%T + p(i+1, j+1)%T ) * c(i+1, j)%Axi - &
-      (p(i, j)%T   + p(i, j+1)%T )   * c(i, j)%Axi   - &
-      (p(i, j+1)%T + p(i+1, j+1)%T ) * c(i, j+1)%Axj + &
-      (p(i, j)%T   + p(i+1, j)%T )   * c(i, j)%Axj     &
-      ) / ( 2. * c(i,j)%V )
+        (p(i, j)%T   + p(i, j+1)%T )   * c(i, j)%Axi   - &
+        (p(i, j+1)%T + p(i+1, j+1)%T ) * c(i, j+1)%Axj + &
+        (p(i, j)%T   + p(i+1, j)%T )   * c(i, j)%Axj     &
+      ) / ( 2. * c(i ,j)%V )
   end subroutine
 
   subroutine second_derivative(c, i, j)
