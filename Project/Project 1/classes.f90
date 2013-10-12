@@ -103,33 +103,50 @@ module GridCellModule
   type GridCell
     integer :: i, j, numberOfNeighbors
     real*8 :: V, T, tempT
+    real*8 :: Ayi, Axi, Ayj, Axj
+    real*8 :: Ayi_half, Axi_half, Ayj_half, Axj_half
   end type GridCell
 
 contains
   subroutine initialize_cells(c, points, i, j)
     save
-    type(GridCell), intent(inout) :: c
-    type(GridPoint), pointer :: p1, p2, p3, p4
+    type (GridCell), intent(inout) :: c
+    type (GridPoint), pointer :: p1, p2, p3, p4
     type (GridPoint), target :: points(1:IMAX, 1:JMAX)
     integer :: i, j
 
+    ! These values come in handy later when referencing cells.
     c%i = i
     c%j = j
 
+    ! Find the location of nearby points...
     p1 => Points(i,j)
     p2 => Points(i+1,j)
     p3 => Points(i+1,j+1)
     p4 => Points(i,j+1)
 
+    ! ...to calculate the volume of each cell.
     c%V = abs( (p1%x *  p2%y - p1%y * p2%x) + &
                (p2%x *  p3%y - p2%y * p3%x) + &
                (p3%x *  p4%y - p3%y * p4%x) + &
                (p4%x *  p1%y - p4%y * p1%x) ) / 2.
 
+    ! We set each cell to an initial temperature of 3.5, some
+    ! cells will be overwritten when we declare boundary conditions.
     c%T = 3.5
     c%tempT = c%T
 
-    c%numberOfNeighbors = 4
+    ! These 'area's are used to do trapezoidal counter-clockwise
+    ! integration to get the first derivatives in the x/y directions
+    ! at the cell-center using Gauss's theorem.
+    c%Ayi = p4%y - p1%y
+    c%Axi = p4%x - p1%x
+    c%Ayj = p2%y - p1%y
+    c%Axj = p2%x - p1%x
+
+    ! This sets the number of neighbors for later when we pass out
+    ! temperatures.
+    !    c%numberOfNeighbors = 4
     !    if ( j - 1 > 0 ) then
     !      c%numberOfNeighbors = c%numberOfNeighbors + 1
     !    end if
@@ -148,15 +165,65 @@ contains
 
   end subroutine initialize_cells
 
-  !  subroutine find_neighbor_cells(c, cells, i, j)
-  !    save
-  !    type (GridCell), intent(inout) :: c
-  !    type (GridCell), pointer :: cell
-  !    type (GridCell), target :: cells(1:IMAX-1, 1:JMAX-1)
-  !
-  !    if (( i > 0 .and. i <= IMAX ) .and. ( j > 0 .and. j <= JMAX )) then
-  !      c%neighborCells => cells(i:i,j:j)
-  !    end if
-  !  end subroutine find_neighbor_cells
+  subroutine set_secondary_areas(c, i, j)
+    save
+    type (GridCell), intent(inout) :: c
+    type (GridCell), target :: cells(1:IMAX, 1:JMAX)
+    integer :: i, j
 
+    ! These areas are used in the calculation of fluxes
+    ! for the alternate distributive scheme second-
+    ! derivative operator.
+    c%Ayi_half = ( cells(i+1, j)%Ayi + cells(i, j)%Ayi   ) / 4.
+    c%Axi_half = ( cells(i+1, j)%Axi + cells(i, j)%Axi   ) / 4.
+    c%Ayj_half = ( cells(i, j)%Ayj   + cells(i, j+1)%Ayj ) / 4.
+    c%Axj_half = ( cells(i, j)%Ayj   + cells(i, j+1)%Ayj ) / 4.
+  end subroutine
 end module GridCellModule
+
+module UpdateTemperature
+    use constants
+    use GridPointModule
+    use GridCellModule
+
+contains
+    subroutine first_derivative(p, c, i, j)
+    save
+
+    type (GridPoint), target :: p(1:IMAX, 1:JMAX)
+    type (GridCell), target :: c(1:IMAX-1, 1:JMAX-1)
+    real*8 :: dTdx, dTdy
+
+    ! Trapezoidal counter-clockwise integration to get the first
+    ! derivatives in the x/y directions at the cell-center using
+    ! Gauss's theorem.
+
+    !These Vs should be V(i+1/2, j+1/2), not clear if this is currently
+    !correct or if I need to wiggle it.
+    dTdx = ( (p(i+1, j)%T + p(i+1, j+1)%T ) * c(i+1, j)%Ayi - &
+             (p(i, j)%T   + p(i, j+1)%T )   * c(i, j)%Ayi   - &
+             (p(i, j+1)%T + p(i+1, j+1)%T ) * c(i, j+1)%Ayj + &
+             (p(i, j)%T   + p(i+1, j)%T )   * c(i, j)%Ayj     &
+            ) / ( 2. * c(i,j)%V )
+
+    dTdy = ( (p(i+1, j)%T + p(i+1, j+1)%T ) * c(i+1, j)%Axi - &
+             (p(i, j)%T   + p(i, j+1)%T )   * c(i, j)%Axi   - &
+             (p(i, j+1)%T + p(i+1, j+1)%T ) * c(i, j+1)%Axj + &
+             (p(i, j)%T   + p(i+1, j)%T )   * c(i, j)%Axj     &
+            ) / ( 2. * c(i,j)%V )
+  end subroutine
+
+  subroutine second_derivative(p, c, i, j)
+    save
+
+    ! Alternate distributive scheme second-derivative operator.
+    type (GridPoint), target :: p(1:IMAX, 1:JMAX)
+    type (GridCell), target :: c(1:IMAX-1, 1:JMAX-1)
+    real*8 :: d2Td2x, d2Td2y
+
+    d2Tdx2 = 0
+    d2Tdy2 = 0
+
+  end subroutine
+
+end module UpdateTemperature
