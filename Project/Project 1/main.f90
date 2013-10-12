@@ -2,6 +2,7 @@ program heat
   use constants
   use GridPointModule
   use GridCellModule
+  use UpdateTemperature
 
   integer :: i, j, max_i = 0, max_j = 0, step = 1
 
@@ -30,6 +31,13 @@ program heat
   do i = 1, IMAX-1
     do j = 1, JMAX-1
       call initialize_cells(Cells(i,j), Points, i, j)
+    end do
+  end do
+
+  ! Set up secondary areas needed for integration.
+  do i = 1, IMAX-1
+    do j = 1, JMAX-1
+      call set_secondary_areas(Cells(i,j), i, j)
     end do
   end do
 
@@ -63,6 +71,8 @@ program heat
     do i = 2, IMAX - 1
       do j = 2, JMAX - 1
         call update_temperature(Points, i, j)
+        !        call first_derivative(Points, Cells, i, j)
+        !        call second_derivative(Cells, i, j)
       end do
     end do
 

@@ -39,7 +39,7 @@ contains
 
   end subroutine initialize_points
 
-subroutine set_temperature(p, T)
+  subroutine set_temperature(p, T)
     save
     type(GridPoint), intent(inout) :: p
     real*8 :: T
@@ -64,29 +64,6 @@ subroutine set_temperature(p, T)
     p%tempT = p%tempT + points(i,j+1)%T
     p%tempT = p%tempT + points(i-1,j)%T
     num = 5
-    !    else
-    !      num = 1
-    !
-    !      if ( j - 1 > 0 ) then
-    !        c%tempT = c%tempT + Cells(i,j-1)%T
-    !        num = num + 1
-    !      end if
-    !
-    !      if ( i + 1 <= IMAX ) then
-    !        c%tempT = c%tempT + Cells(i+1,j)%T
-    !        num = num + 1
-    !      end if
-    !
-    !      if ( j + 1 <= JMAX ) then
-    !        c%tempT = c%tempT + Cells(i,j+1)%T
-    !        num = num + 1
-    !      end if
-    !
-    !      if ( i - 1 > 0 ) then
-    !        c%tempT = c%tempT + Cells(i-1, j)%T
-    !        num = num + 1
-    !      end if
-    !    end if
 
     p%tempT = p%tempT/dfloat(num)
 
@@ -103,6 +80,7 @@ module GridCellModule
   type GridCell
     integer :: i, j, numberOfNeighbors
     real*8 :: V, T, tempT
+    real*8 :: dTdx, dTdy, d2Td2x, d2Td2y
     real*8 :: Ayi, Axi, Ayj, Axj
     real*8 :: Ayi_half, Axi_half, Ayj_half, Axj_half
   end type GridCell
@@ -127,9 +105,9 @@ contains
 
     ! ...to calculate the volume of each cell.
     c%V = abs( (p1%x *  p2%y - p1%y * p2%x) + &
-               (p2%x *  p3%y - p2%y * p3%x) + &
-               (p3%x *  p4%y - p3%y * p4%x) + &
-               (p4%x *  p1%y - p4%y * p1%x) ) / 2.
+      (p2%x *  p3%y - p2%y * p3%x) + &
+      (p3%x *  p4%y - p3%y * p4%x) + &
+      (p4%x *  p1%y - p4%y * p1%x) ) / 2.
 
     ! We set each cell to an initial temperature of 3.5, some
     ! cells will be overwritten when we declare boundary conditions.
@@ -182,17 +160,15 @@ contains
 end module GridCellModule
 
 module UpdateTemperature
-    use constants
-    use GridPointModule
-    use GridCellModule
+  use constants
+  use GridPointModule
+  use GridCellModule
 
 contains
-    subroutine first_derivative(p, c, i, j)
+  subroutine first_derivative(p, c, i, j)
     save
-
-    type (GridPoint), target :: p(1:IMAX, 1:JMAX)
-    type (GridCell), target :: c(1:IMAX-1, 1:JMAX-1)
-    real*8 :: dTdx, dTdy
+    type (GridPoint) :: p(1:IMAX, 1:JMAX)
+    type (GridCell)  :: c(1:IMAX-1, 1:JMAX-1)
 
     ! Trapezoidal counter-clockwise integration to get the first
     ! derivatives in the x/y directions at the cell-center using
@@ -200,30 +176,46 @@ contains
 
     !These Vs should be V(i+1/2, j+1/2), not clear if this is currently
     !correct or if I need to wiggle it.
-    dTdx = ( (p(i+1, j)%T + p(i+1, j+1)%T ) * c(i+1, j)%Ayi - &
-             (p(i, j)%T   + p(i, j+1)%T )   * c(i, j)%Ayi   - &
-             (p(i, j+1)%T + p(i+1, j+1)%T ) * c(i, j+1)%Ayj + &
-             (p(i, j)%T   + p(i+1, j)%T )   * c(i, j)%Ayj     &
-            ) / ( 2. * c(i,j)%V )
+    c(i,j)%dTdx = &
+      ( (p(i+1, j)%T + p(i+1, j+1)%T ) * c(i+1, j)%Ayi - &
+        (p(i, j)%T   + p(i, j+1)%T )   * c(i, j)%Ayi   - &
+        (p(i, j+1)%T + p(i+1, j+1)%T ) * c(i, j+1)%Ayj + &
+      (  p(i, j)%T   + p(i+1, j)%T )   * c(i, j)%Ayj     &
+      ) / ( 2. * c(i,j)%V )
 
-    dTdy = ( (p(i+1, j)%T + p(i+1, j+1)%T ) * c(i+1, j)%Axi - &
-             (p(i, j)%T   + p(i, j+1)%T )   * c(i, j)%Axi   - &
-             (p(i, j+1)%T + p(i+1, j+1)%T ) * c(i, j+1)%Axj + &
-             (p(i, j)%T   + p(i+1, j)%T )   * c(i, j)%Axj     &
-            ) / ( 2. * c(i,j)%V )
+    c(i,j)%dTdy = &
+      ( (p(i+1, j)%T + p(i+1, j+1)%T ) * c(i+1, j)%Axi - &
+        (p(i, j)%T   + p(i, j+1)%T )   * c(i, j)%Axi   - &
+        (p(i, j+1)%T + p(i+1, j+1)%T ) * c(i, j+1)%Axj + &
+        (p(i, j)%T   + p(i+1, j)%T )   * c(i, j)%Axj     &
+      ) / ( 2. * c(i,j)%V )
   end subroutine
 
-  subroutine second_derivative(p, c, i, j)
+  subroutine second_derivative(c, i, j)
     save
+    type (GridCell) :: c(1:IMAX-1, 1:JMAX-1)
 
     ! Alternate distributive scheme second-derivative operator.
-    type (GridPoint), target :: p(1:IMAX, 1:JMAX)
-    type (GridCell), target :: c(1:IMAX-1, 1:JMAX-1)
-    real*8 :: d2Td2x, d2Td2y
+    ! Can definitely clean this up with some thought, but this essentially
+    ! just updates the second derivative by adding the first times a constant
+    ! during each time step.
+    c(i,j+1)%d2Td2x   = c(i,j+1)%d2Td2x +   &
+      (  c(i,j)%Axi_half + c(i,j)%Axj_half ) * c(i,j)%dTdx
+    c(i+1,j+1)%d2Td2x = c(i+1,j+1)%d2Td2x + &
+      ( -c(i,j)%Axi_half + c(i,j)%Axj_half ) * c(i,j)%dTdx
+    c(i+1,j)%d2Td2x   = c(i+1,j)%d2Td2x +   &
+      ( -c(i,j)%Axi_half - c(i,j)%Axj_half ) * c(i,j)%dTdx
+    c(i,j)%d2Td2x     = c(i,j)%d2Td2x +     &
+      (  c(i,j)%Axi_half - c(i,j)%Axj_half ) * c(i,j)%dTdx
 
-    d2Tdx2 = 0
-    d2Tdy2 = 0
-
+    c(i,j+1)%d2Td2y   = c(i,j+1)%d2Td2y +   &
+      ( -c(i,j)%Ayi_half - c(i,j)%Ayj_half ) * c(i,j)%dTdy
+    c(i+1,j+1)%d2Td2y = c(i+1,j+1)%d2Td2y + &
+      (  c(i,j)%Ayi_half - c(i,j)%Ayj_half ) * c(i,j)%dTdy
+    c(i+1,j)%d2Td2y   = c(i+1,j)%d2Td2y +   &
+      (  c(i,j)%Ayi_half + c(i,j)%Ayj_half ) * c(i,j)%dTdy
+    c(i,j)%d2Td2y     = c(i,j)%d2Td2y +     &
+      ( -c(i,j)%Ayi_half + c(i,j)%Ayj_half ) * c(i,j)%dTdy
   end subroutine
 
 end module UpdateTemperature
