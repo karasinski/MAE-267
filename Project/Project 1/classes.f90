@@ -16,7 +16,7 @@ module GridPointModule
   public
   type GridPoint
     integer :: i, j
-    real*8 :: x, xp, y, yp, T
+    real*8 :: x, xp, y, yp, T, tempT
   end type GridPoint
 
 contains
@@ -35,8 +35,62 @@ contains
     p%y = p%yp*cos(rot)+(p%xp)*sin(rot)
 
     p%T = 3.5
+    p%tempT = p%T
 
   end subroutine initialize_points
+
+subroutine set_temperature(p, T)
+    save
+    type(GridPoint), intent(inout) :: p
+    real*8 :: T
+
+    p%tempT = T
+
+  end subroutine set_temperature
+
+  subroutine update_temperature(points, i, j)
+    save
+    type(GridPoint), pointer :: p
+    type (GridPoint), target :: points(1:IMAX, 1:JMAX)
+    integer :: num
+
+    p => points(i,j)
+    p%tempT = 0
+    p%tempT = p%tempT + p%T
+
+    !    if (c%numberOfNeighbors == 4) then
+    p%tempT = p%tempT + points(i,j-1)%T
+    p%tempT = p%tempT + points(i+1,j)%T
+    p%tempT = p%tempT + points(i,j+1)%T
+    p%tempT = p%tempT + points(i-1,j)%T
+    num = 5
+    !    else
+    !      num = 1
+    !
+    !      if ( j - 1 > 0 ) then
+    !        c%tempT = c%tempT + Cells(i,j-1)%T
+    !        num = num + 1
+    !      end if
+    !
+    !      if ( i + 1 <= IMAX ) then
+    !        c%tempT = c%tempT + Cells(i+1,j)%T
+    !        num = num + 1
+    !      end if
+    !
+    !      if ( j + 1 <= JMAX ) then
+    !        c%tempT = c%tempT + Cells(i,j+1)%T
+    !        num = num + 1
+    !      end if
+    !
+    !      if ( i - 1 > 0 ) then
+    !        c%tempT = c%tempT + Cells(i-1, j)%T
+    !        num = num + 1
+    !      end if
+    !    end if
+
+    p%tempT = p%tempT/dfloat(num)
+
+  end subroutine update_temperature
 
 end module GridPointModule
 
@@ -104,58 +158,5 @@ contains
   !      c%neighborCells => cells(i:i,j:j)
   !    end if
   !  end subroutine find_neighbor_cells
-
-  subroutine set_temperature(c, T)
-    save
-    type(GridCell), intent(inout) :: c
-    real*8 :: T
-
-    c%tempT = T
-
-  end subroutine set_temperature
-
-  subroutine update_temperature(Cells, i, j)
-    save
-    type(GridCell), pointer :: c
-    type (GridCell), target :: cells(1:IMAX-1, 1:JMAX-1)
-    integer :: num
-
-    c => Cells(i,j)
-    c%tempT = 0
-    c%tempT = c%tempT + c%T
-
-    !    if (c%numberOfNeighbors == 4) then
-    c%tempT = c%tempT + Cells(i,j-1)%T
-    c%tempT = c%tempT + Cells(i+1,j)%T
-    c%tempT = c%tempT + Cells(i,j+1)%T
-    c%tempT = c%tempT + Cells(i-1, j)%T
-    num = 5
-    !    else
-    !      num = 1
-    !
-    !      if ( j - 1 > 0 ) then
-    !        c%tempT = c%tempT + Cells(i,j-1)%T
-    !        num = num + 1
-    !      end if
-    !
-    !      if ( i + 1 <= IMAX ) then
-    !        c%tempT = c%tempT + Cells(i+1,j)%T
-    !        num = num + 1
-    !      end if
-    !
-    !      if ( j + 1 <= JMAX ) then
-    !        c%tempT = c%tempT + Cells(i,j+1)%T
-    !        num = num + 1
-    !      end if
-    !
-    !      if ( i - 1 > 0 ) then
-    !        c%tempT = c%tempT + Cells(i-1, j)%T
-    !        num = num + 1
-    !      end if
-    !    end if
-
-    c%tempT = c%tempT/dfloat(num)
-
-  end subroutine update_temperature
 
 end module GridCellModule

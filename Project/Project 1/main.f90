@@ -34,24 +34,24 @@ program heat
   end do
 
   !  Set up Dirichlet condition.
-  do i = 1, IMAX-1
+  do i = 1, IMAX
     j = 1
-    call set_temperature(Cells(i,j), abs(cos(pi * Points(i,j)%xp)) + 1.)
-    j = IMAX-1
-    call set_temperature(Cells(i,j), 5. * (sin(pi * Points(i,j)%xp) + 1.))
+    call set_temperature(Points(i,j), abs(cos(pi * Points(i,j)%xp)) + 1.)
+    j = IMAX
+    call set_temperature(Points(i,j), 5. * (sin(pi * Points(i,j)%xp) + 1.))
   end do
 
-  do j = 1, JMAX-1
+  do j = 1, JMAX
     i = 1
-    call set_temperature(Cells(i,j), 3. * Points(i,j)%yp + 2.)
-    i = IMAX-1
-    call set_temperature(Cells(i,j), 3. * Points(i,j)%yp + 2.)
+    call set_temperature(Points(i,j), 3. * Points(i,j)%yp + 2.)
+    i = IMAX
+    call set_temperature(Points(i,j), 3. * Points(i,j)%yp + 2.)
   end do
   !  End Dirichlet condition.
 
   !  Set some useful pointers.
-  Temperature => Cells%T
-  tempTemperature => Cells%tempT
+  Temperature => Points%T
+  tempTemperature => Points%tempT
   !  End set up.
 
   !  Begin main loop, stop if we hit our mark or after 100,000 iterations.
@@ -60,9 +60,9 @@ program heat
 
     write(*,*), 'step = ', step
 
-    do i = 2, size(Cells,1) - 1
-      do j = 2, size(Cells,2) - 1
-        call update_temperature(Cells, i, j)
+    do i = 2, IMAX - 1
+      do j = 2, JMAX - 1
+        call update_temperature(Points, i, j)
       end do
     end do
 
@@ -75,17 +75,17 @@ program heat
 
   ! Let's find the last cell to change temperature and write some output.
   open (unit = 1, file = "data.dat")
-  do i = 1, size(Cells,1)
-    do j = 1, size(Cells,2)
-      Cell => Cells(i,j)
+  do i = 1, IMAX
+    do j = 1, JMAX
+      Point => Points(i,j)
 
-      if (abs(Cell%T - Cell%tempT) > maxDiff) then
-        maxDiff = abs(Cell%T - Cell%tempT)
+      if (abs(Point%T - Point%tempT) > maxDiff) then
+        maxDiff = abs(Point%T - Point%tempT)
         max_i = i
         max_j = j
       end if
 
-      write (1,'(I5, 5X, I3, 5X, I3, 5X, F10.8)'), step, Cell%i, Cell%j, Cell%T
+      write (1,'(I5, 5X, F10.8, 5X, F10.8, 5X, F10.8)'), step, Point%x, Point%y, Point%T
     end do
   end do
 
