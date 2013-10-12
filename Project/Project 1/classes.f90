@@ -25,6 +25,8 @@ contains
     type(GridPoint), intent(inout) :: p
     integer :: i, j
 
+    ! Set the initial locations and initial temperature of
+    ! each grid point.
     p%i = i
     p%j = j
 
@@ -44,6 +46,7 @@ contains
     type(GridPoint), intent(inout) :: p
     real*8 :: T
 
+    ! Mostly unnecessary subroutine to set initial temperatures.
     p%tempT = T
 
   end subroutine set_temperature
@@ -54,11 +57,14 @@ contains
     type (GridPoint), target :: points(1:IMAX, 1:JMAX)
     integer :: num
 
+    ! This is my 'fake' method to transfer heat: sum the
+    ! nearby points and divide by five. This is a temporary
+    ! function to help test display data until I get the
+    ! real derivatives working.
     p => points(i,j)
     p%tempT = 0
     p%tempT = p%tempT + p%T
 
-    !    if (c%numberOfNeighbors == 4) then
     p%tempT = p%tempT + points(i,j-1)%T
     p%tempT = p%tempT + points(i+1,j)%T
     p%tempT = p%tempT + points(i,j+1)%T
@@ -104,10 +110,12 @@ contains
     p4 => Points(i,j+1)
 
     ! ...to calculate the volume of each cell.
-    c%V = abs( (p1%x *  p2%y - p1%y * p2%x) + &
+    c%V = abs( &
+      (p1%x *  p2%y - p1%y * p2%x) + &
       (p2%x *  p3%y - p2%y * p3%x) + &
       (p3%x *  p4%y - p3%y * p4%x) + &
-      (p4%x *  p1%y - p4%y * p1%x) ) / 2.
+      (p4%x *  p1%y - p4%y * p1%x)   &
+      ) / 2.
 
     ! We set each cell to an initial temperature of 3.5, some
     ! cells will be overwritten when we declare boundary conditions.
@@ -121,25 +129,6 @@ contains
     c%Axi = p4%x - p1%x
     c%Ayj = p2%y - p1%y
     c%Axj = p2%x - p1%x
-
-    ! This sets the number of neighbors for later when we pass out
-    ! temperatures.
-    !    c%numberOfNeighbors = 4
-    !    if ( j - 1 > 0 ) then
-    !      c%numberOfNeighbors = c%numberOfNeighbors + 1
-    !    end if
-    !
-    !    if ( i + 1 <= IMAX ) then
-    !      c%numberOfNeighbors = c%numberOfNeighbors + 1
-    !    end if
-    !
-    !    if ( j + 1 <= JMAX ) then
-    !      c%numberOfNeighbors = c%numberOfNeighbors + 1
-    !    end if
-    !
-    !    if ( i - 1 > 0 ) then
-    !      c%numberOfNeighbors = c%numberOfNeighbors + 1
-    !    end if
 
   end subroutine initialize_cells
 
@@ -175,19 +164,20 @@ contains
     ! Gauss's theorem.
 
     !These Vs should be V(i+1/2, j+1/2), not clear if this is currently
-    !correct or if I need to wiggle it.
+    !correct or if I need to wiggle it. This is also a mess, so I should
+    !cleverly clean it up somehow.
     c(i,j)%dTdx = &
       ( (p(i+1, j)%T + p(i+1, j+1)%T ) * c(i+1, j)%Ayi - &
-        (p(i, j)%T   + p(i, j+1)%T )   * c(i, j)%Ayi   - &
-        (p(i, j+1)%T + p(i+1, j+1)%T ) * c(i, j+1)%Ayj + &
+      (p(i, j)%T   + p(i, j+1)%T )   * c(i, j)%Ayi   - &
+      (p(i, j+1)%T + p(i+1, j+1)%T ) * c(i, j+1)%Ayj + &
       (  p(i, j)%T   + p(i+1, j)%T )   * c(i, j)%Ayj     &
       ) / ( 2. * c(i,j)%V )
 
     c(i,j)%dTdy = &
       ( (p(i+1, j)%T + p(i+1, j+1)%T ) * c(i+1, j)%Axi - &
-        (p(i, j)%T   + p(i, j+1)%T )   * c(i, j)%Axi   - &
-        (p(i, j+1)%T + p(i+1, j+1)%T ) * c(i, j+1)%Axj + &
-        (p(i, j)%T   + p(i+1, j)%T )   * c(i, j)%Axj     &
+      (p(i, j)%T   + p(i, j+1)%T )   * c(i, j)%Axi   - &
+      (p(i, j+1)%T + p(i+1, j+1)%T ) * c(i, j+1)%Axj + &
+      (p(i, j)%T   + p(i+1, j)%T )   * c(i, j)%Axj     &
       ) / ( 2. * c(i,j)%V )
   end subroutine
 
@@ -199,23 +189,29 @@ contains
     ! Can definitely clean this up with some thought, but this essentially
     ! just updates the second derivative by adding the first times a constant
     ! during each time step.
-    c(i,j+1)%d2Td2x   = c(i,j+1)%d2Td2x +   &
-      (  c(i,j)%Axi_half + c(i,j)%Axj_half ) * c(i,j)%dTdx
-    c(i+1,j+1)%d2Td2x = c(i+1,j+1)%d2Td2x + &
-      ( -c(i,j)%Axi_half + c(i,j)%Axj_half ) * c(i,j)%dTdx
-    c(i+1,j)%d2Td2x   = c(i+1,j)%d2Td2x +   &
-      ( -c(i,j)%Axi_half - c(i,j)%Axj_half ) * c(i,j)%dTdx
-    c(i,j)%d2Td2x     = c(i,j)%d2Td2x +     &
-      (  c(i,j)%Axi_half - c(i,j)%Axj_half ) * c(i,j)%dTdx
+    c(i, j+1)%d2Td2x   = c(i, j+1)%d2Td2x +   &
+      (  c(i, j)%Axi_half + c(i, j)%Axj_half ) * c(i, j)%dTdx
 
-    c(i,j+1)%d2Td2y   = c(i,j+1)%d2Td2y +   &
-      ( -c(i,j)%Ayi_half - c(i,j)%Ayj_half ) * c(i,j)%dTdy
-    c(i+1,j+1)%d2Td2y = c(i+1,j+1)%d2Td2y + &
-      (  c(i,j)%Ayi_half - c(i,j)%Ayj_half ) * c(i,j)%dTdy
-    c(i+1,j)%d2Td2y   = c(i+1,j)%d2Td2y +   &
-      (  c(i,j)%Ayi_half + c(i,j)%Ayj_half ) * c(i,j)%dTdy
-    c(i,j)%d2Td2y     = c(i,j)%d2Td2y +     &
-      ( -c(i,j)%Ayi_half + c(i,j)%Ayj_half ) * c(i,j)%dTdy
+    c(i+1, j+1)%d2Td2x = c(i+1, j+1)%d2Td2x + &
+      ( -c(i, j)%Axi_half + c(i, j)%Axj_half ) * c(i, j)%dTdx
+
+    c(i+1, j)%d2Td2x   = c(i+1, j)%d2Td2x +   &
+      ( -c(i, j)%Axi_half - c(i, j)%Axj_half ) * c(i, j)%dTdx
+
+    c(i, j)%d2Td2x     = c(i, j)%d2Td2x +     &
+      (  c(i, j)%Axi_half - c(i, j)%Axj_half ) * c(i, j)%dTdx
+
+    c(i, j+1)%d2Td2y   = c(i, j+1)%d2Td2y +   &
+      ( -c(i, j)%Ayi_half - c(i, j)%Ayj_half ) * c(i, j)%dTdy
+
+    c(i+1, j+1)%d2Td2y = c(i+1, j+1)%d2Td2y + &
+      (  c(i, j)%Ayi_half - c(i, j)%Ayj_half ) * c(i, j)%dTdy
+
+    c(i+1, j)%d2Td2y   = c(i+1, j)%d2Td2y +   &
+      (  c(i, j)%Ayi_half + c(i, j)%Ayj_half ) * c(i, j)%dTdy
+
+    c(i, j)%d2Td2y     = c(i, j)%d2Td2y +     &
+      ( -c(i, j)%Ayi_half + c(i, j)%Ayj_half ) * c(i, j)%dTdy
   end subroutine
 
 end module UpdateTemperature
