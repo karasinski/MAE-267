@@ -12,12 +12,11 @@ program heat
   type (GridPoint), target, allocatable :: Points(:,:)
   type (GridPoint), pointer :: innerPoints(:,:)
 
-  type (GridCell), pointer :: Cell
+!  type (GridCell), pointer :: Cell
   type (GridCell), target, allocatable :: Cells(:,:)
 
   real*8, pointer :: Temperature(:,:), tempTemperature(:,:)
-  real*8, pointer :: innerTemperature(:,:), innertempTemperature(:,:)
-  real*8 :: maxDiff = 0., residual = 999. !Arbitrary large number for initial residual.
+  real*8 :: maxDiff = 0., residual = 1. ! Arbitrary initial residual.
 
   ! Set up our grid size, grid points, grid cells and our arrays.
   call SetGridSize(101)
@@ -62,37 +61,35 @@ program heat
   !  End Dirichlet condition.
 
   !  Set some useful pointers.
-  Temperature => Points%T
-  tempTemperature => Points%tempT
-
   innerPoints => Points(2:IMAX-1, 2:JMAX-1)
-  innerTemperature => Points(2:IMAX-1, 2:JMAX-1)%T
-  innertempTemperature => Points(2:IMAX-1, 2:JMAX-1)%tempT
-
-  points(2:IMAX-1, 2:JMAX-1)%d2Td2x = innerTemperature
-  points(2:IMAX-1, 2:JMAX-1)%d2Td2y = innerTemperature
+  Temperature => innerPoints%T
+  tempTemperature => innerPoints%tempT
   !  End set up.
 
   !  Begin main loop, stop if we hit our mark or after 100,000 iterations.
-  do while (residual >= .00001 .and. step <= 100000)
-!    Temperature = tempTemperature
-    innerPoints%T = innerPoints%tempT
+  do while (residual >= .00001 .and. step <= 1000)
+    Temperature =  Temperature + tempTemperature
     write(*,*), 'step = ', step
+
+!    do j = 2, JMAX - 1
+!      do i = 2, IMAX - 1
+!        call update_temperature(Points, i, j)
+!      end do
+!    end do
+!    innerPoints%tempT = innerPoints%tempT / 4.
 
     do j = 1, JMAX - 1
       do i = 1, IMAX - 1
-!        call update_temperature(Points, i, j)
         call first_derivative(Points, Cells, i, j)
         call second_derivative(Points, Cells, i, j)
       end do
     end do
+    tempTemperature = ( innerPoints%d2Td2x + innerPoints%d2Td2y ) * (k / (c_p * rho))
 
-    innertempTemperature = ( innerPoints%d2Td2x + innerPoints%d2Td2y )/ 4.
-    innerPoints%tempT = innerPoints%tempT * (k / (c_p * rho))
 !    points(2:IMAX-1, 2:JMAX-1)%d2Td2x = 0.
 !    points(2:IMAX-1, 2:JMAX-1)%d2Td2y = 0.
 
-    residual = maxval(abs(innerTemperature - innertempTemperature))
+    residual = maxval(abs(tempTemperature))
     write(*, *), "residual ", residual
 
     step = step + 1
@@ -116,7 +113,7 @@ program heat
   end do
 
   write (*,*), "Max residual = ", maxDiff, "At i ", max_i, ", j ", max_j
-  write (*,*), "Max temperature = ", maxval(Temperature), " Low temperature = ", minval(Temperature)
+  write (*,*), "Max temperature = ", maxval(Points%T), " Low temperature = ", minval(Points%T)
 
   close(1)
   ! End output.

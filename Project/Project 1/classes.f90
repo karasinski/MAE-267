@@ -68,9 +68,9 @@ contains
     ! nearby points and divide by five. This is a temporary
     ! function to help test display data until I get the
     ! real derivatives working.
-    p => points(i, j)
 
-    p%tempT = points(i, j-1)%T + points(i+1, j)%T + points(i, j+1)%T + points(i-1, j)%T
+    points(i, j)%tempT = points(i, j-1)%T + points(i+1, j)%T + points(i, j+1)%T + points(i-1, j)%T
+!    points(i, j)%tempT = points(i, j)%tempT / 4.
 
   end subroutine update_temperature
 
@@ -131,8 +131,8 @@ contains
     c%Ayj = p2%y - p1%y
     c%Axj = p2%x - p1%x
 
-    c%dTdx = 0
-    c%dTdy = 0
+    c%dTdx = 0.
+    c%dTdy = 0.
 
   end subroutine initialize_cells
 
@@ -165,6 +165,7 @@ module UpdateTemperature
   use GridCellModule
 
   implicit none
+  public
 
 contains
   subroutine first_derivative(p, c, i, j)
@@ -199,6 +200,7 @@ contains
         ( p(i, j+1)%T + p(i+1, j+1)%T ) * Axj(i, j+1) + &
         ( p(i,   j)%T + p(i+1,   j)%T ) * Axj(i,   j)   &
       ) / ( 2. * c(i ,j)%V )
+
   end subroutine
 
   subroutine second_derivative(p, c, i, j)
@@ -232,92 +234,29 @@ contains
 !      )
 
     p(i, j+1)%d2Td2x   = p(i, j+1)%d2Td2x +   &
-      (  c(i, j)%Ayi_half + c(i, j)%Ayj_half ) * c(i, j)%dTdx
+      (  c(i, j)%Ayi_half + c(i, j)%Ayj_half ) * c(i, j)%dTdx / 4.
 
     p(i+1, j+1)%d2Td2x = p(i+1, j+1)%d2Td2x + &
-      ( -c(i, j)%Ayi_half + c(i, j)%Ayj_half ) * c(i, j)%dTdx
+      ( -c(i, j)%Ayi_half + c(i, j)%Ayj_half ) * c(i, j)%dTdx / 4.
 
     p(i+1, j)%d2Td2x   = p(i+1, j)%d2Td2x +   &
-      ( -c(i, j)%Ayi_half - c(i, j)%Ayj_half ) * c(i, j)%dTdx
+      ( -c(i, j)%Ayi_half - c(i, j)%Ayj_half ) * c(i, j)%dTdx / 4.
 
     p(i, j)%d2Td2x     = p(i, j)%d2Td2x +     &
-      (  c(i, j)%Ayi_half - c(i, j)%Ayj_half ) * c(i, j)%dTdx
+      (  c(i, j)%Ayi_half - c(i, j)%Ayj_half ) * c(i, j)%dTdx / 4.
 
 
     p(i,   j+1)%d2Td2y = p(i,   j+1)%d2Td2y +   &
-     ( -c(i, j)%Axi_half - c(i, j)%Axj_half ) * c(i, j)%dTdy
+      ( -c(i, j)%Axi_half - c(i, j)%Axj_half ) * c(i, j)%dTdy / 4.
 
     p(i+1, j+1)%d2Td2y = p(i+1, j+1)%d2Td2y + &
-     (  c(i, j)%Axi_half - c(i, j)%Axj_half ) * c(i, j)%dTdy
+      (  c(i, j)%Axi_half - c(i, j)%Axj_half ) * c(i, j)%dTdy / 4.
 
     p(i+1,   j)%d2Td2y = p(i+1,   j)%d2Td2y +   &
-     (  c(i, j)%Axi_half + c(i, j)%Axj_half ) * c(i, j)%dTdy
+      (  c(i, j)%Axi_half + c(i, j)%Axj_half ) * c(i, j)%dTdy / 4.
 
     p(i,     j)%d2Td2y = p(i,     j)%d2Td2y +     &
-     ( -c(i, j)%Axi_half + c(i, j)%Axj_half ) * c(i, j)%dTdy
+      ( -c(i, j)%Axi_half + c(i, j)%Axj_half ) * c(i, j)%dTdy / 4.
 
   end subroutine
-!
-!  ! This finds the difference between two points in the x or y direction.
-!  real*8 function dx(p1, p2)
-!    type (GridPoint), pointer :: p1, p2
-!    dx = p2%x - p1%x
-!  end function
-!
-!  real*8 function dy(p1, p2)
-!    type (GridPoint), pointer :: p1, p2
-!    dy = p2%y - p1%y
-!  end function
-!
-!  subroutine all_in_one(c, p, i, j)
-!    save
-!    type (GridPoint) :: p(1:IMAX, 1:JMAX)
-!    type (GridPoint) :: a, b, c, d
-!    type (GridPoint) :: a_, b_, c_, d_
-!!    type (GridCell) :: c(1:IMAX-1, 1:JMAX-1)
-!    integer :: i, j, d_i, d_j
-!    real*8 :: temp, prim_vol, secon_vol
-!    type (GridPoint), pointer :: p1, p2, p3, p4
-!
-!  Volume(p1, p2, p3, p4) = abs( &
-!            (p1%x *  p2%y - p1%y * p2%x) + &
-!            (p2%x *  p3%y - p2%y * p3%x) + &
-!            (p3%x *  p4%y - p3%y * p4%x) + &
-!            (p4%x *  p1%y - p4%y * p1%x)   &
-!           ) / 2.
-!
-!  T_a(i, j) = ( p(i, j)%T + p(i - 1, j)%T + p(i - 1, j - 1)%T + p(i, j - 1)%T ) / 4.
-!  T_b(i, j) = ( p(i, j)%T + p(i + 1, j)%T + p(i + 1, j - 1)%T + p(i, j - 1)%T ) / 4.
-!
-!  ! In text we see this as dT/dy(i, j - 1/2), but we call it as dT(dy, i, j, 0, -1).
-!  dT(delta, i, j, d_i, d_j) = ( p(i + d_i, j + d_j)%T * delta(a_, b_) + T_b(i, j) * delta(b_, c_) + &
-!                                p(i,             j)%T * delta(c_, d_) + T_a(i, j) * delta(d_, a_) ) / Volume(a_, b_, c_, d_)
-!
-!  ! In text we see this as the sum of the dT/dx s, but here we call it as Sum_dT(dx, dy, i, j).
-!  Sum_dT(dir, delta, i, j) = dT(dir, i, j, 0, -1) * delta(a, b) + dT(dir, i, j,  1, 0) * delta(b, c) + &
-!                             dT(dir, i, j, 0,  1) * delta(c, d) + dT(dir, i, j, -1, 0) * delta(d, a)
-!
-!  ! This is the final function to determine the temperature at point i, j at step n + 1.
-!  p(i, j)%T = p(i, j)%T +  step_size * ( alpha/Volume(a, b, c, d) * ( Sum_dT(dx, dy, i, j) - Sum_dT(dy, dx, i, j) ))
-!
-!  a%x = ( p(i, j)%x + p(i, j - 1)%x + p(i - 1, j)%x + p(i - 1, j - 1)%x ) / 4.
-!  a%y = ( p(i, j)%y + p(i, j - 1)%y + p(i - 1, j)%y + p(i - 1, j - 1)%y ) / 4.
-!  b%x = ( p(i, j)%x + p(i, j - 1)%x + p(i + 1, j)%x + p(i + 1, j - 1)%x ) / 4.
-!  b%y = ( p(i, j)%y + p(i, j - 1)%y + p(i + 1, j)%y + p(i + 1, j - 1)%y ) / 4.
-!  c%x = ( p(i, j)%x + p(i, j + 1)%x + p(i + 1, j)%x + p(i + 1, j + 1)%x ) / 4.
-!  c%y = ( p(i, j)%y + p(i, j + 1)%y + p(i + 1, j)%y + p(i + 1, j + 1)%y ) / 4.
-!  d%x = ( p(i, j)%x + p(i, j + 1)%x + p(i - 1, j)%x + p(i - 1, j + 1)%x ) / 4.
-!  d%y = ( p(i, j)%y + p(i, j + 1)%y + p(i - 1, j)%y + p(i - 1, j + 1)%y ) / 4.
-!
-!  a%x = ( p(i, j)%x + p(i, j - 1)%x + p(i - 1, j)%x + p(i - 1, j - 1)%x ) / 4.
-!  a%y = ( p(i, j)%y + p(i, j - 1)%y + p(i - 1, j)%y + p(i - 1, j - 1)%y ) / 4.
-!  b%x = ( p(i, j)%x + p(i, j - 1)%x + p(i + 1, j)%x + p(i + 1, j - 1)%x ) / 4.
-!  b%y = ( p(i, j)%y + p(i, j - 1)%y + p(i + 1, j)%y + p(i + 1, j - 1)%y ) / 4.
-!  c%x = ( p(i, j)%x + p(i, j + 1)%x + p(i + 1, j)%x + p(i + 1, j + 1)%x ) / 4.
-!  c%y = ( p(i, j)%y + p(i, j + 1)%y + p(i + 1, j)%y + p(i + 1, j + 1)%y ) / 4.
-!  d%x = ( p(i, j)%x + p(i, j + 1)%x + p(i - 1, j)%x + p(i - 1, j + 1)%x ) / 4.
-!  d%y = ( p(i, j)%y + p(i, j + 1)%y + p(i - 1, j)%y + p(i - 1, j + 1)%y ) / 4.
-!
-!  end subroutine
-
 end module UpdateTemperature
