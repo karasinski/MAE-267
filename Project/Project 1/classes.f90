@@ -1,9 +1,11 @@
 module constants
+  implicit none
   real*8, parameter, public :: k = 18.8, rho = 8000., c_p = 500.
   real*8, parameter, public :: pi = 3.141592654, rot = 30.*pi/180.
   integer :: IMAX, JMAX !101 or 501 (2 cases)
 contains
   subroutine SetGridSize(length)
+    integer :: length
     IMAX = length
     JMAX = length
   end subroutine SetGridSize
@@ -11,12 +13,13 @@ end module
 
 module GridPointModule
   use constants
+  implicit none
   save
 
   public
   type GridPoint
     integer :: i, j
-    real*8 :: x, xp, y, yp, T, tempT
+    real*8 :: x, xp, y, yp, T, tempT, d2Td2x, d2Td2y
   end type GridPoint
 
 contains
@@ -39,6 +42,9 @@ contains
     p%T = 3.5
     p%tempT = p%T
 
+    p%d2Td2x = 0.
+    p%d2Td2y = 0.
+
   end subroutine initialize_points
 
   subroutine set_temperature(p, T)
@@ -48,6 +54,7 @@ contains
 
     ! Mostly unnecessary subroutine to set initial temperatures.
     p%tempT = T
+    p%T = T
 
   end subroutine set_temperature
 
@@ -55,23 +62,15 @@ contains
     save
     type(GridPoint), pointer :: p
     type (GridPoint), target :: points(1:IMAX, 1:JMAX)
-    integer :: num
+    integer :: i, j
 
     ! This is my 'fake' method to transfer heat: sum the
     ! nearby points and divide by five. This is a temporary
     ! function to help test display data until I get the
     ! real derivatives working.
     p => points(i, j)
-    p%tempT = 0
-    p%tempT = p%tempT + p%T
 
-    p%tempT = p%tempT + points(i, j-1)%T
-    p%tempT = p%tempT + points(i+1, j)%T
-    p%tempT = p%tempT + points(i, j+1)%T
-    p%tempT = p%tempT + points(i-1, j)%T
-    num = 5
-
-    p%tempT = p%tempT/dfloat(num)
+    p%tempT = points(i, j-1)%T + points(i+1, j)%T + points(i, j+1)%T + points(i-1, j)%T
 
   end subroutine update_temperature
 
@@ -80,13 +79,15 @@ end module GridPointModule
 module GridCellModule
   use constants
   use GridPointModule
+
+  implicit none
   save
 
   public
   type GridCell
     integer :: i, j, numberOfNeighbors
     real*8 :: V, T, tempT
-    real*8 :: dTdx, dTdy, d2Td2x, d2Td2y
+    real*8 :: dTdx, dTdy
     real*8 :: Ayi, Axi, Ayj, Axj
     real*8 :: Ayi_half, Axi_half, Ayj_half, Axj_half
   end type GridCell
@@ -132,8 +133,6 @@ contains
 
     c%dTdx = 0
     c%dTdy = 0
-    c%d2Td2x = 0
-    c%d2Td2y = 0
 
   end subroutine initialize_cells
 
@@ -142,6 +141,7 @@ contains
     type (GridCell), intent(inout) :: c
     type (GridPoint), target :: p(1:IMAX, 1:JMAX)
     integer :: i, j
+    real*8 :: Ayi, Axi, Ayj, Axj
 
     ! These areas are used in the calculation of fluxes
     ! for the alternate distributive scheme second-
@@ -151,7 +151,7 @@ contains
     Ayj(i,j) = p(i+1, j)%y - p(i, j)%y
     Axj(i,j) = p(i+1, j)%x - p(i, j)%x
 
-
+    ! No longer using the cells values due to boundary problems... to be thought about.
     c%Ayi_half = ( Ayi(i+1, j) + Ayi(i, j)   ) / 4.
     c%Axi_half = ( Axi(i+1, j) + Axi(i, j)   ) / 4.
     c%Ayj_half = ( Ayj(i, j)   + Ayj(i, j+1) ) / 4.
@@ -164,21 +164,23 @@ module UpdateTemperature
   use GridPointModule
   use GridCellModule
 
+  implicit none
+
 contains
   subroutine first_derivative(p, c, i, j)
     save
     type (GridPoint) :: p(1:IMAX, 1:JMAX)
     type (GridCell), intent(inout)  :: c(1:IMAX-1, 1:JMAX-1)
+    real*8 :: Ayi, Axi, Ayj, Axj
+    integer :: i, j
 
     ! Trapezoidal counter-clockwise integration to get the first
     ! derivatives in the x/y directions at the cell-center using
     ! Gauss's theorem.
 
-    !These Vs should be V(i+1/2, j+1/2), not clear if this is currently
-    !correct or if I need to wiggle it. This is also a mess, so I should
-    !cleverly clean it up somehow.
+    ! This is also a mess, so I should cleverly clean it up somehow.
 
-
+    ! No longer using the cells values due to boundary problems... to be thought about.
     Ayi(i,j) = p(i, j+1)%y - p(i, j)%y
     Axi(i,j) = p(i, j+1)%x - p(i, j)%x
     Ayj(i,j) = p(i+1, j)%y - p(i, j)%y
@@ -203,31 +205,83 @@ contains
     save
     type (GridPoint) :: p(1:IMAX, 1:JMAX)
     type (GridCell) :: c(1:IMAX-1, 1:JMAX-1)
+    integer :: i, j
 
     ! Alternate distributive scheme second-derivative operator.
     ! Can definitely clean this up with some thought, but this essentially
     ! just updates the second derivative by adding the first times a constant
     ! during each time step.
-    p(i, j+1)%tempT   = p(i, j+1)%tempT +   &
-      ((  c(i, j)%Axi_half + c(i, j)%Axj_half ) * c(i, j)%dTdx + &
-       ( -c(i, j)%Ayi_half - c(i, j)%Ayj_half ) * c(i, j)%dTdy &
-      ) / 4.
+!    p(i, j+1)%tempT   = p(i, j+1)%tempT +   &
+!      ((  c(i, j)%Axi_half + c(i, j)%Axj_half ) * c(i, j)%dTdx + &
+!       ( -c(i, j)%Ayi_half - c(i, j)%Ayj_half ) * c(i, j)%dTdy &
+!      )
+!
+!    p(i+1, j+1)%tempT = p(i+1, j+1)%tempT + &
+!      (( -c(i, j)%Axi_half + c(i, j)%Axj_half ) * c(i, j)%dTdx + &
+!       (  c(i, j)%Ayi_half - c(i, j)%Ayj_half ) * c(i, j)%dTdy &
+!      )
+!
+!    p(i+1, j)%tempT   = p(i+1, j)%tempT +   &
+!      (( -c(i, j)%Axi_half - c(i, j)%Axj_half ) * c(i, j)%dTdx + &
+!       (  c(i, j)%Ayi_half + c(i, j)%Ayj_half ) * c(i, j)%dTdy &
+!      )
+!
+!    p(i, j)%tempT     = p(i, j)%tempT +     &
+!      ((  c(i, j)%Axi_half - c(i, j)%Axj_half ) * c(i, j)%dTdx + &
+!       ( -c(i, j)%Ayi_half + c(i, j)%Ayj_half ) * c(i, j)%dTdy &
+!      )
 
-    p(i+1, j+1)%tempT = p(i+1, j+1)%tempT + &
-      (( -c(i, j)%Axi_half + c(i, j)%Axj_half ) * c(i, j)%dTdx + &
-       (  c(i, j)%Ayi_half - c(i, j)%Ayj_half ) * c(i, j)%dTdy &
-      ) / 4.
+    p(i, j+1)%d2Td2x   = p(i, j+1)%d2Td2x +   &
+      (  c(i, j)%Ayi_half + c(i, j)%Ayj_half ) * c(i, j)%dTdx / 4.
 
-    p(i+1, j)%tempT   = p(i+1, j)%tempT +   &
-      (( -c(i, j)%Axi_half - c(i, j)%Axj_half ) * c(i, j)%dTdx + &
-       (  c(i, j)%Ayi_half + c(i, j)%Ayj_half ) * c(i, j)%dTdy &
-      ) / 4.
+    p(i+1, j+1)%d2Td2x = p(i+1, j+1)%d2Td2x + &
+      ( -c(i, j)%Ayi_half + c(i, j)%Ayj_half ) * c(i, j)%dTdx / 4.
 
-    p(i, j)%tempT     = p(i, j)%tempT +     &
-      ((  c(i, j)%Axi_half - c(i, j)%Axj_half ) * c(i, j)%dTdx + &
-       ( -c(i, j)%Ayi_half + c(i, j)%Ayj_half ) * c(i, j)%dTdy &
-      ) / 4.
+    p(i+1, j)%d2Td2x   = p(i+1, j)%d2Td2x +   &
+      ( -c(i, j)%Ayi_half - c(i, j)%Ayj_half ) * c(i, j)%dTdx / 4.
+
+    p(i, j)%d2Td2x     = p(i, j)%d2Td2x +     &
+      (  c(i, j)%Ayi_half - c(i, j)%Ayj_half ) * c(i, j)%dTdx / 4.
+
+
+    p(i, j+1)%d2Td2y   = p(i, j+1)%d2Td2y +   &
+      ( -c(i, j)%Axi_half - c(i, j)%Axj_half ) * c(i, j)%dTdy / 4.
+
+    p(i+1, j+1)%d2Td2y = p(i+1, j+1)%d2Td2y + &
+      (  c(i, j)%Axi_half - c(i, j)%Axj_half ) * c(i, j)%dTdy / 4.
+
+    p(i+1, j)%d2Td2y   = p(i+1, j)%d2Td2y +   &
+      (  c(i, j)%Axi_half + c(i, j)%Axj_half ) * c(i, j)%dTdy / 4.
+
+    p(i, j)%d2Td2y     = p(i, j)%d2Td2y +     &
+      ( -c(i, j)%Axi_half + c(i, j)%Axj_half ) * c(i, j)%dTdy / 4.
 
   end subroutine
+
+!  subroutine all_in_one(c, p, i, j)
+!    save
+!    type (GridPoint) :: p(1:IMAX, 1:JMAX)
+!    type (GridCell) :: c(1:IMAX-1, 1:JMAX-1)
+!    integer :: i, j
+!    real*8 :: temp, prim_vol, secon_vol
+!
+!    ! this is a start at the point jacobi method to directly solve
+!    ! the heat equation, but might be tricky to generalize
+!    prim_vol(i, j) = abs( &
+!      (p(i, j)%x * p(i+1, j)%y - p(i, j)%y * p(i+1, j)%x) + &
+!      (p(i+1, j)%x * p(i+1, j+1)%y - p(i+1, j)%y * p(i+1, j+1)%x) + &
+!      (p(i+1, j+1)%x * p(i, j+1)%y - p(i+1, j+1)%y * p(i, j+1)%x) + &
+!      (p(i, j+1)%x *  p(i, j)%y - p(i, j+1)%y * p(i, j)%x)   &
+!      ) / 2.
+!
+!    temp(i, j) = ( &
+!    ( p(i,   j)%T + p(i+1,   j)%T ) * ( p(i+1, j  )%y - p(i,     j)%y ) + &
+!    ( p(i+1, j)%T + p(i+1, j+1)%T ) * ( p(i+1, j+1)%y - p(i+1,   j)%y ) + &
+!    ( p(i, j+1)%T + p(i+1, j+1)%T ) * ( p(i,   j+1)%y - p(i+1, j+1)%y ) + &
+!    ( p(i,   j)%T + p(i,   j+1)%T ) * ( p(i,     j)%y - p(i,   j+1)%y )   &
+!    ) / ( 2. * prim_vol(i, j) )
+!
+!
+!  end subroutine
 
 end module UpdateTemperature

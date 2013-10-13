@@ -4,6 +4,8 @@ program heat
   use GridCellModule
   use UpdateTemperature
 
+  implicit none
+
   integer :: i, j, max_i = 0, max_j = 0, step = 1
 
   type (GridPoint), pointer :: Point
@@ -13,7 +15,7 @@ program heat
   type (GridCell), target, allocatable :: Cells(:,:)
 
   real*8, pointer :: Temperature(:,:), tempTemperature(:,:)
-  real*8 :: maxDiff = 0., residual = 999. !Arbitrary large number for residual.
+  real*8 :: maxDiff = 0., residual = 999. !Arbitrary large number for initial residual.
 
   ! Set up our grid size, grid points, grid cells and our arrays.
   call SetGridSize(101)
@@ -63,28 +65,27 @@ program heat
   !  End set up.
 
   !  Begin main loop, stop if we hit our mark or after 100,000 iterations.
-!  do while (residual >= .00001 .and. step <= 100000)
-  do while (step <= 10)
+  do while (residual >= .00001 .and. step <= 100000)
     Temperature = tempTemperature
-!    tempTemperature = 0
+!    points(2:JMAX-1, 2:IMAX-1)%T = points(2:JMAX-1, 2:IMAX-1)%tempT
     write(*,*), 'step = ', step
-
-    ! Set tempT to 0 before we start adding contributions.
-    do j = 2, JMAX - 1
-      do i = 2, IMAX - 1
-        points(i, j)%tempT = 0
-      end do
-    end do
 
     do j = 1, JMAX - 1
       do i = 1, IMAX - 1
 !        call update_temperature(Points, i, j)
         call first_derivative(Points, Cells, i, j)
         call second_derivative(Points, Cells, i, j)
-
-!        write(*,*), Cells(i, j)%dTdx, Cells(i, j)%dTdy
       end do
     end do
+
+!    points(2:JMAX-1, 2:IMAX-1)%tempT = points(2:JMAX-1, 2:IMAX-1)%tempT/4.
+
+
+    points(2:JMAX-1, 2:IMAX-1)%tempT = points(2:JMAX-1, 2:IMAX-1)%d2Td2x + &
+                                       points(2:JMAX-1, 2:IMAX-1)%d2Td2y
+!    points(2:JMAX-1, 2:IMAX-1)%tempT = points(2:JMAX-1, 2:IMAX-1)%tempT/4.
+    points(2:JMAX-1, 2:IMAX-1)%d2Td2x = 0.
+    points(2:JMAX-1, 2:IMAX-1)%d2Td2y = 0.
 
     residual = maxval(abs(Temperature - tempTemperature))
     write(*, *), "residual ", residual
