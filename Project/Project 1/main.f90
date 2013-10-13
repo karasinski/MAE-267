@@ -83,7 +83,7 @@ program heat
 
     points(2:JMAX-1, 2:IMAX-1)%tempT = points(2:JMAX-1, 2:IMAX-1)%d2Td2x + &
                                        points(2:JMAX-1, 2:IMAX-1)%d2Td2y
-!    points(2:JMAX-1, 2:IMAX-1)%tempT = points(2:JMAX-1, 2:IMAX-1)%tempT/4.
+    points(2:JMAX-1, 2:IMAX-1)%tempT = points(2:JMAX-1, 2:IMAX-1)%tempT/4.
     points(2:JMAX-1, 2:IMAX-1)%d2Td2x = 0.
     points(2:JMAX-1, 2:IMAX-1)%d2Td2y = 0.
 
