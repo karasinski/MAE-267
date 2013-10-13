@@ -130,21 +130,32 @@ contains
     c%Ayj = p2%y - p1%y
     c%Axj = p2%x - p1%x
 
+    c%dTdx = 0
+    c%dTdy = 0
+    c%d2Td2x = 0
+    c%d2Td2y = 0
+
   end subroutine initialize_cells
 
-  subroutine set_secondary_areas(c, i, j)
+  subroutine set_secondary_areas(c, p, i, j)
     save
     type (GridCell), intent(inout) :: c
-    type (GridCell), target :: cells(1:IMAX, 1:JMAX)
+    type (GridPoint), target :: p(1:IMAX, 1:JMAX)
     integer :: i, j
 
     ! These areas are used in the calculation of fluxes
     ! for the alternate distributive scheme second-
     ! derivative operator.
-    c%Ayi_half = ( cells(i+1, j)%Ayi + cells(i, j)%Ayi   ) / 4.
-    c%Axi_half = ( cells(i+1, j)%Axi + cells(i, j)%Axi   ) / 4.
-    c%Ayj_half = ( cells(i, j)%Ayj   + cells(i, j+1)%Ayj ) / 4.
-    c%Axj_half = ( cells(i, j)%Ayj   + cells(i, j+1)%Ayj ) / 4.
+    Ayi(i,j) = p(i, j+1)%y - p(i, j)%y
+    Axi(i,j) = p(i, j+1)%x - p(i, j)%x
+    Ayj(i,j) = p(i+1, j)%y - p(i, j)%y
+    Axj(i,j) = p(i+1, j)%x - p(i, j)%x
+
+
+    c%Ayi_half = ( Ayi(i+1, j) + Ayi(i, j)   ) / 4.
+    c%Axi_half = ( Axi(i+1, j) + Axi(i, j)   ) / 4.
+    c%Ayj_half = ( Ayj(i, j)   + Ayj(i, j+1) ) / 4.
+    c%Axj_half = ( Ayj(i, j)   + Ayj(i, j+1) ) / 4.
   end subroutine
 end module GridCellModule
 
@@ -157,7 +168,7 @@ contains
   subroutine first_derivative(p, c, i, j)
     save
     type (GridPoint) :: p(1:IMAX, 1:JMAX)
-    type (GridCell)  :: c(1:IMAX-1, 1:JMAX-1)
+    type (GridCell), intent(inout)  :: c(1:IMAX-1, 1:JMAX-1)
 
     ! Trapezoidal counter-clockwise integration to get the first
     ! derivatives in the x/y directions at the cell-center using
@@ -166,52 +177,57 @@ contains
     !These Vs should be V(i+1/2, j+1/2), not clear if this is currently
     !correct or if I need to wiggle it. This is also a mess, so I should
     !cleverly clean it up somehow.
-    c(i, j)%dTdx = &
-      ( (p(i+1, j)%T + p(i+1, j+1)%T ) * c(i+1, j)%Ayi - &
-        (p(i, j)%T   + p(i, j+1)%T )   * c(i, j)%Ayi   - &
-        (p(i, j+1)%T + p(i+1, j+1)%T ) * c(i, j+1)%Ayj + &
-        (  p(i, j)%T + p(i+1, j)%T )   * c(i, j)%Ayj     &
+
+
+    Ayi(i,j) = p(i, j+1)%y - p(i, j)%y
+    Axi(i,j) = p(i, j+1)%x - p(i, j)%x
+    Ayj(i,j) = p(i+1, j)%y - p(i, j)%y
+    Axj(i,j) = p(i+1, j)%x - p(i, j)%x
+
+    c(i, j)%dTdx = + &
+      ( (p(i+1, j)%T + p(i+1, j+1)%T ) * Ayi(i+1, j) - &
+        (p(i, j)%T   + p(i, j+1)%T )   * Ayi(i, j)   - &
+        (p(i, j+1)%T + p(i+1, j+1)%T ) * Ayj(i, j+1) + &
+        (p(i, j)%T   + p(i+1, j)%T )   * Ayj(i, j)     &
       ) / ( 2. * c(i, j)%V )
 
-    c(i, j)%dTdy = &
-      ( (p(i+1, j)%T + p(i+1, j+1)%T ) * c(i+1, j)%Axi - &
-        (p(i, j)%T   + p(i, j+1)%T )   * c(i, j)%Axi   - &
-        (p(i, j+1)%T + p(i+1, j+1)%T ) * c(i, j+1)%Axj + &
-        (p(i, j)%T   + p(i+1, j)%T )   * c(i, j)%Axj     &
+    c(i, j)%dTdy = - &
+      ( (p(i+1, j)%T + p(i+1, j+1)%T ) * Axi(i+1, j) - &
+        (p(i, j)%T   + p(i, j+1)%T )   * Axi(i, j)   - &
+        (p(i, j+1)%T + p(i+1, j+1)%T ) * Axj(i, j+1) + &
+        (p(i, j)%T   + p(i+1, j)%T )   * Axj(i, j)     &
       ) / ( 2. * c(i ,j)%V )
   end subroutine
 
-  subroutine second_derivative(c, i, j)
+  subroutine second_derivative(p, c, i, j)
     save
+    type (GridPoint) :: p(1:IMAX, 1:JMAX)
     type (GridCell) :: c(1:IMAX-1, 1:JMAX-1)
 
     ! Alternate distributive scheme second-derivative operator.
     ! Can definitely clean this up with some thought, but this essentially
     ! just updates the second derivative by adding the first times a constant
     ! during each time step.
-    c(i, j+1)%d2Td2x   = c(i, j+1)%d2Td2x +   &
-      (  c(i, j)%Axi_half + c(i, j)%Axj_half ) * c(i, j)%dTdx
+    p(i, j+1)%tempT   = p(i, j+1)%tempT +   &
+      ((  c(i, j)%Axi_half + c(i, j)%Axj_half ) * c(i, j)%dTdx + &
+       ( -c(i, j)%Ayi_half - c(i, j)%Ayj_half ) * c(i, j)%dTdy &
+      ) / 4.
 
-    c(i+1, j+1)%d2Td2x = c(i+1, j+1)%d2Td2x + &
-      ( -c(i, j)%Axi_half + c(i, j)%Axj_half ) * c(i, j)%dTdx
+    p(i+1, j+1)%tempT = p(i+1, j+1)%tempT + &
+      (( -c(i, j)%Axi_half + c(i, j)%Axj_half ) * c(i, j)%dTdx + &
+       (  c(i, j)%Ayi_half - c(i, j)%Ayj_half ) * c(i, j)%dTdy &
+      ) / 4.
 
-    c(i+1, j)%d2Td2x   = c(i+1, j)%d2Td2x +   &
-      ( -c(i, j)%Axi_half - c(i, j)%Axj_half ) * c(i, j)%dTdx
+    p(i+1, j)%tempT   = p(i+1, j)%tempT +   &
+      (( -c(i, j)%Axi_half - c(i, j)%Axj_half ) * c(i, j)%dTdx + &
+       (  c(i, j)%Ayi_half + c(i, j)%Ayj_half ) * c(i, j)%dTdy &
+      ) / 4.
 
-    c(i, j)%d2Td2x     = c(i, j)%d2Td2x +     &
-      (  c(i, j)%Axi_half - c(i, j)%Axj_half ) * c(i, j)%dTdx
+    p(i, j)%tempT     = p(i, j)%tempT +     &
+      ((  c(i, j)%Axi_half - c(i, j)%Axj_half ) * c(i, j)%dTdx + &
+       ( -c(i, j)%Ayi_half + c(i, j)%Ayj_half ) * c(i, j)%dTdy &
+      ) / 4.
 
-    c(i, j+1)%d2Td2y   = c(i, j+1)%d2Td2y +   &
-      ( -c(i, j)%Ayi_half - c(i, j)%Ayj_half ) * c(i, j)%dTdy
-
-    c(i+1, j+1)%d2Td2y = c(i+1, j+1)%d2Td2y + &
-      (  c(i, j)%Ayi_half - c(i, j)%Ayj_half ) * c(i, j)%dTdy
-
-    c(i+1, j)%d2Td2y   = c(i+1, j)%d2Td2y +   &
-      (  c(i, j)%Ayi_half + c(i, j)%Ayj_half ) * c(i, j)%dTdy
-
-    c(i, j)%d2Td2y     = c(i, j)%d2Td2y +     &
-      ( -c(i, j)%Ayi_half + c(i, j)%Ayj_half ) * c(i, j)%dTdy
   end subroutine
 
 end module UpdateTemperature

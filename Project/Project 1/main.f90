@@ -21,39 +21,39 @@ program heat
   allocate(Cells(1:IMAX-1, 1:JMAX-1))
 
   !  Initialize grid.
-  do i = 1, IMAX
-    do j = 1, JMAX
+  do j = 1, JMAX
+    do i = 1, IMAX
       call initialize_points(Points(i,j), i, j)
     end do
   end do
 
   !  Initialize Cells.
-  do i = 1, IMAX-1
-    do j = 1, JMAX-1
+  do j = 1, JMAX-1
+    do i = 1, IMAX-1
       call initialize_cells(Cells(i,j), Points, i, j)
     end do
   end do
 
   ! Set up secondary areas needed for integration.
-  do i = 1, IMAX-1
-    do j = 1, JMAX-1
-      call set_secondary_areas(Cells(i,j), i, j)
+  do j = 1, JMAX-1
+    do i = 1, IMAX-1
+      call set_secondary_areas(Cells(i,j), Points, i, j)
     end do
   end do
 
   !  Set up Dirichlet condition.
-  do i = 1, IMAX
-    j = 1
-    call set_temperature(Points(i,j), abs(cos(pi * Points(i,j)%xp)) + 1.)
-    j = IMAX
-    call set_temperature(Points(i,j), 5. * (sin(pi * Points(i,j)%xp) + 1.))
-  end do
-
   do j = 1, JMAX
     i = 1
     call set_temperature(Points(i,j), 3. * Points(i,j)%yp + 2.)
     i = IMAX
     call set_temperature(Points(i,j), 3. * Points(i,j)%yp + 2.)
+  end do
+
+  do i = 1, IMAX
+    j = 1
+    call set_temperature(Points(i,j), abs(cos(pi * Points(i,j)%xp)) + 1.)
+    j = IMAX
+    call set_temperature(Points(i,j), 5. * (sin(pi * Points(i,j)%xp) + 1.))
   end do
   !  End Dirichlet condition.
 
@@ -63,16 +63,26 @@ program heat
   !  End set up.
 
   !  Begin main loop, stop if we hit our mark or after 100,000 iterations.
-  do while (residual >= .00001 .and. step <= 100000)
+!  do while (residual >= .00001 .and. step <= 100000)
+  do while (step <= 10)
     Temperature = tempTemperature
-
+!    tempTemperature = 0
     write(*,*), 'step = ', step
 
-    do i = 2, IMAX - 1
-      do j = 2, JMAX - 1
-        call update_temperature(Points, i, j)
-        !        call first_derivative(Points, Cells, i, j)
-        !        call second_derivative(Cells, i, j)
+    ! Set tempT to 0 before we start adding contributions.
+    do j = 2, JMAX - 1
+      do i = 2, IMAX - 1
+        points(i, j)%tempT = 0
+      end do
+    end do
+
+    do j = 1, JMAX - 1
+      do i = 1, IMAX - 1
+!        call update_temperature(Points, i, j)
+        call first_derivative(Points, Cells, i, j)
+        call second_derivative(Points, Cells, i, j)
+
+!        write(*,*), Cells(i, j)%dTdx, Cells(i, j)%dTdy
       end do
     end do
 
