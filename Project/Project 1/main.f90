@@ -10,11 +10,13 @@ program heat
 
   type (GridPoint), pointer :: Point
   type (GridPoint), target, allocatable :: Points(:,:)
+  type (GridPoint), pointer :: innerPoints(:,:)
 
   type (GridCell), pointer :: Cell
   type (GridCell), target, allocatable :: Cells(:,:)
 
   real*8, pointer :: Temperature(:,:), tempTemperature(:,:)
+  real*8, pointer :: innerTemperature(:,:), innertempTemperature(:,:)
   real*8 :: maxDiff = 0., residual = 999. !Arbitrary large number for initial residual.
 
   ! Set up our grid size, grid points, grid cells and our arrays.
@@ -62,12 +64,19 @@ program heat
   !  Set some useful pointers.
   Temperature => Points%T
   tempTemperature => Points%tempT
+
+  innerPoints => Points(2:IMAX-1, 2:JMAX-1)
+  innerTemperature => Points(2:IMAX-1, 2:JMAX-1)%T
+  innertempTemperature => Points(2:IMAX-1, 2:JMAX-1)%tempT
+
+  points(2:IMAX-1, 2:JMAX-1)%d2Td2x = innerTemperature
+  points(2:IMAX-1, 2:JMAX-1)%d2Td2y = innerTemperature
   !  End set up.
 
   !  Begin main loop, stop if we hit our mark or after 100,000 iterations.
   do while (residual >= .00001 .and. step <= 100000)
-    Temperature = tempTemperature
-!    points(2:JMAX-1, 2:IMAX-1)%T = points(2:JMAX-1, 2:IMAX-1)%tempT
+!    Temperature = tempTemperature
+    innerPoints%T = innerPoints%tempT
     write(*,*), 'step = ', step
 
     do j = 1, JMAX - 1
@@ -78,16 +87,12 @@ program heat
       end do
     end do
 
-!    points(2:JMAX-1, 2:IMAX-1)%tempT = points(2:JMAX-1, 2:IMAX-1)%tempT/4.
+    innertempTemperature = ( innerPoints%d2Td2x + innerPoints%d2Td2y )/ 4.
+    innerPoints%tempT = innerPoints%tempT * (k / (c_p * rho))
+!    points(2:IMAX-1, 2:JMAX-1)%d2Td2x = 0.
+!    points(2:IMAX-1, 2:JMAX-1)%d2Td2y = 0.
 
-
-    points(2:JMAX-1, 2:IMAX-1)%tempT = points(2:JMAX-1, 2:IMAX-1)%d2Td2x + &
-                                       points(2:JMAX-1, 2:IMAX-1)%d2Td2y
-    points(2:JMAX-1, 2:IMAX-1)%tempT = points(2:JMAX-1, 2:IMAX-1)%tempT/4.
-    points(2:JMAX-1, 2:IMAX-1)%d2Td2x = 0.
-    points(2:JMAX-1, 2:IMAX-1)%d2Td2y = 0.
-
-    residual = maxval(abs(Temperature - tempTemperature))
+    residual = maxval(abs(innerTemperature - innertempTemperature))
     write(*, *), "residual ", residual
 
     step = step + 1
