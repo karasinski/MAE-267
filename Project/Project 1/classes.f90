@@ -188,18 +188,21 @@ contains
     Axj(i,j) = p(i+1, j)%x - p(i, j)%x
 
     c(i, j)%dTdx = + &
-      ( ( p(i+1, j)%T + p(i+1, j+1)%T ) * Ayi(i+1, j) - &
-        ( p(i,   j)%T + p(i,   j+1)%T ) * Ayi(i,   j) - &
+      ( ( p(i+1, j)%T + p(i+1, j+1)%T ) * Ayi(i+1, j) + &
+        ( p(i,   j)%T + p(i,   j+1)%T ) * Ayi(i,   j) + &
         ( p(i, j+1)%T + p(i+1, j+1)%T ) * Ayj(i, j+1) + &
         ( p(i,   j)%T + p(i+1,   j)%T ) * Ayj(i,   j)   &
       ) / ( 2. * c(i, j)%V )
 
     c(i, j)%dTdy = - &
-      ( ( p(i+1, j)%T + p(i+1, j+1)%T ) * Axi(i+1, j) - &
-        ( p(i,   j)%T + p(i,   j+1)%T ) * Axi(i,   j) - &
+      ( ( p(i+1, j)%T + p(i+1, j+1)%T ) * Axi(i+1, j) + &
+        ( p(i,   j)%T + p(i,   j+1)%T ) * Axi(i,   j) + &
         ( p(i, j+1)%T + p(i+1, j+1)%T ) * Axj(i, j+1) + &
         ( p(i,   j)%T + p(i+1,   j)%T ) * Axj(i,   j)   &
       ) / ( 2. * c(i ,j)%V )
+
+!      write(*, *),  i, j
+!      write(*, '(F5.3, 1X, F5.3, 1X, F5.3, 1X, F5.3)'), Ayi(i, j), Axi(i, j), Ayj(i, j), Axj(i, j)
 
   end subroutine
 
@@ -233,30 +236,30 @@ contains
 !       ( -c(i, j)%Ayi_half + c(i, j)%Ayj_half ) * c(i, j)%dTdy &
 !      )
 
-    p(i, j+1)%d2Td2x   = p(i, j+1)%d2Td2x +   &
-      (  c(i, j)%Ayi_half + c(i, j)%Ayj_half ) * c(i, j)%dTdx / 4.
+    p(i, j+1)%d2Td2x   =  p(i, j+1)%d2Td2x  + &
+      (  c(i, j)%Ayi_half + c(i, j)%Ayj_half ) * c(i, j)%dTdx
 
     p(i+1, j+1)%d2Td2x = p(i+1, j+1)%d2Td2x + &
-      ( -c(i, j)%Ayi_half + c(i, j)%Ayj_half ) * c(i, j)%dTdx / 4.
+      ( -c(i, j)%Ayi_half + c(i, j)%Ayj_half ) * c(i, j)%dTdx
 
-    p(i+1, j)%d2Td2x   = p(i+1, j)%d2Td2x +   &
-      ( -c(i, j)%Ayi_half - c(i, j)%Ayj_half ) * c(i, j)%dTdx / 4.
+    p(i+1, j)%d2Td2x   = p(i+1, j)%d2Td2x + &
+      ( -c(i, j)%Ayi_half - c(i, j)%Ayj_half ) * c(i, j)%dTdx
 
-    p(i, j)%d2Td2x     = p(i, j)%d2Td2x +     &
-      (  c(i, j)%Ayi_half - c(i, j)%Ayj_half ) * c(i, j)%dTdx / 4.
+    p(i, j)%d2Td2x     = p(i, j)%d2Td2x + &
+      (  c(i, j)%Ayi_half - c(i, j)%Ayj_half ) * c(i, j)%dTdx
 
 
-    p(i,   j+1)%d2Td2y = p(i,   j+1)%d2Td2y +   &
-      ( -c(i, j)%Axi_half - c(i, j)%Axj_half ) * c(i, j)%dTdy / 4.
+    p(i,   j+1)%d2Td2y = p(i,   j+1)%d2Td2y + &
+      ( -c(i, j)%Axi_half - c(i, j)%Axj_half ) * c(i, j)%dTdy
 
     p(i+1, j+1)%d2Td2y = p(i+1, j+1)%d2Td2y + &
-      (  c(i, j)%Axi_half - c(i, j)%Axj_half ) * c(i, j)%dTdy / 4.
+      (  c(i, j)%Axi_half - c(i, j)%Axj_half ) * c(i, j)%dTdy
 
-    p(i+1,   j)%d2Td2y = p(i+1,   j)%d2Td2y +   &
-      (  c(i, j)%Axi_half + c(i, j)%Axj_half ) * c(i, j)%dTdy / 4.
+    p(i+1,   j)%d2Td2y = p(i+1,   j)%d2Td2y + &
+      (  c(i, j)%Axi_half + c(i, j)%Axj_half ) * c(i, j)%dTdy
 
-    p(i,     j)%d2Td2y = p(i,     j)%d2Td2y +     &
-      ( -c(i, j)%Axi_half + c(i, j)%Axj_half ) * c(i, j)%dTdy / 4.
+    p(i,     j)%d2Td2y = p(i,     j)%d2Td2y + &
+      ( -c(i, j)%Axi_half + c(i, j)%Axj_half ) * c(i, j)%dTdy
 
   end subroutine
 end module UpdateTemperature

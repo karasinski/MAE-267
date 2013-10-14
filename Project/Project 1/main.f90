@@ -19,7 +19,7 @@ program heat
   real*8 :: maxDiff = 0., residual = 1. ! Arbitrary initial residual.
 
   ! Set up our grid size, grid points, grid cells and our arrays.
-  call SetGridSize(101)
+  call SetGridSize(11)
   allocate(Points(1:IMAX, 1:JMAX))
   allocate(Cells(1:IMAX-1, 1:JMAX-1))
 
@@ -65,10 +65,10 @@ program heat
   Temperature => innerPoints%T
   tempTemperature => innerPoints%tempT
   !  End set up.
-
+  tempTemperature = 0.
   !  Begin main loop, stop if we hit our mark or after 100,000 iterations.
-  do while (residual >= .00001 .and. step <= 1000)
-    Temperature =  Temperature + tempTemperature
+  do while (residual >= .00001 .and. step <= 100)
+    Temperature = Temperature + tempTemperature
     write(*,*), 'step = ', step
 
 !    do j = 2, JMAX - 1
@@ -84,10 +84,13 @@ program heat
         call second_derivative(Points, Cells, i, j)
       end do
     end do
-    tempTemperature = ( innerPoints%d2Td2x + innerPoints%d2Td2y ) * (k / (c_p * rho))
-
-!    points(2:IMAX-1, 2:JMAX-1)%d2Td2x = 0.
-!    points(2:IMAX-1, 2:JMAX-1)%d2Td2y = 0.
+    ! NEED TO DIVIDE BY VOLUME TO GET PROPER NUMBER HERE
+    do j = 2, JMAX - 1
+      do i = 2, IMAX - 1
+        Points(i, j)%tempT = (k / (c_p * rho)) * ( Points(i, j)%d2Td2x + Points(i, j)%d2Td2y ) / &
+                            ( ( Cells(i, j)%V + Cells(i - 1, j)%V + Cells(i, j - 1)%V + Cells(i - 1, j - 1)%V ) / 4.)
+      end do
+    end do
 
     residual = maxval(abs(tempTemperature))
     write(*, *), "residual ", residual
@@ -108,7 +111,7 @@ program heat
         max_j = j
       end if
 
-      write (1,'(I5, 5X, F10.8, 5X, F10.8, 5X, F10.8)'), step, Point%x, Point%y, Point%T
+      write (1,'(I5, 5X, I5, 5X, I5, 5X, F10.7)'), step, Point%i, Point%j, Point%T
     end do
   end do
 
