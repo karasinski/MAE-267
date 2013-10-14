@@ -1,5 +1,25 @@
+module clock
+  integer clock_start,clock_end,clock_max,clock_rate
+  real*4 wall_time
+
+contains
+  subroutine start_clock()
+    ! call system time to determine flow solver wall time
+    call system_clock(count_max=clock_max,count_rate=clock_rate)
+    call system_clock(clock_start)
+  end subroutine start_clock
+
+  subroutine end_clock()
+    ! determine total wall time for solver
+    call system_clock(clock_end)
+    wall_time=float(clock_end-clock_start)/float(clock_rate)
+    print*,'solver wall clock time (seconds)',wall_time
+  end subroutine end_clock
+end module
+
 program heat
   use constants
+  use clock
   use GridPointModule
   use GridCellModule
   use UpdateTemperature
@@ -16,10 +36,12 @@ program heat
   type (GridCell), target, allocatable :: Cells(:,:)
 
   real*8, pointer :: Temperature(:,:), tempTemperature(:,:)
-  real*8 :: maxDiff = 0., residual = 1. ! Arbitrary initial residual.
+  real*8 :: timestep, maxDiff = 0., residual = 1. ! Arbitrary initial residual.
+
+  call start_clock()
 
   ! Set up our grid size, grid points, grid cells and our arrays.
-  call SetGridSize(11)
+  call SetGridSize(101)
   allocate(Points(1:IMAX, 1:JMAX))
   allocate(Cells(1:IMAX-1, 1:JMAX-1))
 
@@ -64,12 +86,16 @@ program heat
   innerPoints => Points(2:IMAX-1, 2:JMAX-1)
   Temperature => innerPoints%T
   tempTemperature => innerPoints%tempT
+!  tempTemperature = 0.
+
+
+  timestep = 10. * ( 0.5 / (2 * alpha) ) * ( ( Cells(IMAX-1, JMAX-1)%V ** 2) / &
+  ( (Points(IMAX, JMAX)%x - Points(IMAX-1, JMAX)%x)**2 + ((Points(IMAX, JMAX)%y - Points(IMAX, JMAX-1)%y)**2 )) )
   !  End set up.
-  tempTemperature = 0.
+
   !  Begin main loop, stop if we hit our mark or after 100,000 iterations.
-  do while (residual >= .00001 .and. step <= 100)
-    Temperature = Temperature + tempTemperature
-    write(*,*), 'step = ', step
+  do while (residual >= .00001 .and. step <= 10000)
+!    write(*,*), 'step = ', step
 
 !    do j = 2, JMAX - 1
 !      do i = 2, IMAX - 1
@@ -84,16 +110,21 @@ program heat
         call second_derivative(Points, Cells, i, j)
       end do
     end do
-    ! NEED TO DIVIDE BY VOLUME TO GET PROPER NUMBER HERE
+
     do j = 2, JMAX - 1
       do i = 2, IMAX - 1
-        Points(i, j)%tempT = (k / (c_p * rho)) * ( Points(i, j)%d2Td2x + Points(i, j)%d2Td2y ) / &
+!        write(*,*), i, j, Points(i, j)%d2Td2x, Points(i, j)%d2Td2y
+
+        Points(i, j)%tempT = timestep * alpha * ( Points(i, j)%d2Td2x + Points(i, j)%d2Td2y ) / &
                             ( ( Cells(i, j)%V + Cells(i - 1, j)%V + Cells(i, j - 1)%V + Cells(i - 1, j - 1)%V ) / 4.)
       end do
     end do
+    Temperature = Temperature + tempTemperature
+    Points%d2Td2x = 0.
+    Points%d2Td2y = 0.
 
     residual = maxval(abs(tempTemperature))
-    write(*, *), "residual ", residual
+    write(*, *), step, "residual ", residual
 
     step = step + 1
   end do
@@ -120,5 +151,6 @@ program heat
 
   close(1)
   ! End output.
+  call end_clock()
 
 end program heat

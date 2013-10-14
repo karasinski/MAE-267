@@ -2,6 +2,7 @@ module constants
   implicit none
   real*8, parameter, public :: k = 18.8, rho = 8000., c_p = 500.
   real*8, parameter, public :: pi = 3.141592654, rot = 30.*pi/180.
+  real*8, public :: alpha = k / (c_p * rho)
   integer :: IMAX, JMAX !101 or 501 (2 cases)
 contains
   subroutine SetGridSize(length)
@@ -146,10 +147,10 @@ contains
     ! These areas are used in the calculation of fluxes
     ! for the alternate distributive scheme second-
     ! derivative operator.
-    Ayi(i,j) = p(i, j+1)%y - p(i, j)%y
-    Axi(i,j) = p(i, j+1)%x - p(i, j)%x
-    Ayj(i,j) = p(i+1, j)%y - p(i, j)%y
-    Axj(i,j) = p(i+1, j)%x - p(i, j)%x
+    Ayi(i,j) = abs( p(i, j+1)%y - p(i, j)%y )
+    Axi(i,j) = abs( p(i, j+1)%x - p(i, j)%x )
+    Ayj(i,j) = abs( p(i+1, j)%y - p(i, j)%y )
+    Axj(i,j) = abs( p(i+1, j)%x - p(i, j)%x )
 
     ! No longer using the cells values due to boundary problems... to be thought about.
     c%Ayi_half = ( Ayi(i+1, j) + Ayi(i, j)   ) / 4.
@@ -182,27 +183,24 @@ contains
     ! This is also a mess, so I should cleverly clean it up somehow.
 
     ! No longer using the cells values due to boundary problems... to be thought about.
-    Ayi(i,j) = p(i, j+1)%y - p(i, j)%y
-    Axi(i,j) = p(i, j+1)%x - p(i, j)%x
-    Ayj(i,j) = p(i+1, j)%y - p(i, j)%y
-    Axj(i,j) = p(i+1, j)%x - p(i, j)%x
+    Ayi(i,j) = abs( p(i, j+1)%y - p(i, j)%y )
+    Axi(i,j) = abs( p(i, j+1)%x - p(i, j)%x )
+    Ayj(i,j) = abs( p(i+1, j)%y - p(i, j)%y )
+    Axj(i,j) = abs( p(i+1, j)%x - p(i, j)%x )
 
     c(i, j)%dTdx = + &
-      ( ( p(i+1, j)%T + p(i+1, j+1)%T ) * Ayi(i+1, j) + &
-        ( p(i,   j)%T + p(i,   j+1)%T ) * Ayi(i,   j) + &
+      ( ( p(i+1, j)%T + p(i+1, j+1)%T ) * Ayi(i+1, j) - &
+        ( p(i,   j)%T + p(i,   j+1)%T ) * Ayi(i,   j) - &
         ( p(i, j+1)%T + p(i+1, j+1)%T ) * Ayj(i, j+1) + &
         ( p(i,   j)%T + p(i+1,   j)%T ) * Ayj(i,   j)   &
       ) / ( 2. * c(i, j)%V )
 
     c(i, j)%dTdy = - &
-      ( ( p(i+1, j)%T + p(i+1, j+1)%T ) * Axi(i+1, j) + &
-        ( p(i,   j)%T + p(i,   j+1)%T ) * Axi(i,   j) + &
+      ( ( p(i+1, j)%T + p(i+1, j+1)%T ) * Axi(i+1, j) - &
+        ( p(i,   j)%T + p(i,   j+1)%T ) * Axi(i,   j) - &
         ( p(i, j+1)%T + p(i+1, j+1)%T ) * Axj(i, j+1) + &
         ( p(i,   j)%T + p(i+1,   j)%T ) * Axj(i,   j)   &
       ) / ( 2. * c(i ,j)%V )
-
-!      write(*, *),  i, j
-!      write(*, '(F5.3, 1X, F5.3, 1X, F5.3, 1X, F5.3)'), Ayi(i, j), Axi(i, j), Ayj(i, j), Axj(i, j)
 
   end subroutine
 
@@ -251,15 +249,15 @@ contains
 
     p(i,   j+1)%d2Td2y = p(i,   j+1)%d2Td2y + &
       ( -c(i, j)%Axi_half - c(i, j)%Axj_half ) * c(i, j)%dTdy
-
+!write(*, *), i, j+1,  ( -c(i, j)%Axi_half - c(i, j)%Axj_half )
     p(i+1, j+1)%d2Td2y = p(i+1, j+1)%d2Td2y + &
       (  c(i, j)%Axi_half - c(i, j)%Axj_half ) * c(i, j)%dTdy
-
+!write(*, *), i+1, j+1,  ( c(i, j)%Axi_half - c(i, j)%Axj_half )
     p(i+1,   j)%d2Td2y = p(i+1,   j)%d2Td2y + &
       (  c(i, j)%Axi_half + c(i, j)%Axj_half ) * c(i, j)%dTdy
-
+!write(*, *), i+1, j,  (  c(i, j)%Axi_half + c(i, j)%Axj_half )
     p(i,     j)%d2Td2y = p(i,     j)%d2Td2y + &
       ( -c(i, j)%Axi_half + c(i, j)%Axj_half ) * c(i, j)%dTdy
-
+!write(*, *), i, j,  ( -c(i, j)%Axi_half + c(i, j)%Axj_half  )
   end subroutine
 end module UpdateTemperature
