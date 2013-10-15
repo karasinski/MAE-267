@@ -26,9 +26,8 @@ program heat
 
   implicit none
 
-  integer :: i, j, max_i = 0, max_j = 0, step = 1
+  integer :: i, j, step = 1
 
-  type (GridPoint), pointer :: Point
   type (GridPoint), target, allocatable :: Points(:,:)
   type (GridPoint), pointer :: innerPoints(:,:)
 
@@ -36,13 +35,12 @@ program heat
   type (GridCell), target, allocatable :: Cells(:,:)
 
   real*8, pointer :: Temperature(:,:), tempTemperature(:,:)
-  real*8 :: timestep, maxDiff = 0., residual = 1. ! Arbitrary initial residual.
-  real*8 :: tt = 10.
+  real*8 :: timestep, residual = 1. ! Arbitrary initial residual.
 
   call start_clock()
 
   ! Set up our grid size, grid points, grid cells and our arrays.
-  call SetGridSize(501)
+  call SetGridSize(101)
   allocate(Points(1:IMAX, 1:JMAX))
   allocate(Cells(1:IMAX-1, 1:JMAX-1))
 
