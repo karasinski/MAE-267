@@ -112,12 +112,7 @@ contains
     p4 => Points(i, j+1)
 
     ! ...to calculate the volume of each cell.
-    c%V = abs( &
-      (p1%x *  p2%y - p1%y * p2%x) + &
-      (p2%x *  p3%y - p2%y * p3%x) + &
-      (p3%x *  p4%y - p3%y * p4%x) + &
-      (p4%x *  p1%y - p4%y * p1%x)   &
-      ) / 2.
+    c%V = (p2%x-p1%x)*(p4%y-p1%y)
 
     ! We set each cell to an initial temperature of 3.5, some
     ! cells will be overwritten when we declare boundary conditions.
@@ -147,10 +142,10 @@ contains
     ! These areas are used in the calculation of fluxes
     ! for the alternate distributive scheme second-
     ! derivative operator.
-    Ayi(i,j) = abs( p(i, j+1)%y - p(i, j)%y )
-    Axi(i,j) = abs( p(i, j+1)%x - p(i, j)%x )
-    Ayj(i,j) = abs( p(i+1, j)%y - p(i, j)%y )
-    Axj(i,j) = abs( p(i+1, j)%x - p(i, j)%x )
+    Ayi(i,j) = ( p(i, j+1)%y - p(i, j)%y )
+    Axi(i,j) = ( p(i, j+1)%x - p(i, j)%x )
+    Ayj(i,j) = ( p(i+1, j)%y - p(i, j)%y )
+    Axj(i,j) = ( p(i+1, j)%x - p(i, j)%x )
 
     ! No longer using the cells values due to boundary problems... to be thought about.
     c%Ayi_half = ( Ayi(i+1, j) + Ayi(i, j)   ) / 4.
@@ -183,10 +178,10 @@ contains
     ! This is also a mess, so I should cleverly clean it up somehow.
 
     ! No longer using the cells values due to boundary problems... to be thought about.
-    Ayi(i,j) = abs( p(i, j+1)%y - p(i, j)%y )
-    Axi(i,j) = abs( p(i, j+1)%x - p(i, j)%x )
-    Ayj(i,j) = abs( p(i+1, j)%y - p(i, j)%y )
-    Axj(i,j) = abs( p(i+1, j)%x - p(i, j)%x )
+    Ayi(i,j) = ( p(i, j+1)%y - p(i, j)%y )
+    Axi(i,j) = ( p(i, j+1)%x - p(i, j)%x )
+    Ayj(i,j) = ( p(i+1, j)%y - p(i, j)%y )
+    Axj(i,j) = ( p(i+1, j)%x - p(i, j)%x )
 
     c(i, j)%dTdx = + &
       ( ( p(i+1, j)%T + p(i+1, j+1)%T ) * Ayi(i+1, j) - &

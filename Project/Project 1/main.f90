@@ -104,7 +104,7 @@ program heat
 !  tempTemperature = 0.
 
 
-  timestep = 17. * ( 0.5 / (2 * alpha) ) * ( ( Cells(IMAX-1, JMAX-1)%V ** 2) / &
+  timestep = 17 * ( 0.5 / (2 * alpha) ) * ( ( Cells(IMAX-1, JMAX-1)%V ** 2) / &
   ( (Points(IMAX, JMAX)%x - Points(IMAX-1, JMAX)%x)**2 + ((Points(IMAX, JMAX)%y - Points(IMAX, JMAX-1)%y)**2 )) )
   !  End set up.
 
