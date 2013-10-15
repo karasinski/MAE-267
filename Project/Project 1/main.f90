@@ -102,8 +102,8 @@ program heat
 !  tempTemperature = 0.
 
 
-  timestep = 17 * ( 0.5 / (2 * alpha) ) * ( ( Cells(IMAX-1, JMAX-1)%V ** 2) / &
-  ( (Points(IMAX, JMAX)%x - Points(IMAX-1, JMAX)%x)**2 + ((Points(IMAX, JMAX)%y - Points(IMAX, JMAX-1)%y)**2 )) )
+!  timestep = ( 0.5 / (2 * alpha) ) * ( ( Cells(IMAX-1, JMAX-1)%V ** 2) / &
+!  ( (Points(IMAX, JMAX)%x - Points(IMAX-1, JMAX)%x)**2 + ((Points(IMAX, JMAX)%y - Points(IMAX, JMAX-1)%y)**2 )) )
   !  End set up.
 
   !  Begin main loop, stop if we hit our mark or after 100,000 iterations.
@@ -132,6 +132,8 @@ program heat
 
     do j = 2, JMAX - 1
       do i = 2, IMAX - 1
+        timestep = ( 0.5 / (2 * alpha) ) * ( ( Cells(i, j)%V ** 2) / &
+                   ( (Points(i+1, j)%x - Points(i, j)%x)**2 + ((Points(i, j+1)%y - Points(i, j)%y)**2 )) )
         Points(i, j)%tempT = timestep * alpha * ( Points(i, j)%d2Td2x + Points(i, j)%d2Td2y ) / &
                             ( ( Cells(i, j)%V + Cells(i - 1, j)%V + Cells(i, j - 1)%V + Cells(i - 1, j - 1)%V ) / 4.)
       end do
@@ -151,19 +153,11 @@ program heat
   open (unit = 1, file = "data.dat")
   do i = 1, IMAX
     do j = 1, JMAX
-      Point => Points(i,j)
-
-      if (abs(Point%T - Point%tempT) > maxDiff) then
-        maxDiff = abs(Point%T - Point%tempT)
-        max_i = i
-        max_j = j
-      end if
-
-      write (1,'(I5, F10.7, 5X, F10.7, 5X, F10.7, I5, F10.7)'), step, Point%x, Point%y, Point%T
+      write (1,'(I5, F10.7, 5X, F10.7, 5X, F10.7, I5, F10.7)'), step, Points(i,j)%x, Points(i,j)%y, Points(i,j)%T
     end do
   end do
 
-  write (*,*), "Max residual = ", maxDiff, "At i ", max_i, ", j ", max_j
+  write (*,*), "Max residual = ", maxval(tempTemperature), "At i, j = ", maxloc(tempTemperature)
   write (*,*), "Max temperature = ", maxval(Points%T), " Low temperature = ", minval(Points%T)
 
   close(1)
