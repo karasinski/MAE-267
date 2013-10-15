@@ -37,11 +37,12 @@ program heat
 
   real*8, pointer :: Temperature(:,:), tempTemperature(:,:)
   real*8 :: timestep, maxDiff = 0., residual = 1. ! Arbitrary initial residual.
+  real*8 :: tt = 10.
 
   call start_clock()
 
   ! Set up our grid size, grid points, grid cells and our arrays.
-  call SetGridSize(101)
+  call SetGridSize(51)
   allocate(Points(1:IMAX, 1:JMAX))
   allocate(Cells(1:IMAX-1, 1:JMAX-1))
 
@@ -66,21 +67,35 @@ program heat
     end do
   end do
 
-  !  Set up Dirichlet condition.
-  do j = 1, JMAX
+!  !  Set up Dirichlet condition.
+!  do j = 1, JMAX
+!    i = 1
+!    call set_temperature(Points(i,j), 3. * Points(i,j)%yp + 2.)
+!    i = IMAX
+!    call set_temperature(Points(i,j), 3. * Points(i,j)%yp + 2.)
+!  end do
+!
+!  do i = 1, IMAX
+!    j = 1
+!    call set_temperature(Points(i,j), abs(cos(pi * Points(i,j)%xp)) + 1.)
+!    j = IMAX
+!    call set_temperature(Points(i,j), 5. * (sin(pi * Points(i,j)%xp) + 1.))
+!  end do
+!  !  End Dirichlet condition.  do j = 1, JMAX
+
+ do j = 1, JMAX
     i = 1
-    call set_temperature(Points(i,j), 3. * Points(i,j)%yp + 2.)
+    call set_temperature(Points(i,j), tt)
     i = IMAX
-    call set_temperature(Points(i,j), 3. * Points(i,j)%yp + 2.)
+    call set_temperature(Points(i,j), tt)
   end do
 
   do i = 1, IMAX
     j = 1
-    call set_temperature(Points(i,j), abs(cos(pi * Points(i,j)%xp)) + 1.)
+    call set_temperature(Points(i,j), tt)
     j = IMAX
-    call set_temperature(Points(i,j), 5. * (sin(pi * Points(i,j)%xp) + 1.))
+    call set_temperature(Points(i,j), tt)
   end do
-  !  End Dirichlet condition.
 
   !  Set some useful pointers.
   innerPoints => Points(2:IMAX-1, 2:JMAX-1)
@@ -89,12 +104,12 @@ program heat
 !  tempTemperature = 0.
 
 
-  timestep = 10. * ( 0.5 / (2 * alpha) ) * ( ( Cells(IMAX-1, JMAX-1)%V ** 2) / &
+  timestep = 17. * ( 0.5 / (2 * alpha) ) * ( ( Cells(IMAX-1, JMAX-1)%V ** 2) / &
   ( (Points(IMAX, JMAX)%x - Points(IMAX-1, JMAX)%x)**2 + ((Points(IMAX, JMAX)%y - Points(IMAX, JMAX-1)%y)**2 )) )
   !  End set up.
 
   !  Begin main loop, stop if we hit our mark or after 100,000 iterations.
-  do while (residual >= .00001 .and. step <= 10000)
+  do while (residual >= .00001 .and. step <= 200000)
 !    write(*,*), 'step = ', step
 
 !    do j = 2, JMAX - 1
@@ -110,11 +125,15 @@ program heat
         call second_derivative(Points, Cells, i, j)
       end do
     end do
+!
+!    do j = 1, JMAX
+!      do i = 1, IMAX
+!              write(*,*), i, j, cells(i, j)%dTdx, cells(i, j)%dTdy
+!end do
+!end do
 
     do j = 2, JMAX - 1
       do i = 2, IMAX - 1
-!        write(*,*), i, j, Points(i, j)%d2Td2x, Points(i, j)%d2Td2y
-
         Points(i, j)%tempT = timestep * alpha * ( Points(i, j)%d2Td2x + Points(i, j)%d2Td2y ) / &
                             ( ( Cells(i, j)%V + Cells(i - 1, j)%V + Cells(i, j - 1)%V + Cells(i - 1, j - 1)%V ) / 4.)
       end do
@@ -142,7 +161,7 @@ program heat
         max_j = j
       end if
 
-      write (1,'(I5, 5X, I5, 5X, I5, 5X, F10.7)'), step, Point%i, Point%j, Point%T
+      write (1,'(I5, F10.7, 5X, F10.7, 5X, F10.7, I5, F10.7)'), step, Point%x, Point%y, Point%T
     end do
   end do
 
