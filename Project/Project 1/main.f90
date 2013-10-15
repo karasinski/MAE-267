@@ -42,7 +42,7 @@ program heat
   call start_clock()
 
   ! Set up our grid size, grid points, grid cells and our arrays.
-  call SetGridSize(51)
+  call SetGridSize(501)
   allocate(Points(1:IMAX, 1:JMAX))
   allocate(Cells(1:IMAX-1, 1:JMAX-1))
 
@@ -67,35 +67,33 @@ program heat
     end do
   end do
 
-!  !  Set up Dirichlet condition.
-!  do j = 1, JMAX
+!  Set up Dirichlet condition.
+
+  do j = 1, JMAX
+    call set_temperature(Points(1,j), 3. * Points(1,j)%yp + 2.)
+    call set_temperature(Points(IMAX,j), 3. * Points(IMAX,j)%yp + 2.)
+  end do
+
+  do i = 1, IMAX
+    call set_temperature(Points(i,1), abs(cos(pi * Points(i,1)%xp)) + 1.)
+    call set_temperature(Points(i,JMAX), 5. * (sin(pi * Points(i,JMAX)%xp) + 1.))
+  end do
+
+!  End Dirichlet condition.
+
+! do j = 1, JMAX
 !    i = 1
-!    call set_temperature(Points(i,j), 3. * Points(i,j)%yp + 2.)
+!    call set_temperature(Points(i,j), tt)
 !    i = IMAX
-!    call set_temperature(Points(i,j), 3. * Points(i,j)%yp + 2.)
+!    call set_temperature(Points(i,j), tt)
 !  end do
 !
 !  do i = 1, IMAX
 !    j = 1
-!    call set_temperature(Points(i,j), abs(cos(pi * Points(i,j)%xp)) + 1.)
+!    call set_temperature(Points(i,j), tt)
 !    j = IMAX
-!    call set_temperature(Points(i,j), 5. * (sin(pi * Points(i,j)%xp) + 1.))
+!    call set_temperature(Points(i,j), tt)
 !  end do
-!  !  End Dirichlet condition.  do j = 1, JMAX
-
- do j = 1, JMAX
-    i = 1
-    call set_temperature(Points(i,j), tt)
-    i = IMAX
-    call set_temperature(Points(i,j), tt)
-  end do
-
-  do i = 1, IMAX
-    j = 1
-    call set_temperature(Points(i,j), tt)
-    j = IMAX
-    call set_temperature(Points(i,j), tt)
-  end do
 
   !  Set some useful pointers.
   innerPoints => Points(2:IMAX-1, 2:JMAX-1)
@@ -109,7 +107,7 @@ program heat
   !  End set up.
 
   !  Begin main loop, stop if we hit our mark or after 100,000 iterations.
-  do while (residual >= .00001 .and. step <= 200000)
+  do while (residual >= .00001 .and. step <= 1000000)
 !    write(*,*), 'step = ', step
 
 !    do j = 2, JMAX - 1
