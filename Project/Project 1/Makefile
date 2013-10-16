@@ -3,11 +3,13 @@
 #
 
 SRCS_f90d1 = \
+plot.f90 \
 mainroutines.f90 \
 classes.f90 \
 main.f90 
 
 OBJS_f90d1 = \
+plot.o \
 mainroutines.o \
 classes.o \
 main.o 
@@ -41,6 +43,9 @@ clean :
 	rm -f $(EXE_DIR)$(EXE)
 
 # Dependencies of files
+plot.o: \
+    plot.f90 \
+    classes.o
 mainroutines.o: \
     mainroutines.f90 \
     classes.o
@@ -49,5 +54,6 @@ classes.o: \
 main.o: \
     main.f90 \
     classes.o \
-    mainroutines.o
+    mainroutines.o \
+    plot.o
 

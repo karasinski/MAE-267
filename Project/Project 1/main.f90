@@ -1,6 +1,7 @@
 program heat
   use clock
   use MainRoutines
+  use plot3D_module
   implicit none
 
   type (GridPoint), target, allocatable :: Points(:,:)
@@ -8,7 +9,7 @@ program heat
   integer :: step = 0
 
   ! Set up our grid size and allocate our arrays for our grid points and grid cells.
-  call SetGridSize(101)
+  call SetGridSize(501)
   allocate(Points(1:IMAX, 1:JMAX))
   allocate(Cells(1:IMAX-1, 1:JMAX-1))
 
@@ -17,6 +18,7 @@ program heat
   call solve(Points, Cells, step)
   call end_clock()
   call output(Points, step)
+  call plot3D(Points)
 
   ! Might as well be proper and cleanup before we leave.
   deallocate(Points)
