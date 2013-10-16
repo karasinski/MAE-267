@@ -12,20 +12,39 @@ contains
   end subroutine SetGridSize
 end module
 
+module clock
+  integer clock_start,clock_end,clock_max,clock_rate
+  real*4 wall_time
+
+contains
+  subroutine start_clock()
+    ! call system time to determine flow solver wall time
+    call system_clock(count_max=clock_max,count_rate=clock_rate)
+    call system_clock(clock_start)
+  end subroutine start_clock
+
+  subroutine end_clock()
+    ! determine total wall time for solver
+    call system_clock(clock_end)
+    wall_time=float(clock_end-clock_start)/float(clock_rate)
+    print*,'solver wall clock time (seconds)',wall_time
+  end subroutine end_clock
+end module
+
 module GridPointModule
   use constants
   implicit none
-  save
 
   public
   type GridPoint
     integer :: i, j
-    real*8 :: x, xp, y, yp, T, tempT, d2Td2x, d2Td2y
+    real*8 :: x, xp, y, yp
+    real*8 :: T, tempT, d2Td2x, d2Td2y
+    real*8 :: timestep, Vol2
   end type GridPoint
 
 contains
   subroutine initialize_points(p, i, j)
-    save
     type(GridPoint), intent(inout) :: p
     integer :: i, j
 
@@ -43,13 +62,9 @@ contains
     p%T = 3.5
     p%tempT = p%T
 
-    p%d2Td2x = 0.
-    p%d2Td2y = 0.
-
   end subroutine initialize_points
 
   subroutine set_temperature(p, T)
-    save
     type(GridPoint), intent(inout) :: p
     real*8 :: T
 
@@ -59,29 +74,24 @@ contains
 
   end subroutine set_temperature
 
-  subroutine update_temperature(points, i, j)
-    save
-    type (GridPoint), target :: points(1:IMAX, 1:JMAX)
-    integer :: i, j
-
-    ! This is my 'fake' method to transfer heat: sum the
-    ! nearby points and divide by five. This is a temporary
-    ! function to help test display data until I get the
-    ! real derivatives working.
-
-    points(i, j)%tempT = points(i, j-1)%T + points(i+1, j)%T + points(i, j+1)%T + points(i-1, j)%T
-    !    points(i, j)%tempT = points(i, j)%tempT / 4.
-
-  end subroutine update_temperature
+!  subroutine update_temperature(points, i, j)
+!    type (GridPoint), target :: points(1:IMAX, 1:JMAX)
+!    integer :: i, j
+!    ! This is my 'fake' method to transfer heat: sum the
+!    ! nearby points and divide by five. This is a temporary
+!    ! function to help test display data until I get the
+!    ! real derivatives working.
+!
+!    points(i, j)%tempT = points(i, j-1)%T + points(i+1, j)%T + points(i, j+1)%T + points(i-1, j)%T
+!    !    points(i, j)%tempT = points(i, j)%tempT / 4.
+!  end subroutine update_temperature
 
 end module GridPointModule
 
 module GridCellModule
   use constants
   use GridPointModule
-
   implicit none
-  save
 
   public
   type GridCell
@@ -93,7 +103,6 @@ module GridCellModule
 
 contains
   subroutine initialize_cells(c, points, i, j)
-    save
     type (GridCell), intent(inout) :: c
     type (GridPoint), target :: points(1:IMAX, 1:JMAX)
     integer :: i, j
@@ -104,7 +113,6 @@ contains
   end subroutine initialize_cells
 
   subroutine set_secondary_areas(c, p, i, j)
-    save
     type (GridCell), intent(inout) :: c
     type (GridPoint), target :: p(1:IMAX, 1:JMAX)
     integer :: i, j
@@ -149,7 +157,6 @@ module UpdateTemperature
 
 contains
   subroutine first_derivative(p, c, i, j)
-    save
     type (GridPoint) :: p(1:IMAX, 1:JMAX)
     type (GridCell), intent(inout)  :: c(1:IMAX-1, 1:JMAX-1)
     real*8 :: Ayi, Axi, Ayj, Axj
@@ -181,7 +188,6 @@ contains
   end subroutine
 
   subroutine second_derivative(p, c, i, j)
-    save
     type (GridPoint) :: p(1:IMAX, 1:JMAX)
     type (GridCell) :: c(1:IMAX-1, 1:JMAX-1)
     integer :: i, j
