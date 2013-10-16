@@ -3,22 +3,24 @@
 #
 
 SRCS_f90d1 = \
-main.f90 \
-classes.f90 
+mainroutines.f90 \
+classes.f90 \
+main.f90 
 
 OBJS_f90d1 = \
-main.o \
-classes.o 
+mainroutines.o \
+classes.o \
+main.o 
 
 SRC_DIR_f90d1 = 
-OBJS_DIR = obj/Debug/
-EXE_DIR = bin/Debug/
+OBJS_DIR = obj/Release/
+EXE_DIR = bin/Release/
 
 EXE = Project 1.exe
 FC = gfortran.exe
 IDIR = 
-CFLAGS = -Wall -g -ffast-math -fexpensive-optimizations -Os -Ofast -O3 -O2 -O1   -J$(OBJS_DIR) $(IDIR)
-LFLAGS = 
+CFLAGS = -Wall -O2  -J$(OBJS_DIR) $(IDIR)
+LFLAGS = -s 
 LIBS = 
 
 VPATH = $(SRC_DIR_f90d1):$(OBJS_DIR)
@@ -39,9 +41,13 @@ clean :
 	rm -f $(EXE_DIR)$(EXE)
 
 # Dependencies of files
-main.o: \
-    main.f90 \
+mainroutines.o: \
+    mainroutines.f90 \
     classes.o
 classes.o: \
     classes.f90
+main.o: \
+    main.f90 \
+    classes.o \
+    mainroutines.o
 
