@@ -1,0 +1,88 @@
+# the above line sets the "make" utility and options that will be used
+# makefile for calcpip on RedHat Linux 6.2 workstations
+
+# some utilities
+ECHO    = echo
+RM      = /bin/rm -f
+CHMOD   = chmod
+
+# set source directory and MPI include directory
+calcpip_SRC = ./
+
+# fortran-90 compiler and linker
+# Note that /usr/local/mpich-1.2.4 was compiled with pgf90
+#           /usr/local/mpich-1.2.4ifc was compiled with the intel compiler
+FC    = /usr/local/mpich-1.2.4/bin/mpif90
+FL    = /usr/local/mpich-1.2.4/bin/mpif90
+
+# C compiler
+CC    = /usr/local/mpich-1.2.4/bin/mpicc
+
+# compiler flag for compiling only
+PROC = -c 
+
+# compiler flags for optimization/debug
+FOPT =  -fast
+COPT =
+
+# architecture on which fortran90 compiler are running
+ARCH = 
+
+# default fortran-90 compiler flags
+FFLAGS = 
+
+# default c compiler flags
+CFLAGS = 
+
+# form one flag variable to feed to compiler 
+FFLAGS_calcpip = $(ARCH) $(FOPT) $(FFLAGS)
+CFLAGS_calcpip = $(ARCH) $(COPT) $(CFLAGS)
+
+# linker flag for executables 
+PROL = -o
+
+# fortran90 linker flags
+LDFLAGS = $(ARCH)
+
+# extra lib path and lib name
+LIBS = -L/usr/local/mpich-1.2.4/lib -lmpichf90 -lmpich 
+
+# suffixes for this environment; object,executable,library,archive
+O=.o
+X=_vanillampich
+M=.mod
+L=.a
+A=
+AWKS=.awk
+SEDS=.sed
+LEXS=.l
+YACS=.y
+
+#======================================================================
+
+# dependency file
+MAKEFILE_PID = makefile.pid2
+
+# default targets used by all makefiles
+default: build
+
+# build TFLO 
+build: calcpip$(X)
+
+# Initialize these macros so they are defined.
+ALL_OBJS_calcpip=
+OBJ_PI_calcpip=
+OBJ_PD_calcpip=
+
+include $(MAKEFILE_PID)
+
+ALL_OBJS_calcpip=$(OBJ_PI_calcpip) $(OBJ_PD_calcpip)
+
+calcpip$(X): $(ALL_OBJS_calcpip)
+	$(FL) $(PROL) calcpip$(X) $(LDFLAGS) $(ALL_OBJS_calcpip) $(LIBS)
+	$(CHMOD) 775 calcpip$(X)
+
+# clean all modules and objects and binaries
+clean:
+	$(RM) calcpip$(X) *$(O) *$(M) core
+
