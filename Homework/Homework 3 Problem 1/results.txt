@@ -1,0 +1,39 @@
+ PI =     3.141592653589788     
+ Elapsed time is    8.9120864868164062E-004
+            1  processors
+ Or    8.9120864868164062E-004  seconds per processor
+
+ PI =     3.141592653589801     
+ Elapsed time is    2.5551319122314453E-003
+            2  processors
+ Or    1.2775659561157227E-003  seconds per processor
+
+ PI =     3.141592653589790     
+ Elapsed time is    1.5470981597900391E-003
+            3  processors
+ Or    5.1569938659667969E-004  seconds per processor
+
+ PI =     3.141592653589789     
+ Elapsed time is    5.4600238800048828E-003
+            4  processors
+ Or    1.3650059700012207E-003  seconds per processor
+
+ PI =     3.141592653589798     
+ Elapsed time is    2.4049282073974609E-003
+            5  processors
+ Or    4.8098564147949221E-004  seconds per processor
+
+ PI =     3.141592653589795     
+ Elapsed time is    7.4579715728759766E-003
+            6  processors
+ Or    1.2429952621459961E-003  seconds per processor
+
+ PI =     3.141492651089745     
+ Elapsed time is    7.8680515289306641E-003
+            7  processors
+ Or    1.1240073612758092E-003  seconds per processor
+
+ PI =     3.141592653589787     
+ Elapsed time is    5.3470134735107422E-003
+            8  processors
+ Or    6.6837668418884277E-004  seconds per processor
