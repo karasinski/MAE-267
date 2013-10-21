@@ -1,2 +1,0 @@
-#!/bin/sh
-nohup /usr/local/mpich-1.2.4/bin/mpirun -np 4 -machinefile nodefile calcpip_vanillampich < INTERVALS.DAT  > standard.output_vanillampich 
