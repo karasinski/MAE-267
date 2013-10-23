@@ -66,7 +66,7 @@ contains
     write(*, *), "x ", x, " n ", n_, " m ", m_
   end subroutine identify_grid
 
-  subroutine make_blocks(Points)
+  subroutine make_blocks(Points, Blocks)
     integer :: i, j, i_, j_, m_, n_
     integer :: iBound, jBound
     integer :: BlocksFile  = 99   ! Unit for grid files
@@ -80,9 +80,8 @@ contains
 
     ! Allocate up a blocks array to store all our blocks.
     ! To be used when we eventually pass out blocks to indivual processors.
-    allocate(Blocks(1:M, 1:N, 1:iBound, 1: jBound))
     20     format(10I10)
-    open(unit=BlocksFile,file='grids.dat',form='formatted')
+    open(unit=BlocksFile,file='blocks.dat',form='formatted')
 
     ! Can identify a block based off its unique ID by calling identify grid
     !  call identify_grid(5004, n_, m_)
@@ -145,6 +144,8 @@ contains
 
     ! Did we hit the correct number of points?
     write(*, *), counter, IMAX*JMAX, counter == IMAX*JMAX
+
+    ! Close our file.
     close(BlocksFile)
   end subroutine make_blocks
 

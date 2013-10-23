@@ -23,11 +23,18 @@ module plot3D_module
   integer :: nBlocks = 1      ! number of blocks
 
 contains
-  subroutine plot3D(Points)
+  subroutine plot3D(Blocks, M, N)
     implicit none
 
-    type (GridPoint) :: Points(1:IMAX, 1:JMAX)
-    integer :: i, j
+    type (GridPoint), allocatable :: Blocks(:,:,:,:)
+    integer :: i, j, m, n, m_, n_
+    integer :: iBound, jBound
+
+    ! Size of each block.
+    iBound = 1 + (IMAX - 1) / N
+    jBound = 1 + (JMAX - 1) / M
+
+    nBlocks = N * M
 
     ! Format statements
     10     format(I10)
@@ -40,15 +47,28 @@ contains
 
     ! Write to grid file
     write(gridUnit,10) nBlocks
-    write(gridUnit,20) IMAX,JMAX
-    write(gridUnit,30) ((Points(i,j)%x,i=1,IMAX),j=1,JMAX), ((Points(i,j)%y,i=1,IMAX),j=1,JMAX)
+    m_ = 1
+    write(gridUnit,20) iBound,jBound, m_, nBlocks
+    do m_ = 1, M
+      do n_ = 1, N
+        write(gridUnit,30) ((Blocks(m_,n_,i,j)%x,i=1,iBound),j=1,jBound), &
+                           ((Blocks(m_,n_,i,j)%y,i=1,iBound),j=1,jBound)
+      end do
+    end do
 
     ! Write to temp file
     write(tempUnit,10) nBlocks
-    write(tempUnit,20) IMAX,JMAX
-    write(tempUnit,30) tRef,dum,dum,dum
-    write(tempUnit,30) ((Points(i,j)%T,i=1,IMAX),j=1,JMAX), ((Points(i,j)%T,i=1,IMAX),j=1,JMAX), &
-                       ((Points(i,j)%T,i=1,IMAX),j=1,JMAX), ((Points(i,j)%T,i=1,IMAX),j=1,JMAX)
+    m_ = 1
+    write(gridUnit,20) iBound,jBound, m_, nBlocks
+    do m_ = 1, M
+      do n_ = 1, N
+        write(tempUnit,30) tRef,dum,dum,dum
+        write(tempUnit,30) ((Blocks(m_,n_,i,j)%T,i=1,iBound),j=1,jBound), &
+                           ((Blocks(m_,n_,i,j)%T,i=1,iBound),j=1,jBound), &
+                           ((Blocks(m_,n_,i,j)%T,i=1,iBound),j=1,jBound), &
+                           ((Blocks(m_,n_,i,j)%T,i=1,iBound),j=1,jBound)
+      end do
+    end do
 
     ! Close files
     close(gridUnit)
