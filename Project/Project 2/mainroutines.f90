@@ -4,6 +4,8 @@ module MainRoutines
   use GridCellModule
   use UpdateTemperature
 
+  implicit none
+
 contains
   subroutine initialization(Points, Cells)
     type (GridPoint), target :: Points(1:IMAX, 1:JMAX)
@@ -57,6 +59,83 @@ contains
     end do
   end subroutine
 
+  subroutine identify_grid(x, n_, m_)
+    integer :: x, m_, n_
+    n_ = x/1000
+    m_ = x - n_ * 1000
+    write(*, *), "x ", x, " n ", n_, " m ", m_
+  end subroutine identify_grid
+
+  subroutine make_grids(Points)
+    integer :: i, j, i_, j_, m_, n_
+    integer :: Grids  = 99   ! Unit for grid files
+    integer :: counter = 0
+    integer :: jBound
+    integer :: iBound
+
+    type (GridPoint) :: Points(1:IMAX, 1:JMAX)
+    type (GridPoint), allocatable :: Grid(:,:,:,:)
+    iBound = 1 + (IMAX - 1) / N
+    jBound = 1 + (JMAX - 1) / M
+
+    allocate(Grid(1:M, 1:N, 1:iBound, 1: jBound))
+    20     format(10I10)
+    open(unit=Grids,file='grids.dat',form='formatted')
+
+    call identify_grid(5004, n_, m_)
+    call identify_grid(10010, n_, m_)
+
+    do n_ = 1, N
+      do m_ = 1, M
+        write (Grids, *), "Grid: ", n_ * 1000 + m_
+
+        if (m_ - 1 > 0) then
+          write (Grids, *), "Neighbor 1: ", n_ * 1000 + (m_ - 1)
+        else
+          write (Grids, *), "Neighbor 1: BOUNDARY"
+        end if
+        if (m_ + 1 <= M) then
+          write (Grids, *), "Neighbor 2: ", n_ * 1000 + (m_ + 1)
+        else
+          write (Grids, *), "Neighbor 2: BOUNDARY"
+        end if
+        if (n_ - 1 > 0) then
+          write (Grids, *), "Neighbor 3: ", (n_ - 1) * 1000 + m_
+        else
+          write (Grids, *), "Neighbor 3: BOUNDARY"
+        end if
+        if (n_ + 1 <= N) then
+          write (Grids, *), "Neighbor 4: ", (n_ + 1) * 1000 + m_
+        else
+          write (Grids, *), "Neighbor 4: BOUNDARY"
+        end if
+
+        j = 0
+        do j_ = 1 + (m_ - 1) * jBound, m_ * jBound
+        i = 0
+          j = j + 1
+          do i_ = 1 + (n_ - 1) * iBound, n_ * iBound
+            i = i + 1
+            ! Make grid.
+            if (i_ > IMAX .or. j_ > JMAX) then
+              continue
+            else
+              Grid(m_, n_, i, j) = Points(i_, j_)
+              write (Grids, 20), i_, j_, i, j
+              counter = counter + 1
+            end if
+
+          end do
+        end do
+
+        write (Grids, *)
+
+      end do
+    end do
+    write(*, *), counter, IMAX*JMAX, N*M, (1 + (JMAX - 1) / M) * (1 + (IMAX - 1) / M)
+    close(Grids)
+  end subroutine make_grids
+
   subroutine solve(Points, Cells, step)
     type (GridPoint), target :: Points(1:IMAX, 1:JMAX)
     type (GridCell),  target :: Cells(1:IMAX-1, 1:JMAX-1)
@@ -97,40 +176,6 @@ contains
       Temperature = Temperature + tempTemperature
       residual = maxval(abs(tempTemperature))
     end do
-  end subroutine
-
-  subroutine output(Points, step)
-    type (GridPoint), target :: Points(1:IMAX, 1:JMAX)
-    real*8, pointer :: Temperature(:,:), tempTemperature(:,:)
-    integer :: step
-
-    Temperature => Points(2:IMAX-1, 2:JMAX-1)%T
-    tempTemperature => Points(2:IMAX-1, 2:JMAX-1)%tempT
-    ! Let's find the last cell to change temperature and write some output.
-    ! Write down the 'steady state' configuration.
-    open (unit = 1, file = "steady_state.dat")
-    do i = 1, IMAX
-      do j = 1, JMAX
-        write (1,'(F10.7, 5X, F10.7, 5X, F10.7, I5, F10.7)'), Points(i,j)%x, Points(i,j)%y, Points(i,j)%T
-      end do
-    end do
-    close (1)
-
-    ! Some output to the screen so we know something happened.
-    write (*,*), "IMAX/JMAX", IMAX, JMAX
-    write (*,*), "steps", step
-    write (*,*), "residual", maxval(tempTemperature)
-    write (*,*), "ij", maxloc(tempTemperature)
-
-    ! Write down misc. info asked for by Prof.
-    open (unit = 2, file = "other_info.dat")
-    write (2,*), "For a ", IMAX, " by ", JMAX, "size grid, we ran for: "
-    write (2,*), step, "steps"
-    write (2,*), wall_time, "seconds"
-    write (2,*)
-    write (2,*), "Found max residual of ", maxval(tempTemperature)
-    write (2,*), "At ij of ", maxloc(tempTemperature)
-    close (2)
-    ! End output.
+    write(*,*) "Converged."
   end subroutine
 end module MainRoutines

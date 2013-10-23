@@ -16,10 +16,10 @@ contains
     JMAX = length
   end subroutine SetGridSize
 
-  subroutine SetNumberOfBlocks(n, m)
-    integer :: n, m
-    N = n
-    M = m
+  subroutine SetNumberOfBlocks(n_, m_)
+    integer :: n_, m_
+    N = n_
+    M = m_
   end subroutine SetNumberOfBlocks
 end module
 
