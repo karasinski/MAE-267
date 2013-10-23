@@ -45,10 +45,17 @@ contains
     open(unit=gridUnit,file='grid.dat',form='formatted')
     open(unit=tempUnit,file='temp.dat',form='formatted')
 
+    do m_ = 1, M
+      do n_ = 1, N
+        write(*, *), (maxval(Blocks(m_,n_,:,:)%i)-minval(Blocks(m_,n_,:,:)%i, MASK = Blocks(m_,n_,:,:)%i>0)),  &
+                     (maxval(Blocks(m_,n_,:,:)%j)-minval(Blocks(m_,n_,:,:)%j, MASK = Blocks(m_,n_,:,:)%j>0))
+      end do
+    end do
+
     ! Write to grid file
     write(gridUnit,10) nBlocks
     m_ = 1
-    write(gridUnit,20) iBound,jBound, m_, nBlocks
+    write(gridUnit,20) ((iBound,jBound, m_=1, M), n_=1, N)
     do m_ = 1, M
       do n_ = 1, N
         write(gridUnit,30) ((Blocks(m_,n_,i,j)%x,i=1,iBound),j=1,jBound), &
@@ -59,7 +66,7 @@ contains
     ! Write to temp file
     write(tempUnit,10) nBlocks
     m_ = 1
-    write(gridUnit,20) iBound,jBound, m_, nBlocks
+    write(gridUnit,20) ((iBound,jBound, m_=1, M), n_=1, N)
     do m_ = 1, M
       do n_ = 1, N
         write(tempUnit,30) tRef,dum,dum,dum

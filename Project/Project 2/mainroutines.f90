@@ -70,7 +70,7 @@ contains
     integer :: i, j, i_, j_, m_, n_
     integer :: iBound, jBound
     integer :: BlocksFile  = 99   ! Unit for grid files
-    integer :: counter = 0
+!    integer :: counter = 0
     type (GridPoint) :: Points(1:IMAX, 1:JMAX)
     type (GridPoint), allocatable :: Blocks(:,:,:,:)
 
@@ -123,7 +123,7 @@ contains
           do i_ = 1 + (n_ - 1) * iBound, n_ * iBound
             i = i + 1
 
-            ! If we're pass the number of blocks continue.
+            ! If we're passed the number of points continue.
             if (i_ > IMAX .or. j_ > JMAX) then
               continue
             else
@@ -133,7 +133,7 @@ contains
 
               ! Counter to test that we have the right number of points
               ! when we are done creating all the blocks.
-              counter = counter + 1
+!              counter = counter + 1
             end if
 
           end do
@@ -143,7 +143,7 @@ contains
     end do
 
     ! Did we hit the correct number of points?
-    write(*, *), counter, IMAX*JMAX, counter == IMAX*JMAX
+!    write(*, *), counter, IMAX*JMAX, counter == IMAX*JMAX
 
     ! Close our file.
     close(BlocksFile)
