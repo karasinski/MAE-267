@@ -66,49 +66,56 @@ contains
     write(*, *), "x ", x, " n ", n_, " m ", m_
   end subroutine identify_grid
 
-  subroutine make_grids(Points)
+  subroutine make_blocks(Points)
     integer :: i, j, i_, j_, m_, n_
-    integer :: Grids  = 99   ! Unit for grid files
+    integer :: iBound, jBound
+    integer :: BlocksFile  = 99   ! Unit for grid files
     integer :: counter = 0
-    integer :: jBound
-    integer :: iBound
-
     type (GridPoint) :: Points(1:IMAX, 1:JMAX)
-    type (GridPoint), allocatable :: Grid(:,:,:,:)
+    type (GridPoint), allocatable :: Blocks(:,:,:,:)
+
+    ! Size of each block.
     iBound = 1 + (IMAX - 1) / N
     jBound = 1 + (JMAX - 1) / M
 
-    allocate(Grid(1:M, 1:N, 1:iBound, 1: jBound))
+    ! Allocate up a blocks array to store all our blocks.
+    ! To be used when we eventually pass out blocks to indivual processors.
+    allocate(Blocks(1:M, 1:N, 1:iBound, 1: jBound))
     20     format(10I10)
-    open(unit=Grids,file='grids.dat',form='formatted')
+    open(unit=BlocksFile,file='grids.dat',form='formatted')
 
-    call identify_grid(5004, n_, m_)
-    call identify_grid(10010, n_, m_)
+    ! Can identify a block based off its unique ID by calling identify grid
+    !  call identify_grid(5004, n_, m_)
 
     do n_ = 1, N
       do m_ = 1, M
-        write (Grids, *), "Grid: ", n_ * 1000 + m_
+        ! Block unique ID.
+        write (BlocksFile, *), "Block: ", n_ * 1000 + m_
 
+        ! Each block has neighbors (and BCs).
         if (m_ - 1 > 0) then
-          write (Grids, *), "Neighbor 1: ", n_ * 1000 + (m_ - 1)
+          write (BlocksFile, *), "Neighbor 1: ", n_ * 1000 + (m_ - 1)
         else
-          write (Grids, *), "Neighbor 1: BOUNDARY"
+          write (BlocksFile, *), "Neighbor 1: BOUNDARY"
         end if
         if (m_ + 1 <= M) then
-          write (Grids, *), "Neighbor 2: ", n_ * 1000 + (m_ + 1)
+          write (BlocksFile, *), "Neighbor 2: ", n_ * 1000 + (m_ + 1)
         else
-          write (Grids, *), "Neighbor 2: BOUNDARY"
+          write (BlocksFile, *), "Neighbor 2: BOUNDARY"
         end if
         if (n_ - 1 > 0) then
-          write (Grids, *), "Neighbor 3: ", (n_ - 1) * 1000 + m_
+          write (BlocksFile, *), "Neighbor 3: ", (n_ - 1) * 1000 + m_
         else
-          write (Grids, *), "Neighbor 3: BOUNDARY"
+          write (BlocksFile, *), "Neighbor 3: BOUNDARY"
         end if
         if (n_ + 1 <= N) then
-          write (Grids, *), "Neighbor 4: ", (n_ + 1) * 1000 + m_
+          write (BlocksFile, *), "Neighbor 4: ", (n_ + 1) * 1000 + m_
         else
-          write (Grids, *), "Neighbor 4: BOUNDARY"
+          write (BlocksFile, *), "Neighbor 4: BOUNDARY"
         end if
+
+        ! Each block has an orientation. This doesn't do anything.
+        write(BlocksFile, *), "Orientation: 1"
 
         j = 0
         do j_ = 1 + (m_ - 1) * jBound, m_ * jBound
@@ -116,25 +123,30 @@ contains
           j = j + 1
           do i_ = 1 + (n_ - 1) * iBound, n_ * iBound
             i = i + 1
-            ! Make grid.
+
+            ! If we're pass the number of blocks continue.
             if (i_ > IMAX .or. j_ > JMAX) then
               continue
             else
-              Grid(m_, n_, i, j) = Points(i_, j_)
-              write (Grids, 20), i_, j_, i, j
+              ! Hand out points to the blocks.
+              Blocks(m_, n_, i, j) = Points(i_, j_)
+              write (BlocksFile, 20), i_, j_, i, j
+
+              ! Counter to test that we have the right number of points
+              ! when we are done creating all the blocks.
               counter = counter + 1
             end if
 
           end do
         end do
-
-        write (Grids, *)
-
+        write (BlocksFile, *)
       end do
     end do
-    write(*, *), counter, IMAX*JMAX, N*M, (1 + (JMAX - 1) / M) * (1 + (IMAX - 1) / M)
-    close(Grids)
-  end subroutine make_grids
+
+    ! Did we hit the correct number of points?
+    write(*, *), counter, IMAX*JMAX, counter == IMAX*JMAX
+    close(BlocksFile)
+  end subroutine make_blocks
 
   subroutine solve(Points, Cells, step)
     type (GridPoint), target :: Points(1:IMAX, 1:JMAX)
