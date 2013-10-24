@@ -18,23 +18,28 @@ module plot3D_module
   ! Variables
   integer :: gridUnit  = 30   ! Unit for grid file
   integer :: tempUnit = 21    ! Unit for temp file
-  real*8 :: tRef = 1          ! tRef number
-  real*8 :: dum = 0.          ! dummy values
+  real(kind=8) :: tRef = 1          ! tRef number
+  real(kind=8) :: dum = 0.d0        ! dummy values
   integer :: nBlocks = 1      ! number of blocks
 
 contains
-  subroutine plot3D(Blocks, M, N)
+  subroutine plot3D(Blocks)
     implicit none
 
     type (GridPoint), allocatable :: Blocks(:,:,:,:)
-    integer :: i, j, m, n, m_, n_
+    integer :: i, j, M, N, m_, n_
     integer :: iBound, jBound
+
+    ! Read M and N from Blocks.
+    M = size(Blocks, 1)
+    N = size(Blocks, 2)
+
+    ! Set number of blocks.
+    nBlocks = N * M
 
     ! Size of each block.
     iBound = 1 + (IMAX - 1) / N
     jBound = 1 + (JMAX - 1) / M
-
-    nBlocks = N * M
 
     ! Format statements
     10     format(I10)
@@ -45,12 +50,12 @@ contains
     open(unit=gridUnit,file='grid.dat',form='formatted')
     open(unit=tempUnit,file='temp.dat',form='formatted')
 
-    do m_ = 1, M
-      do n_ = 1, N
-        write(*, *), (maxval(Blocks(m_,n_,:,:)%i)-minval(Blocks(m_,n_,:,:)%i, MASK = Blocks(m_,n_,:,:)%i>0)),  &
-                     (maxval(Blocks(m_,n_,:,:)%j)-minval(Blocks(m_,n_,:,:)%j, MASK = Blocks(m_,n_,:,:)%j>0))
-      end do
-    end do
+!    do m_ = 1, M
+!      do n_ = 1, N
+!        write(*, *), (maxval(Blocks(m_,n_,:,:)%i)-minval(Blocks(m_,n_,:,:)%i, MASK = Blocks(m_,n_,:,:)%i>0)),  &
+!                     (maxval(Blocks(m_,n_,:,:)%j)-minval(Blocks(m_,n_,:,:)%j, MASK = Blocks(m_,n_,:,:)%j>0))
+!      end do
+!    end do
 
     ! Write to grid file
     write(gridUnit,10) nBlocks
@@ -66,7 +71,7 @@ contains
     ! Write to temp file
     write(tempUnit,10) nBlocks
     m_ = 1
-    write(gridUnit,20) ((iBound,jBound, m_=1, M), n_=1, N)
+    write(tempUnit,20) ((iBound,jBound, m_=1, M), n_=1, N)
     do m_ = 1, M
       do n_ = 1, N
         write(tempUnit,30) tRef,dum,dum,dum
@@ -84,7 +89,7 @@ contains
 
   subroutine output(Points, step)
     type (GridPoint), target :: Points(1:IMAX, 1:JMAX)
-    real*8, pointer :: Temperature(:,:), tempTemperature(:,:)
+    real(kind=8), pointer :: Temperature(:,:), tempTemperature(:,:)
     integer :: step, i, j
 
     Temperature => Points(2:IMAX-1, 2:JMAX-1)%T
