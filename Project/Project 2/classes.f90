@@ -2,7 +2,7 @@
 ! the size of the grid.
 module constants
   implicit none
-  real(kind=8), parameter :: CFL = 1.14d0
+  real(kind=8) :: CFL = 1.14d0
   real(kind=8), parameter :: k = 18.8d0, rho = 8000.d0, c_p = 500.d0
   real(kind=8), parameter :: pi = 3.141592654d0, rot = 30.d0*pi/180.d0
   real(kind=8)  :: alpha = k / (c_p * rho)
@@ -99,7 +99,8 @@ module GridCellModule
   public
   type GridCell
     real(kind=8) :: V
-    real(kind=8) :: yPP, yNP, yNN, yPN, xNN, xPN, xPP, xNP
+    real(kind=8) :: yPP, yNP, yNN, yPN
+    real(kind=8) :: xNN, xPN, xPP, xNP
   end type GridCell
 
 contains

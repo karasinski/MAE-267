@@ -138,10 +138,10 @@ contains
     type (GridPoint) :: Points(1:IMAX, 1:JMAX)
     type (GridCell)  :: Cells(1:IMAX-1, 1:JMAX-1)
     real(kind=8) :: residual = 1.d0 ! Arbitrary initial residual.
-    integer :: step
+    integer :: step, max_steps = 1000000
 
-    !  Begin main loop, stop if we hit our mark or after 1,000,000 iterations.
-    do while (residual >= .00001d0 .and. step <= 1000000)
+    !  Begin main loop, stop if we hit our mark or after max_steps iterations.
+    do while (residual >= .00001d0 .and. step <= max_steps)
       ! Another day...
       step = step + 1
 
@@ -154,7 +154,7 @@ contains
       residual = maxval(abs(Points(2:IMAX-1, 2:JMAX-1)%tempT))
     end do
 
-    if (step <= 1000000) then
+    if (step <= max_steps) then
       write(*,*) "Converged."
     else
       write(*,*) "Failed to converge."
