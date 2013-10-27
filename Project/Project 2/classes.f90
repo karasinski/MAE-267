@@ -2,7 +2,7 @@
 ! the size of the grid.
 module constants
   implicit none
-  real(kind=8), parameter :: CFL = 1.d0
+  real(kind=8), parameter :: CFL = 0.99d0
   real(kind=8), parameter :: k = 18.8d0, rho = 8000.d0, c_p = 500.d0
   real(kind=8), parameter :: pi = 3.141592654d0, rot = 30.d0*pi/180.d0
   real(kind=8)  :: alpha = k / (c_p * rho)
@@ -205,7 +205,7 @@ contains
     end do
   end subroutine
 
-  subroutine second_derivative(p, c, i, j)
+  subroutine second_derivative(p, c)
     type (GridPoint) :: p(1:IMAX, 1:JMAX)
     type (GridCell)  :: c(1:IMAX-1, 1:JMAX-1)
     integer :: i, j
@@ -233,5 +233,61 @@ contains
         p(i,    j)%d2Td2y = p(i,    j)%d2Td2y + c(i, j)%xNP * c(i, j)%dTdy
       end do
     end do
+  end subroutine
+
+   subroutine derivatives(p, c)
+    type (GridPoint) :: p(1:IMAX, 1:JMAX)
+    type (GridCell), intent(inout)  :: c(1:IMAX-1, 1:JMAX-1)
+    real(kind=8) :: Ayi, Axi, Ayj, Axj
+    real(kind=8) :: dTdx, dTdy
+    integer :: i, j
+
+    ! Trapezoidal counter-clockwise integration to get the first
+    ! derivatives in the x/y directions at the cell-center using
+    ! Gauss's theorem.
+
+    Ayi(i,j) = ( p(i, j+1)%y - p(i, j)%y )
+    Axi(i,j) = ( p(i, j+1)%x - p(i, j)%x )
+    Ayj(i,j) = ( p(i+1, j)%y - p(i, j)%y )
+    Axj(i,j) = ( p(i+1, j)%x - p(i, j)%x )
+
+    ! Reset second derivatives to zero before we begin summing again.
+    p%d2Td2x = 0.d0
+    p%d2Td2y = 0.d0
+
+    do j = 1, JMAX - 1
+      do i = 1, IMAX - 1
+        dTdx = + 0.5d0 * &
+          ( ( p(i+1, j)%T + p(i+1,j+1)%T ) * Ayi(i+1, j) - &
+            ( p(i,   j)%T + p(i,  j+1)%T ) * Ayi(i,   j) - &
+            ( p(i, j+1)%T + p(i+1,j+1)%T ) * Ayj(i, j+1) + &
+            ( p(i,   j)%T + p(i+1,  j)%T ) * Ayj(i,   j)   &
+          ) / c(i, j)%V
+
+        dTdy = - 0.5d0 * &
+          ( ( p(i+1, j)%T + p(i+1,j+1)%T ) * Axi(i+1, j) - &
+            ( p(i,   j)%T + p(i,  j+1)%T ) * Axi(i,   j) - &
+            ( p(i, j+1)%T + p(i+1,j+1)%T ) * Axj(i, j+1) + &
+            ( p(i,   j)%T + p(i+1,  j)%T ) * Axj(i,   j)   &
+          ) / c(i ,j)%V
+
+        ! Alternate distributive scheme second-derivative operator.
+        ! Updates the second derivative by adding the first times a constant
+        ! during each time step.
+
+        ! Pass out x second derivatives contributions.
+        p(i+1,  j)%d2Td2x = p(i+1,  j)%d2Td2x + c(i, j)%yNN * dTdx
+        p(i,    j)%d2Td2x = p(i,    j)%d2Td2x + c(i, j)%yPN * dTdx
+        p(i,  j+1)%d2Td2x = p(i,  j+1)%d2Td2x + c(i, j)%yPP * dTdx
+        p(i+1,j+1)%d2Td2x = p(i+1,j+1)%d2Td2x + c(i, j)%yNP * dTdx
+
+        ! Pass out y second derivatives contributions.
+        p(i+1,  j)%d2Td2y = p(i+1,  j)%d2Td2y + c(i, j)%xPP * dTdy
+        p(i,    j)%d2Td2y = p(i,    j)%d2Td2y + c(i, j)%xNP * dTdy
+        p(i,  j+1)%d2Td2y = p(i,  j+1)%d2Td2y + c(i, j)%xNN * dTdy
+        p(i+1,j+1)%d2Td2y = p(i+1,j+1)%d2Td2y + c(i, j)%xPN * dTdy
+      end do
+    end do
+
   end subroutine
 end module UpdateTemperature

@@ -78,32 +78,39 @@ contains
     do n_ = 1, N
       do m_ = 1, M
         ! Block unique ID.
-        write (BlocksFile, *), "Block: ", n_ * 1000 + m_
+        write (BlocksFile, *), n_ * 1000 + m_
 
-        ! Each block has neighbors (and BCs).
+        ! Each block has neighbors (and/or BCs).
+        ! Here we either write out the neighboring block
+        ! or the code for a boundary block, '-1'
+
+        ! Neighbor 1
         if (m_ - 1 > 0) then
-          write (BlocksFile, *), "Neighbor 1: ", n_ * 1000 + (m_ - 1)
+          write (BlocksFile, *), n_ * 1000 + (m_ - 1)
         else
-          write (BlocksFile, *), "Neighbor 1: BOUNDARY"
+          write (BlocksFile, *), -1
         end if
+        ! Neighbor 2
         if (m_ + 1 <= M) then
-          write (BlocksFile, *), "Neighbor 2: ", n_ * 1000 + (m_ + 1)
+          write (BlocksFile, *), n_ * 1000 + (m_ + 1)
         else
-          write (BlocksFile, *), "Neighbor 2: BOUNDARY"
+          write (BlocksFile, *), 1
         end if
+        ! Neighbor 3
         if (n_ - 1 > 0) then
-          write (BlocksFile, *), "Neighbor 3: ", (n_ - 1) * 1000 + m_
+          write (BlocksFile, *), (n_ - 1) * 1000 + m_
         else
-          write (BlocksFile, *), "Neighbor 3: BOUNDARY"
+          write (BlocksFile, *), -1
         end if
+        ! Neighbor 4
         if (n_ + 1 <= N) then
-          write (BlocksFile, *), "Neighbor 4: ", (n_ + 1) * 1000 + m_
+          write (BlocksFile, *), (n_ + 1) * 1000 + m_
         else
-          write (BlocksFile, *), "Neighbor 4: BOUNDARY"
+          write (BlocksFile, *), -1
         end if
 
         ! Each block has an orientation. This doesn't do anything.
-        write(BlocksFile, *), "Orientation: 1"
+        write(BlocksFile, *), 1
 
         j = 0
         do j_ = 1 + (m_ - 1) * jBound, m_ * jBound
@@ -141,13 +148,8 @@ contains
   subroutine solve(Points, Cells, step)
     type (GridPoint), target :: Points(1:IMAX, 1:JMAX)
     type (GridCell),  target :: Cells(1:IMAX-1, 1:JMAX-1)
-    real(kind=8), pointer :: Temperature(:,:), tempTemperature(:,:)
     real(kind=8) :: residual = 1.d0 ! Arbitrary initial residual.
-    integer :: i, j, step
-
-    !  Set some useful pointers.
-    Temperature => Points(2:IMAX-1, 2:JMAX-1)%T
-    tempTemperature => Points(2:IMAX-1, 2:JMAX-1)%tempT
+    integer :: step
 
     !  Begin main loop, stop if we hit our mark or after 1,000,000 iterations.
     do while (residual >= .00001d0 .and. step <= 1000000)
@@ -155,16 +157,17 @@ contains
       step = step + 1
 
       ! Calculate our first and second derivatives for all our points.
-      call first_derivative(Points, Cells)
-      call second_derivative(Points, Cells, i, j)
+      call derivatives(Points, Cells)
+!      call first_derivative(Points, Cells)
+!      call second_derivative(Points, Cells)
 
       ! Calculate the new temperature for all of our interior points.
       Points(2:IMAX-1, 2:JMAX-1)%tempT = ( Points(2:IMAX-1, 2:JMAX-1)%timestep * alpha / Points(2:IMAX-1, 2:JMAX-1)%Vol2) * &
                                          ( Points(2:IMAX-1, 2:JMAX-1)%d2Td2x + Points(2:IMAX-1, 2:JMAX-1)%d2Td2y )
 
       ! Update all our temperatures.
-      Temperature = Temperature + tempTemperature
-      residual = maxval(abs(tempTemperature))
+      Points(2:IMAX-1, 2:JMAX-1)%T = Points(2:IMAX-1, 2:JMAX-1)%T + Points(2:IMAX-1, 2:JMAX-1)%tempT
+      residual = maxval(abs(Points(2:IMAX-1, 2:JMAX-1)%tempT))
     end do
 
     if (step <= 1000000) then
