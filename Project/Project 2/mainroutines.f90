@@ -21,6 +21,9 @@ contains
     ! Set up secondary areas needed for integration.
     call set_secondary_areas(Cells, Points)
 
+    ! Calculate constants for integration.
+    call set_constants(Cells, Points)
+
     ! Set up Dirichlet condition.
     ! Consider refactor.
     do j = 1, JMAX
@@ -31,20 +34,6 @@ contains
     do i = 1, IMAX
       call set_temperature(Points(i,1), abs(cos(pi * Points(i,1)%xp)) + 1.d0)
       call set_temperature(Points(i,JMAX), 5.d0 * (sin(pi * Points(i,JMAX)%xp) + 1.d0))
-    end do
-
-    ! Calculate timesteps and assign secondary volumes.
-    do j = 2, JMAX - 1
-      do i = 2, IMAX - 1
-        ! Calculate the timestep using the CFL method described in class.
-        Points(i, j)%timestep = ( ( CFL * 0.5d0 ) / alpha ) * Cells(i, j)%V ** 2 / &
-                                ( ( Points(i+1, j)%xp - Points(i, j)%xp )**2 + &
-                                  ( Points(i, j+1)%yp - Points(i, j)%yp )**2 )
-
-        ! Calculate the secondary volumes around each point. As we have rectangular points,
-        ! these are simply the sum of the surrounding primary cells divied by four.
-        Points(i, j)%Vol2 = ( Cells(i, j)%V + Cells(i - 1, j)%V + Cells(i, j - 1)%V + Cells(i - 1, j - 1)%V ) * 0.25d0
-      end do
     end do
   end subroutine
 
@@ -146,8 +135,8 @@ contains
   end subroutine make_blocks
 
   subroutine solve(Points, Cells, step)
-    type (GridPoint), target :: Points(1:IMAX, 1:JMAX)
-    type (GridCell),  target :: Cells(1:IMAX-1, 1:JMAX-1)
+    type (GridPoint) :: Points(1:IMAX, 1:JMAX)
+    type (GridCell)  :: Cells(1:IMAX-1, 1:JMAX-1)
     real(kind=8) :: residual = 1.d0 ! Arbitrary initial residual.
     integer :: step
 
@@ -158,11 +147,9 @@ contains
 
       ! Calculate our first and second derivatives for all our points.
       call derivatives(Points, Cells)
-!      call first_derivative(Points, Cells)
-!      call second_derivative(Points, Cells)
 
       ! Calculate the new temperature for all of our interior points.
-      Points(2:IMAX-1, 2:JMAX-1)%tempT = ( Points(2:IMAX-1, 2:JMAX-1)%timestep * alpha / Points(2:IMAX-1, 2:JMAX-1)%Vol2) * &
+      Points(2:IMAX-1, 2:JMAX-1)%tempT = Points(2:IMAX-1, 2:JMAX-1)%const * &
                                          ( Points(2:IMAX-1, 2:JMAX-1)%d2Td2x + Points(2:IMAX-1, 2:JMAX-1)%d2Td2y )
 
       ! Update all our temperatures.

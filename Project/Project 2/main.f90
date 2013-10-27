@@ -10,7 +10,7 @@ program heat
   integer :: step = 0
 
   ! Set up our grid size and allocate our arrays for our grid points and grid cells.
-  call SetGridSize(201)
+  call SetGridSize(101)
   call SetNumberOfBlocks(10, 10)
   allocate(Points(1:IMAX, 1:JMAX))
   allocate(Cells(1:IMAX-1, 1:JMAX-1))

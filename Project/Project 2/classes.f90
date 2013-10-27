@@ -54,7 +54,7 @@ module GridPointModule
     integer :: i, j
     real(kind=8) :: x, xp, y, yp
     real(kind=8) :: T, tempT, d2Td2x, d2Td2y
-    real(kind=8) :: timestep, Vol2
+    real(kind=8) :: timestep, Vol2, const
   end type GridPoint
 
 contains
@@ -106,17 +106,15 @@ module GridCellModule
 
 contains
   subroutine initialize_cells(Cells, Points)
-    type (GridCell), pointer :: c
     type (GridCell), target :: Cells(1:IMAX-1, 1:JMAX-1)
     type (GridPoint) :: Points(1:IMAX, 1:JMAX)
     integer :: i, j
 
     do j = 1, JMAX-1
       do i = 1, IMAX-1
-        c => Cells(i, j)
         ! Calculate the volume of each cell.
-        c%V = ( Points(i+1, j)%xp - Points(i, j)%xp) * &
-              ( Points(i, j+1)%yp - Points(i, j)%yp)
+        Cells(i, j)%V = ( Points(i+1, j)%xp - Points(i, j)%xp) * &
+                        ( Points(i, j+1)%yp - Points(i, j)%yp)
       end do
     end do
   end subroutine initialize_cells
@@ -158,6 +156,29 @@ contains
         c%xPN = (  c%Axi_half - c%Axj_half )
         c%xPP = (  c%Axi_half + c%Axj_half )
         c%xNP = ( -c%Axi_half + c%Axj_half )
+      end do
+    end do
+  end subroutine
+
+  subroutine set_constants(Cells, Points)
+    type (GridCell), target :: Cells(1:IMAX-1, 1:JMAX-1)
+    type (GridPoint), target :: Points(1:IMAX, 1:JMAX)
+    integer :: i, j
+
+    ! Calculate timesteps and assign secondary volumes.
+    do j = 2, JMAX - 1
+      do i = 2, IMAX - 1
+        ! Calculate the timestep using the CFL method described in class.
+        Points(i, j)%timestep = ( ( CFL * 0.5d0 ) / alpha ) * Cells(i, j)%V ** 2 / &
+                                ( ( Points(i+1, j)%xp - Points(i, j)%xp )**2 + &
+                                  ( Points(i, j+1)%yp - Points(i, j)%yp )**2 )
+
+        ! Calculate the secondary volumes around each point. As we have rectangular points,
+        ! these are simply the sum of the surrounding primary cells divied by four.
+        Points(i, j)%Vol2 = ( Cells(i, j)%V + Cells(i - 1, j)%V + Cells(i, j - 1)%V + Cells(i - 1, j - 1)%V ) * 0.25d0
+
+        ! Calculate this constant now so we don't recalculate in the solver loop.
+        Points(i, j)%const = ( Points(i, j)%timestep * alpha / Points(i, j)%Vol2)
       end do
     end do
   end subroutine
