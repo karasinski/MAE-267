@@ -146,11 +146,8 @@ contains
       step = step + 1
 
       ! Calculate our first and second derivatives for all our points.
-      call derivatives(Points, Cells)
-
       ! Calculate the new temperature for all of our interior points.
-      Points(2:IMAX-1, 2:JMAX-1)%tempT = Points(2:IMAX-1, 2:JMAX-1)%const * &
-                                         ( Points(2:IMAX-1, 2:JMAX-1)%d2Td2x + Points(2:IMAX-1, 2:JMAX-1)%d2Td2y )
+      call derivatives(Points, Cells)
 
       ! Update all our temperatures.
       Points(2:IMAX-1, 2:JMAX-1)%T = Points(2:IMAX-1, 2:JMAX-1)%T + Points(2:IMAX-1, 2:JMAX-1)%tempT
