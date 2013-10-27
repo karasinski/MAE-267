@@ -18,11 +18,11 @@ program heat
 
   call initialization(Points, Cells)
   call make_blocks(Points, Blocks)
-  call start_clock()
-  call solve(Points, Cells, step)
-  call end_clock()
+  !  call start_clock()
+  !  call solve(Points, Cells, step)
+  !  call end_clock()
   call output(Points, step)
-  call make_blocks(Points, Blocks)
+  !  call make_blocks(Points, Blocks)
   call plot3D(Blocks)
 
   ! Might as well be proper and cleanup before we leave.

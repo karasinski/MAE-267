@@ -2,10 +2,10 @@
 ! the size of the grid.
 module constants
   implicit none
-  real(kind=8) :: CFL = 1.14d0
+  real(kind=8), parameter :: CFL = 1.14d0
   real(kind=8), parameter :: k = 18.8d0, rho = 8000.d0, c_p = 500.d0
   real(kind=8), parameter :: pi = 3.141592654d0, rot = 30.d0*pi/180.d0
-  real(kind=8)  :: alpha = k / (c_p * rho)
+  real(kind=8), parameter :: alpha = k / (c_p * rho)
   integer :: IMAX, JMAX
   integer :: N, M ! Number of blocks.
 
@@ -75,7 +75,7 @@ contains
         p%xp = cos( 0.5d0 * pi * dfloat(IMAX-i) / dfloat(IMAX-1) )
         p%yp = cos( 0.5d0 * pi * dfloat(JMAX-j) / dfloat(JMAX-1) )
 
-        p%x = p%xp * cos( rot ) + ( 1. - p%yp ) * sin( rot )
+        p%x = p%xp * cos( rot ) + ( 1.d0 - p%yp ) * sin( rot )
         p%y = p%yp * cos( rot ) + ( p%xp ) * sin( rot )
 
         p%T = 3.5d0
@@ -134,28 +134,28 @@ contains
     Ayj(i,j) = ( p(i+1, j)%y - p(i, j)%y )
     Axj(i,j) = ( p(i+1, j)%x - p(i, j)%x )
 
+    ! These areas are used in the calculation of fluxes
+    ! for the alternate distributive scheme second-
+    ! derivative operator.
+    Ayi_half(i,j) = ( Ayi(i+1, j) + Ayi(i, j)   ) * 0.25d0
+    Axi_half(i,j) = ( Axi(i+1, j) + Axi(i, j)   ) * 0.25d0
+    Ayj_half(i,j) = ( Ayj(i, j)   + Ayj(i, j+1) ) * 0.25d0
+    Axj_half(i,j) = ( Axj(i, j)   + Axj(i, j+1) ) * 0.25d0
+
     do j = 1, JMAX-1
       do i = 1, IMAX-1
         c => Cells(i, j)
-        ! These areas are used in the calculation of fluxes
-        ! for the alternate distributive scheme second-
-        ! derivative operator.
-        Ayi_half = ( Ayi(i+1, j) + Ayi(i, j)   ) * 0.25d0
-        Axi_half = ( Axi(i+1, j) + Axi(i, j)   ) * 0.25d0
-        Ayj_half = ( Ayj(i, j)   + Ayj(i, j+1) ) * 0.25d0
-        Axj_half = ( Axj(i, j)   + Axj(i, j+1) ) * 0.25d0
-
         ! And these are the numbers that actually appear in the equations,
         ! saved here to (hopefully) save a moment or two during iteration.
-        c%yPP = (  Ayi_half + Ayj_half )
-        c%yNP = ( -Ayi_half + Ayj_half )
-        c%yNN = ( -Ayi_half - Ayj_half )
-        c%yPN = (  Ayi_half - Ayj_half )
+        c%yPP = (  Ayi_half(i,j) + Ayj_half(i,j) )
+        c%yNP = ( -Ayi_half(i,j) + Ayj_half(i,j) )
+        c%yNN = ( -Ayi_half(i,j) - Ayj_half(i,j) )
+        c%yPN = (  Ayi_half(i,j) - Ayj_half(i,j) )
 
-        c%xNN = ( -Axi_half - Axj_half )
-        c%xPN = (  Axi_half - Axj_half )
-        c%xPP = (  Axi_half + Axj_half )
-        c%xNP = ( -Axi_half + Axj_half )
+        c%xNN = ( -Axi_half(i,j) - Axj_half(i,j) )
+        c%xPN = (  Axi_half(i,j) - Axj_half(i,j) )
+        c%xPP = (  Axi_half(i,j) + Axj_half(i,j) )
+        c%xNP = ( -Axi_half(i,j) + Axj_half(i,j) )
       end do
     end do
   end subroutine
@@ -175,10 +175,11 @@ contains
 
         ! Calculate the secondary volumes around each point. As we have rectangular points,
         ! these are simply the sum of the surrounding primary cells divied by four.
-        Points(i, j)%Vol2 = ( Cells(i, j)%V + Cells(i - 1, j)%V + Cells(i, j - 1)%V + Cells(i - 1, j - 1)%V ) * 0.25d0
+        Points(i, j)%Vol2 = ( Cells(i, j)%V + Cells(i - 1, j)%V + &
+                              Cells(i, j - 1)%V + Cells(i - 1, j - 1)%V ) * 0.25d0
 
         ! Calculate this constant now so we don't recalculate in the solver loop.
-        Points(i, j)%const = ( Points(i, j)%timestep * alpha / Points(i, j)%Vol2)
+        Points(i, j)%const = ( Points(i, j)%timestep * alpha / Points(i, j)%Vol2 )
       end do
     end do
   end subroutine
@@ -192,8 +193,8 @@ module UpdateTemperature
   public
 
 contains
-   subroutine derivatives(p, c)
-    type (GridPoint) :: p(1:IMAX, 1:JMAX)
+  subroutine derivatives(p, c)
+    type (GridPoint), intent(inout) :: p(1:IMAX, 1:JMAX)
     type (GridCell), intent(inout)  :: c(1:IMAX-1, 1:JMAX-1)
     real(kind=8) :: Ayi, Axi, Ayj, Axj
     real(kind=8) :: dTdx, dTdy
@@ -202,13 +203,12 @@ contains
     ! Trapezoidal counter-clockwise integration to get the first
     ! derivatives in the x/y directions at the cell-center using
     ! Gauss's theorem.
-
     Ayi(i,j) = ( p(i, j+1)%y - p(i, j)%y )
     Axi(i,j) = ( p(i, j+1)%x - p(i, j)%x )
     Ayj(i,j) = ( p(i+1, j)%y - p(i, j)%y )
     Axj(i,j) = ( p(i+1, j)%x - p(i, j)%x )
 
-    ! Reset second derivatives to zero before we begin summing again.
+    ! Reset the change in temperature to zero before we begin summing again.
     p%tempT = 0.d0
 
     do j = 1, JMAX - 1
@@ -230,7 +230,6 @@ contains
         ! Alternate distributive scheme second-derivative operator.
         ! Updates the second derivative by adding the first times a constant
         ! during each time step.
-
         ! Pass out x and y second derivatives contributions.
         p(i+1,  j)%tempT = p(i+1,  j)%tempT + p(i+1,  j)%const * ( c(i, j)%yNN * dTdx + c(i, j)%xPP * dTdy )
         p(i,    j)%tempT = p(i,    j)%tempT + p(i,    j)%const * ( c(i, j)%yPN * dTdx + c(i, j)%xNP * dTdy )

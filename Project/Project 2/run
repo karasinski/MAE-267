@@ -1,0 +1,12 @@
+#!/bin/bash
+#
+#---Use Current Working Directory
+#$-cwd
+#
+#---Use Bash Shell
+#$ -S /bin/bash
+#
+#---Set Job Name
+#$-N main
+#Run Command
+/home/karasinski/Project/Project1/./main

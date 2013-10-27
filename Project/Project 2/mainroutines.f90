@@ -39,18 +39,20 @@ contains
 
   subroutine identify_grid(x, n_, m_)
     integer :: x, m_, n_
+
+    ! Example of how we can identify grids, not used...
+    ! Ex: call identify_grid(5004, n_, m_)
     n_ = x/1000
     m_ = x - n_ * 1000
     write(*, *), "x ", x, " n ", n_, " m ", m_
   end subroutine identify_grid
 
   subroutine make_blocks(Points, Blocks)
-    integer :: i, j, i_, j_, m_, n_
-    integer :: iBound, jBound
-    integer :: BlocksFile  = 99   ! Unit for grid files
-!    integer :: counter = 0
     type (GridPoint) :: Points(1:IMAX, 1:JMAX)
     type (GridPoint), allocatable :: Blocks(:,:,:,:)
+    integer :: i, j, i_, j_, m_, n_
+    integer :: iBound, jBound
+    integer :: BlocksFile  = 99   ! Unit for blocks files
 
     ! Size of each block.
     iBound = 1 + (IMAX - 1) / N
@@ -60,9 +62,6 @@ contains
     ! To be used when we eventually pass out blocks to indivual processors.
     20     format(10I10)
     open(unit=BlocksFile,file='blocks.dat',form='formatted')
-
-    ! Can identify a block based off its unique ID by calling identify grid
-    !  call identify_grid(5004, n_, m_)
 
     do n_ = 1, N
       do m_ = 1, M
@@ -103,7 +102,7 @@ contains
 
         j = 0
         do j_ = 1 + (m_ - 1) * jBound, m_ * jBound
-        i = 0
+          i = 0
           j = j + 1
           do i_ = 1 + (n_ - 1) * iBound, n_ * iBound
             i = i + 1
@@ -115,10 +114,6 @@ contains
               ! Hand out points to the blocks.
               Blocks(m_, n_, i, j) = Points(i_, j_)
               write (BlocksFile, 20), i_, j_, i, j
-
-              ! Counter to test that we have the right number of points
-              ! when we are done creating all the blocks.
-!              counter = counter + 1
             end if
 
           end do
@@ -126,9 +121,6 @@ contains
         write (BlocksFile, *)
       end do
     end do
-
-    ! Did we hit the correct number of points?
-!    write(*, *), counter, IMAX*JMAX, counter == IMAX*JMAX
 
     ! Close our file.
     close(BlocksFile)
@@ -154,6 +146,7 @@ contains
       residual = maxval(abs(Points(2:IMAX-1, 2:JMAX-1)%tempT))
     end do
 
+    ! Check for convergence.
     if (step <= max_steps) then
       write(*,*) "Converged."
     else
