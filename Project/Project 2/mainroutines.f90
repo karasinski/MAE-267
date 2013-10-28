@@ -82,7 +82,7 @@ contains
         if (m_ + 1 <= M) then
           write (BlocksFile, *), n_ * 1000 + (m_ + 1)
         else
-          write (BlocksFile, *), 1
+          write (BlocksFile, *), -1
         end if
         ! Neighbor 3
         if (n_ - 1 > 0) then
