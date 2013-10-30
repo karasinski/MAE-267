@@ -185,6 +185,88 @@ contains
   end subroutine
 end module GridCellModule
 
+module BlockModule
+  use GridPointModule
+  use GridCellModule
+
+  implicit none
+  public
+
+  type BlockType
+    ! This sucks.
+    type (GridPoint) :: Points(1:501,1:501)
+    type (GridCell)  :: Cells(1:500,1:500)
+    integer :: iBound, jBound
+  end type BlockType
+
+contains
+
+  subroutine initialize_blocks(Blocks, Points, Cells)
+    type (BlockType) :: Blocks(:,:)
+    type (GridPoint) :: Points(:,:)
+    type (GridCell)  :: Cells(:,:)
+    integer :: m_, n_, i_, j_, i, j, iBound, jBound
+
+    ! Size of each block.
+    iBound = 1 + (IMAX - 1) / N
+    jBound = 1 + (JMAX - 1) / M
+
+    do m_ = 1, M
+      do n_ = 1, N
+        j = 0
+        do j_ = 1 + (m_ - 1) * jBound, m_ * jBound
+          i = 0
+          j = j + 1
+          do i_ = 1 + (n_ - 1) * iBound, n_ * iBound
+            i = i + 1
+
+            ! If we're passed the number of points continue.
+            if (i_ > IMAX .or. j_ > JMAX) then
+              continue
+!              Blocks(m_, n_)%Points(i, j)%T = 666.d0
+            else
+              ! Hand out points to the blocks.
+              Blocks(m_, n_)%Points(i, j) = Points(i_, j_)
+            end if
+
+            ! Similarly...
+            ! If we're passed the number of cells continue.
+            if (i_ > IMAX-1 .or. j_ > JMAX-1) then
+              continue
+            else
+              ! Hand out cells to the blocks.
+              Blocks(m_, n_)%Cells(i, j) = Cells(i_, j_)
+            end if
+
+          end do
+        end do
+
+      end do
+    end do
+  end subroutine initialize_blocks
+
+  subroutine set_block_bounds(Blocks, BlockCollection)
+    type (BlockType) :: Blocks(:,:)
+    type (GridPoint) :: BlockCollection(:,:,:,:)
+    integer :: m_, n_
+
+!    write(*, *), "          m_          ", "n_         ", "iBound      ", "jBound"
+    do m_ = 1, M
+      do n_ = 1, N
+        Blocks(m_,n_)%iBound = (maxval(BlockCollection(m_,n_,:,:)%i) - &
+                                minval(BlockCollection(m_,n_,:,:)%i,   &
+                                MASK = BlockCollection(m_,n_,:,:)%i>0))
+
+        Blocks(m_,n_)%jBound = (maxval(BlockCollection(m_,n_,:,:)%j) - &
+                                minval(BlockCollection(m_,n_,:,:)%j,   &
+                                MASK = BlockCollection(m_,n_,:,:)%j>0))
+!        write(*, *), m_, n_, Blocks(m_,n_)%iBound, Blocks(m_,n_)%jBound
+      end do
+    end do
+  end subroutine set_block_bounds
+
+end module BlockModule
+
 module UpdateTemperature
   use GridPointModule
   use GridCellModule
@@ -194,8 +276,9 @@ module UpdateTemperature
 
 contains
   subroutine derivatives(p, c)
-    type (GridPoint), intent(inout) :: p(1:IMAX, 1:JMAX)
+    type (GridPoint), pointer, intent(inout) :: p(:,:)
     type (GridCell), intent(inout)  :: c(1:IMAX-1, 1:JMAX-1)
+
     real(kind=8) :: Ayi, Axi, Ayj, Axj
     real(kind=8) :: dTdx, dTdy
     integer :: i, j
@@ -211,8 +294,11 @@ contains
     ! Reset the change in temperature to zero before we begin summing again.
     p%tempT = 0.d0
 
-    do j = 1, JMAX - 1
-      do i = 1, IMAX - 1
+    do j = 1, size(p,2) - 1
+      do i = 1, size(p,1) - 1
+
+!        if (p(i,j)%T /= 666.d0) write(*,*),i,j,p(i,j)%T
+
         dTdx = + 0.5d0 * &
           ( ( p(i+1, j)%T + p(i+1,j+1)%T ) * Ayi(i+1, j) - &
             ( p(i,   j)%T + p(i,  j+1)%T ) * Ayi(i,   j) - &

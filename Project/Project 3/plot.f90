@@ -16,7 +16,7 @@ contains
   subroutine plot3D(Blocks)
     implicit none
 
-    type (GridPoint), allocatable :: Blocks(:,:,:,:)
+    type (GridPoint) :: Blocks(:,:,:,:)
     integer :: m_, n_, M, N
     integer :: i, j, iBound, jBound
 
@@ -56,8 +56,8 @@ contains
     write(gridUnit,20) ((iBound,jBound, m_=1, M), n_=1, N)
     do m_ = 1, M
       do n_ = 1, N
-        write(gridUnit,30) ((Blocks(m_,n_,i,j)%xp,i=1,iBound),j=1,jBound), &
-                           ((Blocks(m_,n_,i,j)%yp,i=1,iBound),j=1,jBound)
+        write(gridUnit,30) ((Blocks(m_,n_,i,j)%x,i=1,iBound),j=1,jBound), &
+                           ((Blocks(m_,n_,i,j)%y,i=1,iBound),j=1,jBound)
       end do
     end do
 
@@ -81,14 +81,14 @@ contains
   end subroutine plot3D
 
   ! Handcrafted output routine to give us some info.
-  subroutine output(Points, step)
-    type (GridPoint), target :: Points(1:IMAX, 1:JMAX)
-    real(kind=8), pointer :: Temperature(:,:), tempTemperature(:,:)
+  subroutine output(Blocks, step)
+    type (GridPoint) :: Blocks(:,:,:,:)
+!    real(kind=8), pointer :: Temperature(:,:), tempTemperature(:,:)
     integer :: step
     !    integer :: i, j
 
-    Temperature => Points(2:IMAX-1, 2:JMAX-1)%T
-    tempTemperature => Points(2:IMAX-1, 2:JMAX-1)%tempT
+!    Temperature => Points(2:IMAX-1, 2:JMAX-1)%T
+!    tempTemperature => Points(2:IMAX-1, 2:JMAX-1)%tempT
     ! Let's find the last cell to change temperature and write some output.
     ! Write down the 'steady state' configuration.
     !    open (unit = 1, file = "steady_state.dat")
@@ -102,8 +102,8 @@ contains
     ! Some output to the screen so we know something happened.
     write (*,*), "IMAX/JMAX", IMAX, JMAX
     write (*,*), "steps", step
-    write (*,*), "residual", maxval(tempTemperature)
-    write (*,*), "ij", maxloc(tempTemperature)
+    write (*,*), "residual", maxval(Blocks%tempT)
+    write (*,*), "ij", maxloc(Blocks%tempT)
 
     ! Write down misc. info asked for by Prof.
     open (unit = 2, file = "info.dat")
@@ -111,8 +111,8 @@ contains
     write (2,*), step, "steps"
     write (2,*), wall_time, "seconds"
     write (2,*)
-    write (2,*), "Found max residual of ", maxval(tempTemperature)
-    write (2,*), "At ij of ", maxloc(tempTemperature)
+    write (2,*), "Found max residual of ", maxval(Blocks%tempT)
+    write (2,*), "At ij of ", maxloc(Blocks%tempT)
     close (2)
     ! End output.
   end subroutine

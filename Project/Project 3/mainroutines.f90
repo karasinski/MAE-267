@@ -2,6 +2,7 @@ module MainRoutines
   use constants
   use GridPointModule
   use GridCellModule
+  use BlockModule
   use UpdateTemperature
 
   implicit none
@@ -47,9 +48,9 @@ contains
     write(*, *), "x ", x, " n ", n_, " m ", m_
   end subroutine identify_grid
 
-  subroutine make_blocks(Points, Blocks)
+  subroutine make_blocks(Points, BlocksCollection)
     type (GridPoint) :: Points(1:IMAX, 1:JMAX)
-    type (GridPoint), allocatable :: Blocks(:,:,:,:)
+    type (GridPoint), allocatable :: BlocksCollection(:,:,:,:)
     integer :: i, j, i_, j_, m_, n_
     integer :: iBound, jBound
     integer :: BlocksFile  = 99   ! Unit for blocks files
@@ -109,10 +110,10 @@ contains
 
             ! If we're passed the number of points continue.
             if (i_ > IMAX .or. j_ > JMAX) then
-              continue
+              BlocksCollection(m_, n_, i, j)%T = 666.d0
             else
               ! Hand out points to the blocks.
-              Blocks(m_, n_, i, j) = Points(i_, j_)
+              BlocksCollection(m_, n_, i, j) = Points(i_, j_)
               write (BlocksFile, 20), i_, j_, i, j
             end if
 
@@ -126,11 +127,13 @@ contains
     close(BlocksFile)
   end subroutine make_blocks
 
-  subroutine solve(Points, Cells, step)
-    type (GridPoint) :: Points(1:IMAX, 1:JMAX)
+  subroutine solve(Blocks, Cells, step)
+    type (GridPoint), target :: Blocks(:,:,:,:)
+    type (GridPoint), pointer :: Points(:,:)
     type (GridCell)  :: Cells(1:IMAX-1, 1:JMAX-1)
     real(kind=8) :: residual = 1.d0 ! Arbitrary initial residual.
-    integer :: step, max_steps = 1000000
+    integer :: step, max_steps = 1
+    integer :: m_, n_
 
     !  Begin main loop, stop if we hit our mark or after max_steps iterations.
     do while (residual >= .00001d0 .and. step <= max_steps)
@@ -139,11 +142,27 @@ contains
 
       ! Calculate our first and second derivatives for all our points.
       ! Calculate the new temperature for all of our interior points.
-      call derivatives(Points, Cells)
+      do m_ = 1, size(Blocks, 1)
+        do n_ = 1, size(Blocks, 2)
+          ! need to make ghost nodes, otherwise this won't work
+          ! or use accumulation operator
+          Points(1:,1:) => Blocks(m_, n_, 1:, 1:)
+          call derivatives(Points, Cells)
+        end do
+      end do
+
+      do m_ = 1, size(Blocks, 1)
+        do n_ = 1, size(Blocks, 2)
+          ! fix boundary conditions so tempT = 0
+          ! update ghost nodes
+        end do
+      end do
 
       ! Update all our temperatures.
-      Points(2:IMAX-1, 2:JMAX-1)%T = Points(2:IMAX-1, 2:JMAX-1)%T + Points(2:IMAX-1, 2:JMAX-1)%tempT
-      residual = maxval(abs(Points(2:IMAX-1, 2:JMAX-1)%tempT))
+      Blocks(:,:,:,:)%T = Blocks(:,:,:,:)%T + Blocks(:,:,:,:)%tempT
+      residual = maxval(abs(Blocks(:,:,:,:)%tempT))
+      write(*,*), residual
+
     end do
 
     ! Check for convergence.

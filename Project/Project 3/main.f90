@@ -4,26 +4,30 @@ program heat
   use plot3D_module
   implicit none
 
-  type (GridPoint), target, allocatable :: Points(:,:)
-  type (GridCell),  target, allocatable :: Cells(:,:)
-  type (GridPoint), allocatable :: Blocks(:,:,:,:)
+  type (GridPoint), allocatable :: Points(:,:)
+  type (GridCell),  allocatable :: Cells(:,:)
+  type (BlockType), allocatable :: Blocks(:,:)
+  type (GridPoint), allocatable :: BlocksCollection(:,:,:,:)
   integer :: step = 0
 
   ! Set up our grid size and allocate our arrays for our grid points and grid cells.
-  call SetGridSize(101)
-  call SetNumberOfBlocks(10, 10)
+  call SetGridSize(501)
+  call SetNumberOfBlocks(5, 4)
   allocate(Points(1:IMAX, 1:JMAX))
   allocate(Cells(1:IMAX-1, 1:JMAX-1))
-  allocate(Blocks(1:M, 1:N, 1:(1 + (IMAX - 1) / N), 1:(1 + (JMAX - 1) / M)))
+  allocate(Blocks(1:M, 1:N))
+  allocate(BlocksCollection(1:M, 1:N, 1:(1 + (IMAX - 1) / N), 1:(1 + (JMAX - 1) / M)))
 
   call initialization(Points, Cells)
-  call make_blocks(Points, Blocks)
+  call make_blocks(Points, BlocksCollection)
+  call initialize_blocks(Blocks, Points, Cells)
+  call set_block_bounds(Blocks, BlocksCollection)
   call start_clock()
-  call solve(Points, Cells, step)
+  call solve(BlocksCollection, Cells, step)
   call end_clock()
-  call output(Points, step)
-  call make_blocks(Points, Blocks)
-  call plot3D(Blocks)
+  call make_blocks(Points, BlocksCollection)
+!  call output(BlocksCollection, step)
+!  call plot3D(BlocksCollection)
 
   ! Might as well be proper and cleanup before we leave.
   deallocate(Points)
