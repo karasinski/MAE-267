@@ -110,7 +110,8 @@ contains
 
             ! If we're passed the number of points continue.
             if (i_ > IMAX .or. j_ > JMAX) then
-              BlocksCollection(m_, n_, i, j)%T = 666.d0
+!              BlocksCollection(m_, n_, i, j)%T = 666.d0
+              continue
             else
               ! Hand out points to the blocks.
               BlocksCollection(m_, n_, i, j) = Points(i_, j_)
@@ -127,12 +128,12 @@ contains
     close(BlocksFile)
   end subroutine make_blocks
 
-  subroutine solve(Blocks, Cells, step)
-    type (GridPoint), target :: Blocks(:,:,:,:)
+  subroutine solve(Blocks, step)
+    type (BlockType), target :: Blocks(:,:)
     type (GridPoint), pointer :: Points(:,:)
-    type (GridCell)  :: Cells(1:IMAX-1, 1:JMAX-1)
-    real(kind=8) :: residual = 1.d0 ! Arbitrary initial residual.
-    integer :: step, max_steps = 1
+    type (GridCell), pointer :: Cells(:,:)
+    real(kind=8) :: temp_residual = 1.d0, residual = 1.d0 ! Arbitrary initial residual.
+    integer :: step, max_steps = 10000
     integer :: m_, n_
 
     !  Begin main loop, stop if we hit our mark or after max_steps iterations.
@@ -142,26 +143,48 @@ contains
 
       ! Calculate our first and second derivatives for all our points.
       ! Calculate the new temperature for all of our interior points.
+      residual = 0d0
       do m_ = 1, size(Blocks, 1)
         do n_ = 1, size(Blocks, 2)
           ! need to make ghost nodes, otherwise this won't work
           ! or use accumulation operator
-          Points(1:,1:) => Blocks(m_, n_, 1:, 1:)
+          Points => Blocks(m_, n_)%Points
+          Cells => Blocks(m_, n_)%Cells
           call derivatives(Points, Cells)
+
+          ! Find block with largest residual.
+
+          ! temp_residual = maxval(abs(Blocks(m_,n_)%Points(2:Blocks(m_,n_)%iBound - 1, &
+          !                                                 2:Blocks(m_,n_)%jBound - 1)%tempT))
+
+          temp_residual = maxval(abs(Blocks(m_,n_)%Points(2:IMAX - 1, 2:JMAX - 1)%tempT))
+
+          if (temp_residual > residual) then
+            residual = temp_residual
+          end if
         end do
       end do
+
+      write(*,*), residual
+
 
       do m_ = 1, size(Blocks, 1)
         do n_ = 1, size(Blocks, 2)
           ! fix boundary conditions so tempT = 0
           ! update ghost nodes
+
+          ! Update all our temperatures.
+!          Blocks(m_,n_)%Points(2:Blocks(m_,n_)%iBound - 1,2:Blocks(m_,n_)%jBound - 1)%T = &
+!          Blocks(m_,n_)%Points(2:Blocks(m_,n_)%iBound - 1,2:Blocks(m_,n_)%jBound - 1)%T +  &
+!          Blocks(m_,n_)%Points(2:Blocks(m_,n_)%iBound - 1,2:Blocks(m_,n_)%jBound - 1)%tempT
+
+          Blocks(m_,n_)%Points(2:IMAX-1, 2:JMAX-1)%T = &
+          Blocks(m_,n_)%Points(2:IMAX-1, 2:JMAX-1)%T + &
+          Blocks(m_,n_)%Points(2:IMAX-1, 2:JMAX-1)%tempT
+
+          ! Need to NOT update dirichlet points.
         end do
       end do
-
-      ! Update all our temperatures.
-      Blocks(:,:,:,:)%T = Blocks(:,:,:,:)%T + Blocks(:,:,:,:)%tempT
-      residual = maxval(abs(Blocks(:,:,:,:)%tempT))
-      write(*,*), residual
 
     end do
 

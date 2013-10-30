@@ -2,6 +2,7 @@ module plot3D_module
   use constants
   use clock
   use GridPointModule
+  use BlockModule
   implicit none
 
   integer :: gridUnit  = 30   ! Unit for grid file
@@ -16,9 +17,10 @@ contains
   subroutine plot3D(Blocks)
     implicit none
 
-    type (GridPoint) :: Blocks(:,:,:,:)
+    type (BlockType) :: Blocks(:,:)
     integer :: m_, n_, M, N
-    integer :: i, j, iBound, jBound
+    integer :: i, j
+!    integer :: iBound, jBound
 
     ! Read M and N from Blocks.
     M = size(Blocks, 1)
@@ -28,8 +30,8 @@ contains
     nBlocks = N * M
 
     ! Size of each block.
-    iBound = size(Blocks, 3)
-    jBound = size(Blocks, 4)
+!    iBound = 1 + (IMAX - 1) / N
+!    jBound = 1 + (JMAX - 1) / M
 
     ! Format statements
     10     format(I10)
@@ -53,25 +55,25 @@ contains
     ! Write to grid file
     write(gridUnit,10) nBlocks
     m_ = 1
-    write(gridUnit,20) ((iBound,jBound, m_=1, M), n_=1, N)
+    write(gridUnit,20) ((Blocks(m_,n_)%iBound,Blocks(m_,n_)%jBound, m_=1, M), n_=1, N)
     do m_ = 1, M
       do n_ = 1, N
-        write(gridUnit,30) ((Blocks(m_,n_,i,j)%x,i=1,iBound),j=1,jBound), &
-                           ((Blocks(m_,n_,i,j)%y,i=1,iBound),j=1,jBound)
+        write(gridUnit,30) ((Blocks(m_,n_)%Points(i,j)%x,i=1,Blocks(m_,n_)%iBound),j=1,Blocks(m_,n_)%jBound), &
+                           ((Blocks(m_,n_)%Points(i,j)%y,i=1,Blocks(m_,n_)%iBound),j=1,Blocks(m_,n_)%jBound)
       end do
     end do
 
     ! Write to temperature file
     write(tempUnit,10) nBlocks
     m_ = 1
-    write(tempUnit,20) ((iBound,jBound, m_=1, M), n_=1, N)
+    write(tempUnit,20) ((Blocks(m_,n_)%iBound,Blocks(m_,n_)%jBound, m_=1, M), n_=1, N)
     do m_ = 1, M
       do n_ = 1, N
         write(tempUnit,30) tRef,dum,dum,dum
-        write(tempUnit,30) ((Blocks(m_,n_,i,j)%T,i=1,iBound),j=1,jBound), &
-                           ((Blocks(m_,n_,i,j)%T,i=1,iBound),j=1,jBound), &
-                           ((Blocks(m_,n_,i,j)%T,i=1,iBound),j=1,jBound), &
-                           ((Blocks(m_,n_,i,j)%T,i=1,iBound),j=1,jBound)
+        write(tempUnit,30) ((Blocks(m_,n_)%Points(i,j)%T,i=1,Blocks(m_,n_)%iBound),j=1,Blocks(m_,n_)%jBound), &
+                           ((Blocks(m_,n_)%Points(i,j)%T,i=1,Blocks(m_,n_)%iBound),j=1,Blocks(m_,n_)%jBound), &
+                           ((Blocks(m_,n_)%Points(i,j)%T,i=1,Blocks(m_,n_)%iBound),j=1,Blocks(m_,n_)%jBound), &
+                           ((Blocks(m_,n_)%Points(i,j)%T,i=1,Blocks(m_,n_)%iBound),j=1,Blocks(m_,n_)%jBound)
       end do
     end do
 
@@ -82,10 +84,11 @@ contains
 
   ! Handcrafted output routine to give us some info.
   subroutine output(Blocks, step)
-    type (GridPoint) :: Blocks(:,:,:,:)
+    type (BlockType) :: Blocks(:,:)
 !    real(kind=8), pointer :: Temperature(:,:), tempTemperature(:,:)
     integer :: step
-    !    integer :: i, j
+    integer :: m_,n_,max_i,max_j
+    real(kind=8) :: temp_residual, residual
 
 !    Temperature => Points(2:IMAX-1, 2:JMAX-1)%T
 !    tempTemperature => Points(2:IMAX-1, 2:JMAX-1)%tempT
@@ -100,10 +103,22 @@ contains
     !    close (1)
 
     ! Some output to the screen so we know something happened.
+
+    do m_ = 1, size(Blocks, 1)
+    do n_ = 1, size(Blocks, 2)
+    temp_residual = maxval(abs(Blocks(m_,n_)%Points(2:IMAX - 1, 2:JMAX - 1)%tempT))
+
+    if (temp_residual > residual) then
+      residual = temp_residual
+      write(*,*) m_, n_, maxloc(abs(Blocks(m_,n_)%Points(2:IMAX - 1, 2:JMAX - 1)%tempT))
+    end if
+    end do
+    end do
+
     write (*,*), "IMAX/JMAX", IMAX, JMAX
     write (*,*), "steps", step
-    write (*,*), "residual", maxval(Blocks%tempT)
-    write (*,*), "ij", maxloc(Blocks%tempT)
+    write (*,*), "residual", residual
+!    write (*,*), "ij", maxloc(Blocks%Points%tempT)
 
     ! Write down misc. info asked for by Prof.
     open (unit = 2, file = "info.dat")
@@ -111,8 +126,8 @@ contains
     write (2,*), step, "steps"
     write (2,*), wall_time, "seconds"
     write (2,*)
-    write (2,*), "Found max residual of ", maxval(Blocks%tempT)
-    write (2,*), "At ij of ", maxloc(Blocks%tempT)
+    write (2,*), "Found max residual of ", residual
+!    write (2,*), "At ij of ", maxloc(Blocks%Points%tempT)
     close (2)
     ! End output.
   end subroutine

@@ -194,8 +194,8 @@ module BlockModule
 
   type BlockType
     ! This sucks.
-    type (GridPoint) :: Points(1:501,1:501)
-    type (GridCell)  :: Cells(1:500,1:500)
+    type (GridPoint) :: Points(1:101,1:101)
+    type (GridCell)  :: Cells(1:100,1:100)
     integer :: iBound, jBound
   end type BlockType
 
@@ -295,8 +295,8 @@ contains
     ! Reset the change in temperature to zero before we begin summing again.
     p%tempT = 0.d0
 
-    do j = 1, size(p,2) - 1
-      do i = 1, size(p,1) - 1
+    do j = 1, JMAX-1
+      do i = 1, IMAX-1
 
 !        if (p(i,j)%T /= 666.d0) write(*,*),i,j,p(i,j)%T
 
@@ -322,6 +322,8 @@ contains
         p(i,    j)%tempT = p(i,    j)%tempT + p(i,    j)%const * ( c(i, j)%yPN * dTdx + c(i, j)%xNP * dTdy )
         p(i,  j+1)%tempT = p(i,  j+1)%tempT + p(i,  j+1)%const * ( c(i, j)%yPP * dTdx + c(i, j)%xNN * dTdy )
         p(i+1,j+1)%tempT = p(i+1,j+1)%tempT + p(i+1,j+1)%const * ( c(i, j)%yNP * dTdx + c(i, j)%xPN * dTdy )
+
+!        write(*,*), i, j, p(i,j)%tempT
       end do
     end do
   end subroutine
