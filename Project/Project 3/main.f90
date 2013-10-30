@@ -21,7 +21,6 @@ program heat
   call initialization(Points, Cells)
   call make_blocks(Points, BlocksCollection)
   call initialize_blocks(Blocks, Points, Cells)
-  call set_block_bounds(Blocks, BlocksCollection)
   call start_clock()
   call solve(BlocksCollection, Cells, step)
   call end_clock()

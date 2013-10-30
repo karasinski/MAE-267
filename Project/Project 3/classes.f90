@@ -243,23 +243,24 @@ contains
 
       end do
     end do
+
+    call set_block_bounds(Blocks)
   end subroutine initialize_blocks
 
-  subroutine set_block_bounds(Blocks, BlockCollection)
+  subroutine set_block_bounds(Blocks)
     type (BlockType) :: Blocks(:,:)
-    type (GridPoint) :: BlockCollection(:,:,:,:)
     integer :: m_, n_
 
 !    write(*, *), "          m_          ", "n_         ", "iBound      ", "jBound"
     do m_ = 1, M
       do n_ = 1, N
-        Blocks(m_,n_)%iBound = (maxval(BlockCollection(m_,n_,:,:)%i) - &
-                                minval(BlockCollection(m_,n_,:,:)%i,   &
-                                MASK = BlockCollection(m_,n_,:,:)%i>0))
+        Blocks(m_,n_)%iBound = (maxval(Blocks(m_,n_)%Points(:,:)%i) - &
+                                minval(Blocks(m_,n_)%Points(:,:)%i,   &
+                                MASK = Blocks(m_,n_)%Points(:,:)%i>0))
 
-        Blocks(m_,n_)%jBound = (maxval(BlockCollection(m_,n_,:,:)%j) - &
-                                minval(BlockCollection(m_,n_,:,:)%j,   &
-                                MASK = BlockCollection(m_,n_,:,:)%j>0))
+        Blocks(m_,n_)%jBound = (maxval(Blocks(m_,n_)%Points(:,:)%j) - &
+                                minval(Blocks(m_,n_)%Points(:,:)%j,   &
+                                MASK = Blocks(m_,n_)%Points(:,:)%j>0))
 !        write(*, *), m_, n_, Blocks(m_,n_)%iBound, Blocks(m_,n_)%jBound
       end do
     end do
