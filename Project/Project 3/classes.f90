@@ -264,6 +264,8 @@ contains
 !        write(*, *), m_, n_, Blocks(m_,n_)%iBound, Blocks(m_,n_)%jBound
       end do
     end do
+
+!    write(*,*)
   end subroutine set_block_bounds
 
 end module BlockModule
@@ -271,14 +273,16 @@ end module BlockModule
 module UpdateTemperature
   use GridPointModule
   use GridCellModule
+  use BlockModule
 
   implicit none
   public
 
 contains
-  subroutine derivatives(p, c)
-    type (GridPoint), pointer, intent(inout) :: p(:,:)
-    type (GridCell), intent(inout)  :: c(1:IMAX-1, 1:JMAX-1)
+  subroutine derivatives(MyBlock)
+    type (BlockType), target :: MyBlock
+    type (GridPoint), pointer :: p(:,:)
+    type (GridCell), pointer :: c(:,:)
 
     real(kind=8) :: Ayi, Axi, Ayj, Axj
     real(kind=8) :: dTdx, dTdy
@@ -292,11 +296,15 @@ contains
     Ayj(i,j) = ( p(i+1, j)%y - p(i, j)%y )
     Axj(i,j) = ( p(i+1, j)%x - p(i, j)%x )
 
+    p => MyBlock%Points
+    c => MyBlock%Cells
+
     ! Reset the change in temperature to zero before we begin summing again.
     p%tempT = 0.d0
 
-    do j = 1, JMAX-1
-      do i = 1, IMAX-1
+    do j = 1, MyBlock%jBound
+!        write(*,*), j
+      do i = 1, MyBlock%iBound
 
 !        if (p(i,j)%T /= 666.d0) write(*,*),i,j,p(i,j)%T
 

@@ -130,14 +130,14 @@ contains
 
   subroutine solve(Blocks, step)
     type (BlockType), target :: Blocks(:,:)
-    type (GridPoint), pointer :: Points(:,:)
-    type (GridCell), pointer :: Cells(:,:)
-    real(kind=8) :: temp_residual = 1.d0, residual = 1.d0 ! Arbitrary initial residual.
+!    type (GridPoint), pointer :: Points(:,:)
+!    type (GridCell), pointer :: Cells(:,:)
+    real(kind=8) :: temp_residual = 1.d0, residual = 1.d0 ! Arbitrary initial residuals.
     integer :: step, max_steps = 10000
     integer :: m_, n_
 
     !  Begin main loop, stop if we hit our mark or after max_steps iterations.
-    do while (residual >= .00001d0 .and. step <= max_steps)
+    do while (residual >= .00001d0 .and. step < max_steps)
       ! Another day...
       step = step + 1
 
@@ -146,18 +146,21 @@ contains
       residual = 0d0
       do m_ = 1, size(Blocks, 1)
         do n_ = 1, size(Blocks, 2)
+
+!      write(*,*), '--------------------'
+!      write(*,*), "m ", m_, " n ", n_
           ! need to make ghost nodes, otherwise this won't work
           ! or use accumulation operator
-          Points => Blocks(m_, n_)%Points
-          Cells => Blocks(m_, n_)%Cells
-          call derivatives(Points, Cells)
+
+          call derivatives(Blocks(m_, n_))
 
           ! Find block with largest residual.
 
           ! temp_residual = maxval(abs(Blocks(m_,n_)%Points(2:Blocks(m_,n_)%iBound - 1, &
           !                                                 2:Blocks(m_,n_)%jBound - 1)%tempT))
 
-          temp_residual = maxval(abs(Blocks(m_,n_)%Points(2:IMAX - 1, 2:JMAX - 1)%tempT))
+          temp_residual = maxval(abs(Blocks(m_,n_)%Points(2:Blocks(m_,n_)%iBound - 1, 2:Blocks(m_,n_)%iBound - 1)%tempT))
+!          write(*,*), temp_residual
 
           if (temp_residual > residual) then
             residual = temp_residual
@@ -165,8 +168,8 @@ contains
         end do
       end do
 
-      write(*,*), residual
-
+!      write(*,*), '--------------------'
+      write(*,*), step, residual
 
       do m_ = 1, size(Blocks, 1)
         do n_ = 1, size(Blocks, 2)
@@ -174,22 +177,19 @@ contains
           ! update ghost nodes
 
           ! Update all our temperatures.
+          ! Need to NOT update dirichlet points.
 !          Blocks(m_,n_)%Points(2:Blocks(m_,n_)%iBound - 1,2:Blocks(m_,n_)%jBound - 1)%T = &
 !          Blocks(m_,n_)%Points(2:Blocks(m_,n_)%iBound - 1,2:Blocks(m_,n_)%jBound - 1)%T +  &
 !          Blocks(m_,n_)%Points(2:Blocks(m_,n_)%iBound - 1,2:Blocks(m_,n_)%jBound - 1)%tempT
 
-          Blocks(m_,n_)%Points(2:IMAX-1, 2:JMAX-1)%T = &
-          Blocks(m_,n_)%Points(2:IMAX-1, 2:JMAX-1)%T + &
-          Blocks(m_,n_)%Points(2:IMAX-1, 2:JMAX-1)%tempT
-
-          ! Need to NOT update dirichlet points.
+          Blocks(m_,n_)%Points(2:IMAX-1, 2:JMAX-1)%T = Blocks(m_,n_)%Points(2:IMAX-1, 2:JMAX-1)%T + &
+                                                       Blocks(m_,n_)%Points(2:IMAX-1, 2:JMAX-1)%tempT
         end do
       end do
-
     end do
 
     ! Check for convergence.
-    if (step <= max_steps) then
+    if (step < max_steps) then
       write(*,*) "Converged."
     else
       write(*,*) "Failed to converge."
