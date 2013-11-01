@@ -104,8 +104,8 @@ contains
     type (BlockType) :: Blocks(:,:)
 !    real(kind=8), pointer :: Temperature(:,:), tempTemperature(:,:)
     integer :: step
-    integer :: m_,n_,max_i,max_j
-    real(kind=8) :: temp_residual, residual
+    integer :: m_,n_,max_m,max_n
+    real(kind=8) :: temp_residual, residual = 0.d0
 
 !    Temperature => Points(2:IMAX-1, 2:JMAX-1)%T
 !    tempTemperature => Points(2:IMAX-1, 2:JMAX-1)%tempT
@@ -121,21 +121,23 @@ contains
 
     ! Some output to the screen so we know something happened.
 
+    !not quite right...
     do m_ = 1, size(Blocks, 1)
-    do n_ = 1, size(Blocks, 2)
-    temp_residual = maxval(abs(Blocks(m_,n_)%Points(2:IMAX - 1, 2:JMAX - 1)%tempT))
-
-    if (temp_residual > residual) then
-      residual = temp_residual
-      write(*,*) m_, n_, maxloc(abs(Blocks(m_,n_)%Points(2:IMAX - 1, 2:JMAX - 1)%tempT))
-    end if
-    end do
+      do n_ = 1, size(Blocks, 2)
+        temp_residual = maxval(abs(Blocks(m_,n_)%Points(2:Blocks(m_,n_)%iBound - 1, 2:Blocks(m_,n_)%iBound - 1)%tempT))
+        if (temp_residual > residual) then
+          max_m = m_
+          max_n = n_
+          residual = temp_residual
+!          write(*,*) m_, n_, maxloc(abs(Blocks(m_,n_)%Points(2:IMAX - 1, 2:JMAX - 1)%tempT))
+        end if
+      end do
     end do
 
 !    write (*,*), "IMAX/JMAX", IMAX, JMAX
     write (*,*), "steps", step
     write (*,*), "residual", residual
-!    write (*,*), "ij", maxloc(Blocks%Points%tempT)
+    write (*,*), "mn",max_m, max_n,"ij", maxloc(abs(Blocks(max_m,max_n)%Points(2:IMAX - 1, 2:JMAX - 1)%tempT))
 
     ! Write down misc. info asked for by Prof.
     open (unit = 2, file = "info.dat")
@@ -144,7 +146,7 @@ contains
     write (2,*), wall_time, "seconds"
     write (2,*)
     write (2,*), "Found max residual of ", residual
-!    write (2,*), "At ij of ", maxloc(Blocks%Points%tempT)
+!    write (2,*), "mn",max_m, max_n,"ij", maxloc(abs(Blocks(max_m,max_n)%Points(2:IMAX - 1, 2:JMAX - 1)%tempT))
     close (2)
     ! End output.
   end subroutine
