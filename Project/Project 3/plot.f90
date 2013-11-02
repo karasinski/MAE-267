@@ -98,56 +98,40 @@ contains
     close(gridUnit)
     close(tempUnit)
   end subroutine plot3D
+! Basic info output.
+subroutine output(Blocks, step)
+  type (BlockType) :: Blocks(:,:)
+  integer :: step
+  integer :: m_,n_,max_m,max_n
+  real(kind=8) :: temp_residual, residual
 
-  ! Handcrafted output routine to give us some info.
-  subroutine output(Blocks, step)
-    type (BlockType) :: Blocks(:,:)
-!    real(kind=8), pointer :: Temperature(:,:), tempTemperature(:,:)
-    integer :: step
-    integer :: m_,n_,max_m,max_n
-    real(kind=8) :: temp_residual, residual = 0.d0
+  ! Some output to the screen so we know something happened.
+  do m_ = 1, size(Blocks, 1)
+    do n_ = 1, size(Blocks, 2)
+      temp_residual = maxval(abs(Blocks(m_,n_)%Points(2:Blocks(m_,n_)%iBound - 1, 2:Blocks(m_,n_)%iBound - 1)%tempT))
 
-!    Temperature => Points(2:IMAX-1, 2:JMAX-1)%T
-!    tempTemperature => Points(2:IMAX-1, 2:JMAX-1)%tempT
-    ! Let's find the last cell to change temperature and write some output.
-    ! Write down the 'steady state' configuration.
-    !    open (unit = 1, file = "steady_state.dat")
-    !    do i = 1, IMAX
-    !      do j = 1, JMAX
-    !        write (1,'(F10.7, 5X, F10.7, 5X, F10.7, I5, F10.7)'), Points(i,j)%x, Points(i,j)%y, Points(i,j)%T
-    !      end do
-    !    end do
-    !    close (1)
+      if (temp_residual > residual) then
+        max_m = m_
+        max_n = n_
+        residual = temp_residual
+      end if
 
-    ! Some output to the screen so we know something happened.
-
-    !not quite right...
-    do m_ = 1, size(Blocks, 1)
-      do n_ = 1, size(Blocks, 2)
-        temp_residual = maxval(abs(Blocks(m_,n_)%Points(2:Blocks(m_,n_)%iBound - 1, 2:Blocks(m_,n_)%iBound - 1)%tempT))
-        if (temp_residual > residual) then
-          max_m = m_
-          max_n = n_
-          residual = temp_residual
-!          write(*,*) m_, n_, maxloc(abs(Blocks(m_,n_)%Points(2:IMAX - 1, 2:JMAX - 1)%tempT))
-        end if
-      end do
     end do
+  end do
 
-!    write (*,*), "IMAX/JMAX", IMAX, JMAX
-    write (*,*), "steps", step
-    write (*,*), "residual", residual
-    write (*,*), "mn",max_m, max_n,"ij", maxloc(abs(Blocks(max_m,max_n)%Points(2:IMAX - 1, 2:JMAX - 1)%tempT))
+  write (*,*), "steps", step
+  write (*,*), "residual", residual
+  write (*,*), "mn", max_m, max_n, "ij", maxloc(abs(Blocks(max_m,max_n)%Points(2:IMAX - 1, 2:JMAX - 1)%tempT))
 
-    ! Write down misc. info asked for by Prof.
-    open (unit = 2, file = "info.dat")
-!    write (2,*), "For a ", IMAX, " by ", JMAX, "size grid, we ran for: "
-    write (2,*), step, "steps"
-    write (2,*), wall_time, "seconds"
-    write (2,*)
-    write (2,*), "Found max residual of ", residual
-!    write (2,*), "mn",max_m, max_n,"ij", maxloc(abs(Blocks(max_m,max_n)%Points(2:IMAX - 1, 2:JMAX - 1)%tempT))
-    close (2)
-    ! End output.
-  end subroutine
+  ! Write down misc. info asked for by Prof.
+  open (unit = 2, file = "info.dat")
+  write (2,*), "For a ", IMAX, " by ", JMAX, "size grid, we ran for: "
+  write (2,*), step, "steps"
+  write (2,*), wall_time, "seconds"
+  write (2,*)
+  write (2,*), "Found max residual of ", residual
+  write (2,*), "mn",max_m, max_n,"ij", maxloc(abs(Blocks(max_m,max_n)%Points(2:IMAX - 1, 2:JMAX - 1)%tempT))
+  close (2)
+  ! End output.
+end subroutine
 end module plot3D_module
