@@ -7,16 +7,16 @@ program heat
   type (GridPoint), allocatable :: Points(:,:)
   type (GridCell),  allocatable :: Cells(:,:)
   type (BlockType), allocatable :: Blocks(:,:)
-  type (GridPoint), allocatable :: BlocksCollection(:,:,:,:)
+!  type (GridPoint), allocatable :: BlocksCollection(:,:,:,:)
   integer :: step = 0
 
   ! Set up our grid size and allocate our arrays for our grid points and grid cells.
-  call SetGridSize(101)
+  call SetGridSize(11)
   call SetNumberOfBlocks(2,2)
   allocate(Points(1:IMAX, 1:JMAX))
   allocate(Cells(1:IMAX-1, 1:JMAX-1))
   allocate(Blocks(1:M, 1:N))
-  allocate(BlocksCollection(1:M, 1:N, 1:(1 + (IMAX - 1) / N), 1:(1 + (JMAX - 1) / M)))
+!  allocate(BlocksCollection(1:M, 1:N, 1:(1 + (IMAX - 1) / N), 1:(1 + (JMAX - 1) / M)))
 
   call initialization(Points, Cells)
 !  call make_blocks(Points, BlocksCollection)
@@ -29,6 +29,5 @@ program heat
   call plot3D(Blocks)
 
   ! Might as well be proper and cleanup before we leave.
-  deallocate(Points)
-  deallocate(Cells)
+  deallocate(Points, Cells, Blocks)
 end program heat

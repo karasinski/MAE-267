@@ -119,19 +119,20 @@ subroutine output(Blocks, step)
     end do
   end do
 
-  write (*,*), "steps", step
-  write (*,*), "residual", residual
-  write (*,*), "mn", max_m, max_n, "ij", maxloc(abs(Blocks(max_m,max_n)%Points(2:IMAX - 1, 2:JMAX - 1)%tempT))
+  if ( step > 0) then
+    write (*,*), "steps", step
+    write (*,*), "residual", residual
+    write (*,*), "mn", max_m, max_n, "ij", maxloc(abs(Blocks(max_m,max_n)%Points(2:IMAX - 1, 2:JMAX - 1)%tempT))
 
-  ! Write down misc. info asked for by Prof.
-  open (unit = 2, file = "info.dat")
-  write (2,*), "For a ", IMAX, " by ", JMAX, "size grid, we ran for: "
-  write (2,*), step, "steps"
-  write (2,*), wall_time, "seconds"
-  write (2,*)
-  write (2,*), "Found max residual of ", residual
-  write (2,*), "mn",max_m, max_n,"ij", maxloc(abs(Blocks(max_m,max_n)%Points(2:IMAX - 1, 2:JMAX - 1)%tempT))
-  close (2)
-  ! End output.
+    ! Write down misc. info asked for by Prof.
+    open (unit = 2, file = "info.dat")
+    write (2,*), "For a ", IMAX, " by ", JMAX, "size grid, we ran for: "
+    write (2,*), step, "steps"
+    write (2,*), wall_time, "seconds"
+    write (2,*)
+    write (2,*), "Found max residual of ", residual
+    write (2,*), "mn",max_m, max_n,"ij", maxloc(abs(Blocks(max_m,max_n)%Points(2:IMAX - 1, 2:JMAX - 1)%tempT))
+    close (2)
+  end if
 end subroutine
 end module plot3D_module

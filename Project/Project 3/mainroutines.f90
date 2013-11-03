@@ -130,7 +130,7 @@ contains
 
   subroutine solve(Blocks, step)
     type (BlockType), target :: Blocks(:,:)
-!    type (GridPoint), pointer :: Points(:,:)
+    type (GridPoint), pointer :: Points(:,:)
 !    type (GridCell), pointer :: Cells(:,:)
     real(kind=8) :: temp_residual = 1.d0, residual = 1.d0 ! Arbitrary initial residuals.
     integer :: step, max_steps = 10000
@@ -173,17 +173,33 @@ contains
 
       do m_ = 1, size(Blocks, 1)
         do n_ = 1, size(Blocks, 2)
-          ! fix boundary conditions so tempT = 0
-          ! update ghost nodes
+          Points => Blocks(m_,n_)%Points(2:Blocks(m_,n_)%iBound+1,2:Blocks(m_,n_)%jBound+1)
 
           ! Update all our temperatures.
           ! Need to NOT update dirichlet points.
-!          Blocks(m_,n_)%Points(2:Blocks(m_,n_)%iBound - 1,2:Blocks(m_,n_)%jBound - 1)%T = &
-!          Blocks(m_,n_)%Points(2:Blocks(m_,n_)%iBound - 1,2:Blocks(m_,n_)%jBound - 1)%T +  &
-!          Blocks(m_,n_)%Points(2:Blocks(m_,n_)%iBound - 1,2:Blocks(m_,n_)%jBound - 1)%tempT
+          Points%T = Points%T + Points%tempT
 
-          Blocks(m_,n_)%Points(2:IMAX-1, 2:JMAX-1)%T = Blocks(m_,n_)%Points(2:IMAX-1, 2:JMAX-1)%T + &
-                                                       Blocks(m_,n_)%Points(2:IMAX-1, 2:JMAX-1)%tempT
+          ! fix boundary conditions so tempT = 0
+          ! update ghost nodes
+
+          if (m_ + 1 <= size(Blocks, 1)) then
+            Blocks(m_+1, n_)%Points(:,2) = &
+            Blocks(m_, n_)%Points(:,Blocks(m_,n_)%jBound)
+          end if
+          if (m_ - 1 > 0) then
+            Blocks(m_-1, n_)%Points(:,Blocks(m_,n_)%jBound) = &
+            Blocks(m_, n_)%Points(:,2)
+          end if
+
+          if (n_ + 1 <= size(Blocks, 2)) then
+            Blocks(m_, n_ + 1)%Points(2,:) = &
+            Blocks(m_, n_)%Points(Blocks(m_,n_)%iBound,:)
+          end if
+          if (n_ - 1 > 0) then
+            Blocks(m_, n_ - 1)%Points(Blocks(m_,n_-1)%iBound,:) = &
+            Blocks(m_, n_)%Points(2,:)
+          end if
+
         end do
       end do
     end do

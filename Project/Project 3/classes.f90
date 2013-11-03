@@ -211,38 +211,37 @@ contains
     iBound = 1 + (IMAX - 1) / N
     jBound = 1 + (JMAX - 1) / M
 
-    do m_ = 1, M
-      do n_ = 1, N
+    mloop: do m_ = 1, M
+      nloop: do n_ = 1, N
         j = 0
-        do j_ = 1 + (m_ - 1) * jBound, m_ * jBound
+        jloop: do j_ = 1 + (m_ - 1) * ( jBound - 1 ), m_ * jBound + 1
           i = 0
           j = j + 1
-          do i_ = 1 + (n_ - 1) * iBound, n_ * iBound
+          iloop: do i_ = 1 + (n_ - 1) * ( iBound - 1 ), n_ * iBound + 1
             i = i + 1
 
             ! If we're passed the number of points continue.
-            if (i_ > IMAX .or. j_ > JMAX) then
+            if ( (i_ > IMAX .or. j_ > JMAX) .or. (i_ <= 0 .or. j_ <= 0) ) then
               continue
 !              Blocks(m_, n_)%Points(i, j)%T = 666.d0
             else
               ! Hand out points to the blocks.
+              write(*,*), m_,n_,j_,i_
               Blocks(m_, n_)%Points(i, j) = Points(i_, j_)
             end if
 
             ! Similarly...
             ! If we're passed the number of cells continue.
-            if (i_ > IMAX-1 .or. j_ > JMAX-1) then
+            if ( (i_ > IMAX-1 .or. j_ > JMAX-1) .or. (i_ <= 0 .or. j_ <= 0) ) then
               continue
             else
               ! Hand out cells to the blocks.
               Blocks(m_, n_)%Cells(i, j) = Cells(i_, j_)
             end if
-
-          end do
-        end do
-
-      end do
-    end do
+          end do iloop
+        end do jloop
+      end do nloop
+    end do mloop
 
     call set_block_bounds(Blocks)
   end subroutine initialize_blocks
@@ -251,7 +250,7 @@ contains
     type (BlockType) :: Blocks(:,:)
     integer :: m_, n_
 
-!    write(*, *), "          m_          ", "n_         ", "iBound      ", "jBound"
+    write(*, *), "          m_          ", "n_         ", "iBound      ", "jBound"
     do m_ = 1, M
       do n_ = 1, N
         Blocks(m_,n_)%iBound = (maxval(Blocks(m_,n_)%Points(:,:)%i) - &
@@ -261,7 +260,7 @@ contains
         Blocks(m_,n_)%jBound = (maxval(Blocks(m_,n_)%Points(:,:)%j) - &
                                 minval(Blocks(m_,n_)%Points(:,:)%j,   &
                                 MASK = Blocks(m_,n_)%Points(:,:)%j>0))
-!        write(*, *), m_, n_, Blocks(m_,n_)%iBound, Blocks(m_,n_)%jBound
+        write(*, *), m_, n_, Blocks(m_,n_)%iBound, Blocks(m_,n_)%jBound
       end do
     end do
 
