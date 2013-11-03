@@ -133,7 +133,7 @@ contains
     type (GridPoint), pointer :: Points(:,:)
 !    type (GridCell), pointer :: Cells(:,:)
     real(kind=8) :: temp_residual = 1.d0, residual = 1.d0 ! Arbitrary initial residuals.
-    integer :: step, max_steps = 10000
+    integer :: step, max_steps = 10
     integer :: m_, n_
 
     !  Begin main loop, stop if we hit our mark or after max_steps iterations.
@@ -159,7 +159,7 @@ contains
           ! temp_residual = maxval(abs(Blocks(m_,n_)%Points(2:Blocks(m_,n_)%iBound - 1, &
           !                                                 2:Blocks(m_,n_)%jBound - 1)%tempT))
 
-          temp_residual = maxval(abs(Blocks(m_,n_)%Points(2:Blocks(m_,n_)%iBound - 1, 2:Blocks(m_,n_)%iBound - 1)%tempT))
+          temp_residual = maxval(abs(Blocks(m_,n_)%Points(2:Blocks(m_,n_)%iBound-1, 2:Blocks(m_,n_)%jBound-1)%tempT))
 !          write(*,*), temp_residual
 
           if (temp_residual > residual) then
@@ -173,32 +173,40 @@ contains
 
       do m_ = 1, size(Blocks, 1)
         do n_ = 1, size(Blocks, 2)
-          Points => Blocks(m_,n_)%Points(2:Blocks(m_,n_)%iBound+1,2:Blocks(m_,n_)%jBound+1)
+          Points => Blocks(m_,n_)%Points(2:Blocks(m_,n_)%iBound-1,2:Blocks(m_,n_)%jBound-1)
 
           ! Update all our temperatures.
           ! Need to NOT update dirichlet points.
           Points%T = Points%T + Points%tempT
 
-          ! fix boundary conditions so tempT = 0
           ! update ghost nodes
-
+          ! Vertical Passing
           if (m_ + 1 <= size(Blocks, 1)) then
-            Blocks(m_+1, n_)%Points(:,2) = &
-            Blocks(m_, n_)%Points(:,Blocks(m_,n_)%jBound)
+!            write(*,*),m_,n_
+!            write(*,*), Blocks(m_+1, n_)%Points(:,1)%x
+write(*,*), "yo ", m_, n_, Blocks(m_+1, n_)%Points(:,1)%T
+write(*,*), "ho ", m_, n_, Blocks(m_+1, n_)%Points(:,Blocks(m_,n_)%iBound-1)%T
+            Blocks(m_, n_)%Points(:,Blocks(m_,n_)%jBound-1)%T = &
+            Blocks(m_+1, n_)%Points(:,2)%T
+!            write(*,*), Blocks(m_+1, n_)%Points(:,1)%x
+!            write(*,*)
           end if
-          if (m_ - 1 > 0) then
-            Blocks(m_-1, n_)%Points(:,Blocks(m_,n_)%jBound) = &
-            Blocks(m_, n_)%Points(:,2)
-          end if
+!          if (m_ - 1 > 0) then
+!            Blocks(m_-1, n_)%Points(:,Blocks(m_-1,n_)%jBound-1) = &
+!            Blocks(m_, n_)%Points(:,1)
+!          end if
 
+          ! Horizontal passing.
           if (n_ + 1 <= size(Blocks, 2)) then
-            Blocks(m_, n_ + 1)%Points(2,:) = &
-            Blocks(m_, n_)%Points(Blocks(m_,n_)%iBound,:)
+!            write(*,*),m_,n_
+
+            Blocks(m_, n_ + 1)%Points(2,:)%T = &
+            Blocks(m_, n_)%Points(Blocks(m_,n_)%iBound-1,:)%T
           end if
-          if (n_ - 1 > 0) then
-            Blocks(m_, n_ - 1)%Points(Blocks(m_,n_-1)%iBound,:) = &
-            Blocks(m_, n_)%Points(2,:)
-          end if
+!          if (n_ - 1 > 0) then
+!            Blocks(m_, n_ - 1)%Points(Blocks(m_,n_-1)%iBound-1,:) = &
+!            Blocks(m_, n_)%Points(1,:)
+!          end if
 
         end do
       end do

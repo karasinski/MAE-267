@@ -194,8 +194,8 @@ module BlockModule
 
   type BlockType
     ! This sucks.
-    type (GridPoint) :: Points(1:101,1:101)
-    type (GridCell)  :: Cells(1:100,1:100)
+    type (GridPoint) :: Points(1:11,1:11)
+    type (GridCell)  :: Cells(1:10,1:10)
     integer :: iBound, jBound
   end type BlockType
 
@@ -228,6 +228,8 @@ contains
               ! Hand out points to the blocks.
               write(*,*), m_,n_,j_,i_
               Blocks(m_, n_)%Points(i, j) = Points(i_, j_)
+              Blocks(m_, n_)%iBound = i
+              Blocks(m_, n_)%jBound = j
             end if
 
             ! Similarly...
@@ -243,7 +245,7 @@ contains
       end do nloop
     end do mloop
 
-    call set_block_bounds(Blocks)
+!    call set_block_bounds(Blocks)
   end subroutine initialize_blocks
 
   subroutine set_block_bounds(Blocks)
