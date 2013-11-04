@@ -68,8 +68,7 @@ contains
     end do
 
 
-! This looks like shit when we plot, but SHOULD be better... off by 1?
-!    ! Write to grid file
+    ! Write to grid file
 !    write(gridUnit,10) nBlocks
 !    m_ = 1
 !    write(gridUnit,20) ((Blocks(m_,n_)%iBound,Blocks(m_,n_)%jBound, m_=1, M), n_=1, N)

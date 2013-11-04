@@ -133,7 +133,7 @@ contains
     type (GridPoint), pointer :: Points(:,:)
 !    type (GridCell), pointer :: Cells(:,:)
     real(kind=8) :: temp_residual = 1.d0, residual = 1.d0 ! Arbitrary initial residuals.
-    integer :: step, max_steps = 10
+    integer :: step, max_steps = 10000
     integer :: m_, n_
 
     !  Begin main loop, stop if we hit our mark or after max_steps iterations.
@@ -182,31 +182,17 @@ contains
           ! update ghost nodes
           ! Vertical Passing
           if (m_ + 1 <= size(Blocks, 1)) then
-!            write(*,*),m_,n_
-!            write(*,*), Blocks(m_+1, n_)%Points(:,1)%x
-write(*,*), "yo ", m_, n_, Blocks(m_+1, n_)%Points(:,1)%T
-write(*,*), "ho ", m_, n_, Blocks(m_+1, n_)%Points(:,Blocks(m_,n_)%iBound-1)%T
-            Blocks(m_, n_)%Points(:,Blocks(m_,n_)%jBound-1)%T = &
-            Blocks(m_+1, n_)%Points(:,2)%T
-!            write(*,*), Blocks(m_+1, n_)%Points(:,1)%x
-!            write(*,*)
+!            write(*,*),m_,n_, "> 0, mbound"
+            Blocks(m_ + 1, n_)%Points(:,1)%T = Blocks(m_, n_)%Points(:,Blocks(m_, n_)%jBound-1)%T
           end if
-!          if (m_ - 1 > 0) then
-!            Blocks(m_-1, n_)%Points(:,Blocks(m_-1,n_)%jBound-1) = &
-!            Blocks(m_, n_)%Points(:,1)
-!          end if
 
           ! Horizontal passing.
           if (n_ + 1 <= size(Blocks, 2)) then
-!            write(*,*),m_,n_
-
-            Blocks(m_, n_ + 1)%Points(2,:)%T = &
-            Blocks(m_, n_)%Points(Blocks(m_,n_)%iBound-1,:)%T
+!            write(*,*),m_,n_, "> 0, nbound"
+!            write(*,*), 'c', Blocks(m_, n_ - 1)%Points(1,:)%i
+            Blocks(m_, n_ + 1)%Points(1,:)%T = Blocks(m_, n_)%Points(Blocks(m_, n_)%iBound-1,:)%T
+!            write(*,*), 'd', Blocks(m_, n_ - 1)%Points(1,:)%i
           end if
-!          if (n_ - 1 > 0) then
-!            Blocks(m_, n_ - 1)%Points(Blocks(m_,n_-1)%iBound-1,:) = &
-!            Blocks(m_, n_)%Points(1,:)
-!          end if
 
         end do
       end do
