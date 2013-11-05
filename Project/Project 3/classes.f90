@@ -9,6 +9,7 @@ module constants
   integer :: IMAX, JMAX
   integer :: N, M ! Number of blocks.
   integer :: iBlockSize, jBlockSize
+  integer :: nBlocks
 
   integer :: nB = 1
   integer :: eB = 2
@@ -385,11 +386,11 @@ contains
     end do
   end subroutine
 
-  subroutine set_secondary_areas(BlocksCollection)
-    type (BlockType), target :: BlocksCollection(:,:)
+  subroutine set_secondary_areas(Blocks)
+    type (BlockType), target :: Blocks(:)
     type (GridCell), pointer :: c
     type (GridPoint), pointer :: p(:,:)
-    integer :: i, j,  iM, iN
+    integer :: i, j, n_
     real(kind=8) :: Ayi, Axi, Ayj, Axj
     real(kind=8) :: Ayi_half, Axi_half, Ayj_half, Axj_half
 
@@ -409,12 +410,11 @@ contains
     Ayj_half(i,j) = ( Ayj(i, j)   + Ayj(i, j+1) ) * 0.25d0
     Axj_half(i,j) = ( Axj(i, j)   + Axj(i, j+1) ) * 0.25d0
 
-    do iM=1, M
-      do iN=1, N
+      do n_=1, nBlocks
         do j = 1, jBlockSize-1
           do i = 1, iBlockSize-1
-            p => BlocksCollection(iM, iN)%Points
-            c => BlocksCollection(iM, iN)%Cells(i,j)
+            p => Blocks(n_)%Points
+            c => Blocks(n_)%Cells(i,j)
             ! And these are the numbers that actually appear in the equations,
             ! saved here to (hopefully) save a moment or two during iteration.
             c%yPP = (  Ayi_half(i,j) + Ayj_half(i,j) )
@@ -428,23 +428,21 @@ contains
             c%xNP = ( -Axi_half(i,j) + Axj_half(i,j) )
           end do
         end do
-      end do
     end do
   end subroutine
 
-  subroutine set_constants(BlocksCollection)
-    type (BlockType), target :: BlocksCollection(:,:)
+  subroutine set_constants(Blocks)
+    type (BlockType), target :: Blocks(:)
     type (GridCell), pointer :: Cells(:,:)
     type (GridPoint), pointer :: Points(:,:)
-    integer :: i, j, iM, iN
+    integer :: i, j, n_
 
     ! Calculate timesteps and assign secondary volumes.
-    do iM=1, M
-      do iN=1, N
+      do n_ = 1, nBlocks
         do j = 1, jBlockSize - 1
           do i = 1, iBlockSize - 1
-            Points => BlocksCollection(iM, iN)%Points
-            Cells => BlocksCollection(iM, iN)%Cells
+            Points => Blocks(n_)%Points
+            Cells => Blocks(n_)%Cells
             ! Calculate the timestep using the CFL method described in class.
             Points(i, j)%timestep = ( ( CFL * 0.5d0 ) / alpha ) * Cells(i, j)%V ** 2 / &
               ( ( Points(i+1, j)%xp - Points(i, j)%xp )**2 + &
@@ -460,29 +458,29 @@ contains
           end do
         end do
       end do
-    end do
   end subroutine
 
-  subroutine set_bounds(BlocksCollection)
-    type (BlockType), target :: BlocksCollection(:,:)
+  subroutine set_bounds(Blocks)
+    type (BlockType), target :: Blocks(:)
+    type (BlockType), pointer :: b
     type (GridCell), pointer :: c(:,:)
     type (GridPoint), pointer :: p1, p2
     integer, pointer :: neighbor
-    integer :: i, j, iM, iN, neighborM, neighborN
+    integer :: i, j, n_, neighborM, neighborN
 
-    do iM=1, M
-      do iN=1, N
+      do n_=1, nBlocks
 
-        if (BlocksCollection(iM, iN)%northFace%BC == -1) then
+        b => Blocks(n_)
+
+        if (b%northFace%BC == -1) then
           do i = 1, iBlockSize
-
             ! Need to convert from neighbor to neighbor_M and neighbor_N
-            neighbor => BlocksCollection(iM, iN)%northFace%neighborBlock
-            neighborM = (neighbor-1)/N + 1
-            neighborN = mod(neighbor - 1 , N) + 1
+            neighbor => b%northFace%neighborBlock
+!            neighborM = (neighbor-1)/N + 1
+!            neighborN = mod(neighbor - 1 , N) + 1
 
-            p1 => BlocksCollection(iM, iN)%Points(i, jBlockSize+1)
-            p2 => BlocksCollection(neighborM, neighborN)%Points(i, 2)
+            p1 => b%Points(i, jBlockSize+1)
+            p2 => Blocks(neighbor)%Points(i, 2)
 
             !          write(*,*), iM, iN, neighbor, neighborM, neighborN
             p1%x = p2%x
@@ -490,20 +488,20 @@ contains
             p1%T = p2%T
           end do
 
-          BlocksCollection(iM, iN)%localJMAX = jBlockSize
+          b%localJMAX = jBlockSize
         else
-          BlocksCollection(iM, iN)%localJMAX = jBlockSize - 1
+          b%localJMAX = jBlockSize - 1
         end if
 
-        if (BlocksCollection(iM, iN)%eastFace%BC == -1) then
+        if (b%eastFace%BC == -1) then
           do j = 1, jBlockSize
             ! Need to convert from neighbor to neighbor_M and neighbor_N
-            neighbor => BlocksCollection(iM, iN)%eastFace%neighborBlock
-            neighborM = (neighbor-1)/N + 1
-            neighborN = mod(neighbor - 1 , N) + 1
+            neighbor => b%eastFace%neighborBlock
+!            neighborM = (neighbor-1)/N + 1
+!            neighborN = mod(neighbor - 1 , N) + 1
 
-            p1 => BlocksCollection(iM, iN)%Points(iBlockSize+1, j)
-            p2 => BlocksCollection(neighborM, neighborN)%Points(2, j)
+            p1 => b%Points(iBlockSize+1, j)
+            p2 => Blocks(neighbor)%Points(2, j)
 
 !                      write(*,*), iM, iN, neighbor, neighborM, neighborN
             p1%x = p2%x
@@ -511,20 +509,20 @@ contains
             p1%T = p2%T
           end do
 
-          BlocksCollection(iM, iN)%localIMAX = iBlockSize
+          b%localIMAX = iBlockSize
         else
-          BlocksCollection(iM, iN)%localIMAX = iBlockSize - 1
+          b%localIMAX = iBlockSize - 1
         end if
 
-        if (BlocksCollection(iM, iN)%southFace%BC == -1) then
+        if (b%southFace%BC == -1) then
           do i = 1, iBlockSize
             ! Need to convert from neighbor to neighbor_M and neighbor_N
-            neighbor => BlocksCollection(iM, iN)%southFace%neighborBlock
-            neighborM = (neighbor-1)/N + 1
-            neighborN = mod(neighbor - 1 , N) + 1
+            neighbor => b%southFace%neighborBlock
+!            neighborM = (neighbor-1)/N + 1
+!            neighborN = mod(neighbor - 1 , N) + 1
 
-            p1 => BlocksCollection(iM, iN)%Points(i, 0)
-            p2 => BlocksCollection(neighborM, neighborN)%Points(i, jBlockSize - 1)
+            p1 => b%Points(i, 0)
+            p2 => Blocks(neighbor)%Points(i, jBlockSize - 1)
 
 !                      write(*,*), iM, iN, neighbor, neighborM, neighborN
             p1%x = p2%x
@@ -532,20 +530,20 @@ contains
             p1%T = p2%T
           end do
 
-          BlocksCollection(iM, iN)%localIMIN = 0
+          b%localIMIN = 0
         else
-          BlocksCollection(iM, iN)%localIMIN = 1
+          b%localIMIN = 1
         end if
 
-        if (BlocksCollection(iM, iN)%westFace%BC == -1) then
+        if (b%westFace%BC == -1) then
           do j = 1, jBlockSize
             ! Need to convert from neighbor to neighbor_M and neighbor_N
-            neighbor => BlocksCollection(iM, iN)%westFace%neighborBlock
-            neighborM = (neighbor-1)/N + 1
-            neighborN = mod(neighbor - 1 , N) + 1
+            neighbor => b%westFace%neighborBlock
+!            neighborM = (neighbor-1)/N + 1
+!            neighborN = mod(neighbor - 1 , N) + 1
 
-            p1 => BlocksCollection(iM, iN)%Points(0, j)
-            p2 => BlocksCollection(neighborM, neighborN)%Points(iBlockSize - 1, j)
+            p1 => b%Points(0, j)
+            p2 => Blocks(neighbor)%Points(iBlockSize - 1, j)
 
 !                      write(*,*), iM, iN, neighbor, neighborM, neighborN
             p1%x = p2%x
@@ -553,14 +551,13 @@ contains
             p1%T = p2%T
           end do
 
-          BlocksCollection(iM, iN)%localJMIN = 0
+          b%localJMIN = 0
         else
-          BlocksCollection(iM, iN)%localJMIN = 1
+          b%localJMIN = 1
         end if
 
+      write(*,*) b%localIMAX, b%localIMIN, b%localJMAX, b%localJMIN
         ! Need to set corners...
-
-      end do
     end do
   end subroutine
 
@@ -623,16 +620,15 @@ contains
     write(*,*),'Initialized Grid'
   end subroutine
 
-  subroutine initialize_cells(BlocksCollection)
-    type (BlockType), target :: BlocksCollection(:,:)
+  subroutine initialize_cells(Blocks)
+    type (BlockType), target :: Blocks(:)
     type (GridCell), pointer :: Cells(:,:)
     type (GridPoint), pointer :: Points(:,:)
-    integer :: i, j, iM, iN
+    integer :: i, j, n_
 
-    do iM=1, M
-      do iN=1, N
-        Points => BlocksCollection(iM, iN)%Points
-        Cells => BlocksCollection(iM, iN)%Cells
+      do n_=1, nBlocks
+        Points => Blocks(n_)%Points
+        Cells => Blocks(n_)%Cells
 
         do j = 1, jBlockSize-1
           do i = 1, iBlockSize-1
@@ -642,7 +638,6 @@ contains
           end do
         end do
       end do
-    end do
   end subroutine initialize_cells
 
 end module BlockModule

@@ -6,8 +6,8 @@ program heat
 
 !  type (GridPoint), allocatable :: Points(:,:)
 !  type (GridCell),  allocatable :: Cells(:,:)
-!  type (BlockType), allocatable :: Blocks(:,:)
   type (BlockType), allocatable :: BlocksCollection(:,:)
+  type (BlockType), allocatable :: Blocks(:)
   integer :: step = 0
 
   ! Set up our grid size and allocate our arrays for our grid points and grid cells.
@@ -15,7 +15,6 @@ program heat
   call SetNumberOfBlocks(5,4)
 !  allocate(Points(1:IMAX, 1:JMAX))
 !  allocate(Cells(1:IMAX-1, 1:JMAX-1))
-!  allocate(Blocks(1:M, 1:N))
   allocate(BlocksCollection(1:M,1:N))
 
 
@@ -29,7 +28,8 @@ program heat
   call plot3D(BlocksCollection)
 
   ! We then initialize the solver.
-  call initialization(BlocksCollection)
+  allocate(Blocks(1:nBlocks))
+  call initialization(Blocks)
 
 !  call make_blocks(Points, BlocksCollection)
   call start_clock()

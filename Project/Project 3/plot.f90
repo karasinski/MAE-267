@@ -9,7 +9,6 @@ module plot3D_module
   integer :: tempUnit = 21    ! Unit for temp file
   real(kind=8) :: tRef = 1    ! tRef number
   real(kind=8) :: dum = 0.d0  ! dummy values
-  integer :: nBlocks = 1      ! default number of blocks
 
 contains
 
@@ -44,10 +43,10 @@ contains
     close(1)
   end subroutine
 
-  subroutine read_configuration_file(BlocksCollection)
-    type (BlockType), target :: BlocksCollection(:,:)
+  subroutine read_configuration_file(Blocks)
+    type (BlockType), target :: Blocks(:)
     type (BlockType), pointer :: b
-    integer :: iM, iN, iMFile, iNFile
+    integer :: i, iMFile, iNFile
 
     open(unit = 1, file = 'configuration_file.dat', status='old')
 
@@ -56,9 +55,8 @@ contains
 
     read(1, 10) nBlocks, iBlockSize, jBlockSize
 
-    do iM = 1, M
-      do iN = 1, N
-        b => BlocksCollection(iM, iN)
+    do i = 1, nBlocks
+        b => Blocks(i)
         read(1, 20) iMFile, iNFile, b%type, b%proc, &
                      b%lowI, b%highI, b%lowJ, b%highJ, &
                      b%northFace%BC, b%northFace%neighborBlock, b%northFace%neighborProc, &
@@ -70,14 +68,13 @@ contains
                      b%SWCorner%BC, b%SWCorner%neighborBlock, b%SWCorner%neighborProc, &
                      b%SECorner%BC, b%SECorner%neighborBlock, b%SECorner%neighborProc
       end do
-    end do
 
     close(1)
   end subroutine
 
   subroutine read_grid_file(Blocks)
-    type (BlockType) :: Blocks(:,:)
-    integer :: m_, n_, i, j
+    type (BlockType) :: Blocks(:)
+    integer :: n_, i, j
 
     ! Format statements
     10     format(I10)
@@ -89,13 +86,11 @@ contains
 
     ! Write to grid file
     read(gridUnit,10) nBlocks
-    m_ = 1
-    read(gridUnit,20) ((iBlockSize, jBlockSize, m_=1, M), n_=1, N)
-    do m_ = 1, M
-      do n_ = 1, N
-        read(gridUnit,30) ((Blocks(m_,n_)%Points(i,j)%x,i=1,iBlockSize),j=1,jBlockSize), &
-                           ((Blocks(m_,n_)%Points(i,j)%y,i=1,iBlockSize),j=1,jBlockSize)
-      end do
+
+    read(gridUnit,20) (iBlockSize, jBlockSize, i=1, nBlocks)
+    do n_ = 1, nBlocks
+        read(gridUnit,30) ((Blocks(n_)%Points(i,j)%x,i=1,iBlockSize),j=1,jBlockSize), &
+                           ((Blocks(n_)%Points(i,j)%y,i=1,iBlockSize),j=1,jBlockSize)
     end do
 
     ! Close file
@@ -104,8 +99,8 @@ contains
   end subroutine
 
   subroutine read_temp_file(Blocks)
-    type (BlockType) :: Blocks(:,:)
-    integer :: m_, n_, i, j
+    type (BlockType) :: Blocks(:)
+    integer :: n_, i, j
 
     ! Format statements
     10     format(I10)
@@ -117,17 +112,14 @@ contains
 
     ! Write to temperature file
     read(tempUnit,10) nBlocks
-    m_ = 1
-    read(tempUnit,20) ((iBlockSize, jBlockSize, m_=1, M), n_=1, N)
-    do m_ = 1, M
-      do n_ = 1, N
+    read(tempUnit,20) (iBlockSize, jBlockSize, n_=1, nBlocks)
+      do n_ = 1, nBlocks
         read(tempUnit,30) tRef,dum,dum,dum
-        read(tempUnit,30) ((Blocks(m_,n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
-                           ((Blocks(m_,n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
-                           ((Blocks(m_,n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
-                           ((Blocks(m_,n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize)
+        read(tempUnit,30) ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
+                           ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
+                           ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
+                           ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize)
       end do
-    end do
 
     ! Close files
     close(tempUnit)
