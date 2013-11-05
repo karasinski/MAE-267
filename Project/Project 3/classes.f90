@@ -293,12 +293,13 @@ contains
           b%westFace%neighborProc = 0
         end if
 
-        ! Corners
+        ! Set corner neighbors and procs
+        ! North East Corner
         if (b%northFace%BC == nB) then
           b%NECorner%BC = nBound
           b%NECorner%neighborBlock = 0
           b%NECorner%neighborProc = 0
-        else if (b%northFace%BC == eB) then
+        else if (b%eastFace%BC == eB) then
           b%NECorner%BC = eBound
           b%NECorner%neighborBlock = 0
           b%NECorner%neighborProc = 0
@@ -308,11 +309,12 @@ contains
           b%NECorner%neighborProc = proc
         end if
 
+        ! South East Corner
         if (b%southFace%BC == sB) then
           b%SECorner%BC = sBound
           b%SECorner%neighborBlock = 0
           b%SECorner%neighborProc = 0
-        else if (b%southFace%BC == eB) then
+        else if (b%eastFace%BC == eB) then
           b%SECorner%BC = eBound
           b%SECorner%neighborBlock = 0
           b%SECorner%neighborProc = 0
@@ -322,11 +324,12 @@ contains
           b%SECorner%neighborProc = proc
         end if
 
+        ! South West Corner
         if (b%southFace%BC == sB) then
           b%SWCorner%BC = sBound
           b%SWCorner%neighborBlock = 0
           b%SWCorner%neighborProc = 0
-        else if (b%southFace%BC == wB) then
+        else if (b%westFace%BC == wB) then
           b%SWCorner%BC = wBound
           b%SWCorner%neighborBlock = 0
           b%SWCorner%neighborProc = 0
@@ -336,17 +339,18 @@ contains
           b%SWCorner%neighborProc = proc
         end if
 
+        ! North West Corner
         if (b%northFace%BC == nB) then
           b%NWCorner%BC = nBound
           b%NWCorner%neighborBlock = 0
           b%NWCorner%neighborProc = 0
-        else if (b%northFace%BC == wB) then
+        else if (b%westFace%BC == wB) then
           b%NWCorner%BC = wBound
           b%NWCorner%neighborBlock = 0
           b%NWCorner%neighborProc = 0
         else
           b%NWCorner%BC = -1
-          b%NWCorner%neighborBlock = i - N - 1
+          b%NWCorner%neighborBlock = i + N - 1
           b%NWCorner%neighborProc = proc
         end if
 
@@ -558,6 +562,39 @@ contains
 
       write(*,*) b%localIMAX, b%localIMIN, b%localJMAX, b%localJMIN
         ! Need to set corners...
+
+        if (b%NECorner%BC == -1) then
+          p1 => b%Points(iBlockSize+1, jBlockSize+1)
+          p2 => Blocks(b%NECorner%neighborBlock)%Points(2, 2)
+          p1%x = p2%x
+          p1%y = p2%y
+          p1%T = p2%T
+        end if
+
+        if (b%SECorner%BC == -1) then
+          p1 => b%Points(iBlockSize+1, 0)
+          p2 => Blocks(b%SECorner%neighborBlock)%Points(2, jBlockSize-1)
+          p1%x = p2%x
+          p1%y = p2%y
+          p1%T = p2%T
+        end if
+
+        if (b%SWCorner%BC == -1) then
+          p1 => b%Points(0, 0)
+          p2 => Blocks(b%SWCorner%neighborBlock)%Points(iBlockSize-1, jBlockSize-1)
+          p1%x = p2%x
+          p1%y = p2%y
+          p1%T = p2%T
+        end if
+
+        if (b%NWCorner%BC == -1) then
+          p1 => b%Points(0, jBlockSize+1)
+          p2 => Blocks(b%NWCorner%neighborBlock)%Points(iBlockSize-1, 2)
+          p1%x = p2%x
+          p1%y = p2%y
+          p1%T = p2%T
+        end if
+
     end do
   end subroutine
 
