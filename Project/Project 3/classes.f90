@@ -8,7 +8,12 @@ module constants
   real(kind=8), parameter :: alpha = k / (c_p * rho)
   integer :: IMAX, JMAX
   integer :: N, M ! Number of blocks.
+  integer :: iBlockSize, jBlockSize
 
+  integer :: nB = 1
+  integer :: eB = 2
+  integer :: sB = 3
+  integer :: wB = 4
 contains
   subroutine SetGridSize(length)
     integer :: length
@@ -20,6 +25,8 @@ contains
     integer :: n_, m_
     N = n_
     M = m_
+    iBlockSize = 1 + (IMAX - 1) / N
+    jBlockSize = 1 + (JMAX - 1) / M
   end subroutine SetNumberOfBlocks
 end module
 
@@ -192,11 +199,20 @@ module BlockModule
   implicit none
   public
 
+  type face_type
+    integer :: BC, neighborBlock, neighborProc
+  end type
+
   type BlockType
     ! This sucks.
-    type (GridPoint) :: Points(1:101,1:101)
-    type (GridCell)  :: Cells(1:100,1:100)
-    integer :: iBound, jBound
+    type (GridPoint) :: Points(0:103,0:103)
+    type (GridCell)  :: Cells(0:102,0:102)
+    integer :: iStart, jStart, iBound, jBound
+
+    integer :: type, proc, lowJ, highJ, lowI, highI
+    integer :: iLength, jLength
+    type (face_type) :: northFace, southFace, eastFace, westFace
+    type (face_type) :: NECorner, SECorner, SWCorner, NWCorner
   end type BlockType
 
 contains
@@ -214,10 +230,10 @@ contains
     mloop: do m_ = 1, M
       nloop: do n_ = 1, N
         j = 0
-        jloop: do j_ = 1 + (m_ - 1) * ( jBound - 1 ), m_ * jBound + 1
+        jloop: do j_ = 1 +(m_ - 1) * ( jBound ), m_ * ( jBound ) + 1
           i = 0
           j = j + 1
-          iloop: do i_ = 1 + (n_ - 1) * ( iBound - 1 ), n_ * iBound + 1
+          iloop: do i_ = 1 + (n_ - 1) * ( iBound ), n_ * ( iBound ) + 1
             i = i + 1
 
             ! If we're passed the number of points continue.
@@ -274,6 +290,247 @@ contains
 
 !    write(*,*)
   end subroutine set_block_bounds
+
+  subroutine create_blocks(BlocksCollection)
+    type (BlockType), target :: BlocksCollection(:,:)
+    type (BlockType), pointer :: b
+
+    integer :: i = 1, proc = 1, type = 1, iN, iM
+    integer :: nBound, sBound, eBound, wBound
+
+    i = 1
+    do iM = 1, M
+      do iN = 1, N
+        ! Defaults
+        b => BlocksCollection(iM, iN)
+
+        b%type = type
+        b%proc = proc
+        b%highI = 1 + iN * (iBlockSize - 1)
+        b%lowI = b%highI - (iBlockSize - 1)
+        b%highJ = 1 + iM * (jBlockSize - 1)
+        b%lowJ = b%highJ - (jBlockSize - 1)
+        b%iLength = iBlockSize
+        b%jLength = jBlockSize
+
+        if (b%highJ == JMAX) then
+          nBound = nB
+        else
+          nBound = -1
+        end if
+        if (b%highI == IMAX) then
+          eBound = eB
+        else
+          eBound = -1
+        end if
+        if (b%lowJ == 1) then
+          sBound = sB
+        else
+          sBound = -1
+        end if
+        if (b%lowI == 1) then
+          wBound = wB
+        else
+          wBound = -1
+        end if
+
+        ! Bounds and Faces
+        b%northFace%BC = nBound
+        b%southFace%BC = sBound
+        b%eastFace%BC = eBound
+        b%westFace%BC = wBound
+
+        if (b%northFace%BC == -1) then
+          b%northFace%neighborBlock = i + N
+          b%northFace%neighborProc = proc
+        else
+          b%northFace%neighborBlock = 0
+          b%northFace%neighborProc = 0
+        end if
+
+        if (b%highI == IMAX) then
+          b%eastFace%neighborBlock = i + 1
+          b%eastFace%neighborProc = proc
+        else
+          b%eastFace%neighborBlock = 0
+          b%eastFace%neighborProc = 0
+        end if
+
+        if (b%lowJ == 1) then
+          b%southFace%neighborBlock = i - N
+          b%southFace%neighborProc = proc
+        else
+          b%southFace%neighborBlock = 0
+          b%southFace%neighborProc = 0
+        end if
+
+        if (b%lowI == 1) then
+          b%westFace%neighborBlock = i - 1
+          b%westFace%neighborProc = proc
+        else
+          b%westFace%neighborBlock = 0
+          b%westFace%neighborProc = 0
+        end if
+
+        ! Corners
+        if (b%northFace%BC == nB) then
+          b%NECorner%BC = nBound
+          b%NECorner%neighborBlock = 0
+          b%NECorner%neighborProc = 0
+        else if (b%northFace%BC == eB) then
+          b%NECorner%BC = eBound
+          b%NECorner%neighborBlock = 0
+          b%NECorner%neighborProc = 0
+        else
+          b%NECorner%BC = -1
+          b%NECorner%neighborBlock = i + N + 1
+          b%NECorner%neighborProc = proc
+        end if
+
+        if (b%southFace%BC == sB) then
+          b%SECorner%BC = sBound
+          b%SECorner%neighborBlock = 0
+          b%SECorner%neighborProc = 0
+        else if (b%southFace%BC == eB) then
+          b%SECorner%BC = eBound
+          b%SECorner%neighborBlock = 0
+          b%SECorner%neighborProc = 0
+        else
+          b%SECorner%BC = -1
+          b%SECorner%neighborBlock = i - N + 1
+          b%SECorner%neighborProc = proc
+        end if
+
+        if (b%southFace%BC == sB) then
+          b%SWCorner%BC = sBound
+          b%SWCorner%neighborBlock = 0
+          b%SWCorner%neighborProc = 0
+        else if (b%southFace%BC == wB) then
+          b%SWCorner%BC = wBound
+          b%SWCorner%neighborBlock = 0
+          b%SWCorner%neighborProc = 0
+        else
+          b%SWCorner%BC = -1
+          b%SWCorner%neighborBlock = i - N - 1
+          b%SWCorner%neighborProc = proc
+        end if
+
+        if (b%northFace%BC == nB) then
+          b%NWCorner%BC = nBound
+          b%NWCorner%neighborBlock = 0
+          b%NWCorner%neighborProc = 0
+        else if (b%northFace%BC == wB) then
+          b%NWCorner%BC = wBound
+          b%NWCorner%neighborBlock = 0
+          b%NWCorner%neighborProc = 0
+        else
+          b%NWCorner%BC = -1
+          b%NWCorner%neighborBlock = i - N - 1
+          b%NWCorner%neighborProc = proc
+        end if
+
+        i = i + 1
+      end do
+    end do
+  end subroutine
+
+  subroutine initialize_block_grid(BlocksCollection)
+    type (BlockType), target :: BlocksCollection(:,:)
+    type (GridPoint), pointer :: p
+    type (BlockType), pointer :: b
+    integer :: i, j, iM, iN
+
+    do iM = 1, M
+      do iN = 1, N
+        do j = 1, jBlockSize
+          do i = 1, iBlockSize
+            write(*,*), iM, iN, j, i
+
+            b => BlocksCollection(iM, iN)
+            p => BlocksCollection(iM, iN)%Points(i, j)
+
+            p%xp = cos( 0.5d0 * pi * dfloat(IMAX - (b%lowI + (i - 1 ))) / dfloat(IMAX-1))
+            p%yp = cos( 0.5d0 * pi * dfloat(JMAX - (b%lowJ + (j - 1 ))) / dfloat(JMAX-1))
+
+            p%x = p%xp * cos( rot ) + ( 1.d0 - p%yp ) * sin( rot )
+            p%y = p%yp * cos( rot ) + p%xp * sin( rot )
+
+          end do
+        end do
+      end do
+    end do
+  write(*,*)
+  end subroutine
+
+  subroutine initialize_block_temp(BlocksCollection)
+    type (BlockType), target :: BlocksCollection(:,:)
+    type (BlockType), pointer :: b
+    type (GridPoint), pointer :: p(:,:)
+    integer :: i, j, iM, iN, iter
+    real(kind=8) :: T_0 = 3.5d0
+
+    iter = 1
+    do iM = 1, M
+      do iN = 1, N
+        write(*,*), iM, iN, iBlockSize, jBlockSize
+
+        b => BlocksCollection(iM, iN)
+        p => BlocksCollection(iM, iN)%Points
+
+        write(*,*), b%northFace%BC, b%eastFace%BC, b%southFace%BC, b%westFace%BC
+
+        p(2:iBlockSize-1, 2:jBlockSize-1)%T = T_0
+
+        if (b%northFace%BC == -1) then
+          write(*,*), "n -1"
+          p(1:iBlockSize, jBlockSize)%T = T_0
+        else if (b%northFace%BC == nB) then
+          write(*,*), "n loop"
+          do i = 1, iBlockSize
+            p(i, jBlockSize)%T = 5.d0 * (sin(pi * p(i, jBlockSize)%xp) + 1.d0)
+          end do
+        end if
+
+        if (b%eastFace%BC == -1) then
+          write(*,*), "e -1"
+
+          p(iBlockSize, 1:jBlockSize)%T = T_0
+        else if (b%eastFace%BC == eB) then
+          write(*,*), "e loop"
+
+          do j = 1, jBlockSize
+            p(iBlockSize, j)%T = (3.d0 * p(iBlockSize, j)%yp) + 2.d0
+          end do
+        end if
+
+        if (b%southFace%BC == -1) then
+          write(*,*), "s -1"
+
+          p(1:iBlockSize, 1)%T = T_0
+        else if (b%southFace%BC == sB) then
+          write(*,*), "s loop"
+
+          do i = 1, iBlockSize
+            p(i, 1)%T = 5.d0 * (sin(pi * p(i, 1)%xp) + 1.d0)
+          end do
+        end if
+
+        if (b%westFace%BC == -1) then
+          write(*,*), "w -1"
+
+          p(1, 1:jBlockSize)%T = T_0
+        else if (b%westFace%BC == wB) then
+          write(*,*), "w loop"
+
+          do j = 1, jBlockSize
+            p(1, j)%T = (3.d0 * p(1, j)%yp) + 2.d0
+          end do
+        end if
+
+        iter = iter + 1
+      end do
+    end do
+  end subroutine
 
 end module BlockModule
 

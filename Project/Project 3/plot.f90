@@ -29,43 +29,64 @@ contains
     ! Set number of blocks.
     nBlocks = N * M
 
-    ! Size of each block.
-    iBound = 1 + (IMAX - 1) / N
-    jBound = 1 + (JMAX - 1) / M
-
     ! Format statements
     10     format(I10)
     20     format(10I10)
     30     format(10E20.8)
 
     ! Open files
-    open(unit=gridUnit,file='grid.dat',form='formatted')
-    open(unit=tempUnit,file='temperature.dat',form='formatted')
+    open(unit=gridUnit,file='initgrid.dat',form='formatted')
+    open(unit=tempUnit,file='inittemp.dat',form='formatted')
 
     ! Write to grid file
     write(gridUnit,10) nBlocks
     m_ = 1
-    write(gridUnit,20) ((iBound,jBound, m_=1, M), n_=1, N)
+    write(gridUnit,20) ((iBlockSize, jBlockSize, m_=1, M), n_=1, N)
     do m_ = 1, M
       do n_ = 1, N
-        write(gridUnit,30) ((Blocks(m_,n_)%Points(i,j)%x,i=1,iBound),j=1,jBound), &
-                           ((Blocks(m_,n_)%Points(i,j)%y,i=1,iBound),j=1,jBound)
+        write(gridUnit,30) ((Blocks(m_,n_)%Points(i,j)%x,i=1,iBlockSize),j=1,jBlockSize), &
+                           ((Blocks(m_,n_)%Points(i,j)%y,i=1,iBlockSize),j=1,jBlockSize)
       end do
     end do
 
     ! Write to temperature file
     write(tempUnit,10) nBlocks
     m_ = 1
-    write(tempUnit,20) ((iBound,jBound, m_=1, M), n_=1, N)
+    write(tempUnit,20) ((iBlockSize, jBlockSize, m_=1, M), n_=1, N)
     do m_ = 1, M
       do n_ = 1, N
         write(tempUnit,30) tRef,dum,dum,dum
-        write(tempUnit,30) ((Blocks(m_,n_)%Points(i,j)%T,i=1,iBound),j=1,jBound), &
-                           ((Blocks(m_,n_)%Points(i,j)%T,i=1,iBound),j=1,jBound), &
-                           ((Blocks(m_,n_)%Points(i,j)%T,i=1,iBound),j=1,jBound), &
-                           ((Blocks(m_,n_)%Points(i,j)%T,i=1,iBound),j=1,jBound)
+        write(tempUnit,30) ((Blocks(m_,n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
+                           ((Blocks(m_,n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
+                           ((Blocks(m_,n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
+                           ((Blocks(m_,n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize)
       end do
     end do
+
+!    ! Write to grid file
+!    write(gridUnit,10) nBlocks
+!    m_ = 1
+!    write(gridUnit,20) ((iBound,jBound, m_=1, M), n_=1, N)
+!    do m_ = 1, M
+!      do n_ = 1, N
+!        write(gridUnit,30) ((Blocks(m_,n_)%Points(i,j)%x,i=1,iBound),j=1,jBound), &
+!                           ((Blocks(m_,n_)%Points(i,j)%y,i=1,iBound),j=1,jBound)
+!      end do
+!    end do
+!
+!    ! Write to temperature file
+!    write(tempUnit,10) nBlocks
+!    m_ = 1
+!    write(tempUnit,20) ((iBound,jBound, m_=1, M), n_=1, N)
+!    do m_ = 1, M
+!      do n_ = 1, N
+!        write(tempUnit,30) tRef,dum,dum,dum
+!        write(tempUnit,30) ((Blocks(m_,n_)%Points(i,j)%T,i=1,iBound),j=1,jBound), &
+!                           ((Blocks(m_,n_)%Points(i,j)%T,i=1,iBound),j=1,jBound), &
+!                           ((Blocks(m_,n_)%Points(i,j)%T,i=1,iBound),j=1,jBound), &
+!                           ((Blocks(m_,n_)%Points(i,j)%T,i=1,iBound),j=1,jBound)
+!      end do
+!    end do
 
 
     ! Write to grid file
