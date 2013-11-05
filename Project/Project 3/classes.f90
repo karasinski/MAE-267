@@ -268,9 +268,7 @@ contains
           b%northFace%neighborProc = 0
         end if
 
-        write(*,*), b%northFace%neighborBlock
-
-        if (b%highI == IMAX) then
+        if (b%eastFace%BC == -1) then
           b%eastFace%neighborBlock = i + 1
           b%eastFace%neighborProc = proc
         else
@@ -278,7 +276,7 @@ contains
           b%eastFace%neighborProc = 0
         end if
 
-        if (b%lowJ == 1) then
+        if (b%southFace%BC == -1) then
           b%southFace%neighborBlock = i - N
           b%southFace%neighborProc = proc
         else
@@ -286,7 +284,7 @@ contains
           b%southFace%neighborProc = 0
         end if
 
-        if (b%lowI == 1) then
+        if (b%westFace%BC == -1) then
           b%westFace%neighborBlock = i - 1
           b%westFace%neighborProc = proc
         else
@@ -472,25 +470,96 @@ contains
     integer, pointer :: neighbor
     integer :: i, j, iM, iN, neighborM, neighborN
 
-    ! Calculate timesteps and assign secondary volumes.
     do iM=1, M
       do iN=1, N
-!        do i = 1, iBlockSize
-          p1 =>BlocksCollection(iM, iN)%Points(i, jBlockSize+1)
-          p2 =>BlocksCollection(iM, iN)%Points(i, 2)
 
-          neighbor => BlocksCollection(iM, iN)%northFace%neighborBlock
-          neighborM = iM * M + iN - 1
-          neighborN = mod(neighbor, N)
-          ! Need to convert from neighbor to neighbor_M and neighbor_N
+        if (BlocksCollection(iM, iN)%northFace%BC == -1) then
+          do i = 1, iBlockSize
 
-          write(*,*), iM, iN, neighbor, neighborM, neighborN
-!          p%x =
-!        end do
+            ! Need to convert from neighbor to neighbor_M and neighbor_N
+            neighbor => BlocksCollection(iM, iN)%northFace%neighborBlock
+            neighborM = (neighbor-1)/N + 1
+            neighborN = mod(neighbor - 1 , N) + 1
 
-        do j = 1, jBlockSize
+            p1 => BlocksCollection(iM, iN)%Points(i, jBlockSize+1)
+            p2 => BlocksCollection(neighborM, neighborN)%Points(i, 2)
 
-        end do
+            !          write(*,*), iM, iN, neighbor, neighborM, neighborN
+            p1%x = p2%x
+            p1%y = p2%y
+            p1%T = p2%T
+          end do
+
+          BlocksCollection(iM, iN)%localJMAX = jBlockSize
+        else
+          BlocksCollection(iM, iN)%localJMAX = jBlockSize - 1
+        end if
+
+        if (BlocksCollection(iM, iN)%eastFace%BC == -1) then
+          do j = 1, jBlockSize
+            ! Need to convert from neighbor to neighbor_M and neighbor_N
+            neighbor => BlocksCollection(iM, iN)%eastFace%neighborBlock
+            neighborM = (neighbor-1)/N + 1
+            neighborN = mod(neighbor - 1 , N) + 1
+
+            p1 => BlocksCollection(iM, iN)%Points(iBlockSize+1, j)
+            p2 => BlocksCollection(neighborM, neighborN)%Points(2, j)
+
+!                      write(*,*), iM, iN, neighbor, neighborM, neighborN
+            p1%x = p2%x
+            p1%y = p2%y
+            p1%T = p2%T
+          end do
+
+          BlocksCollection(iM, iN)%localIMAX = iBlockSize
+        else
+          BlocksCollection(iM, iN)%localIMAX = iBlockSize - 1
+        end if
+
+        if (BlocksCollection(iM, iN)%southFace%BC == -1) then
+          do i = 1, iBlockSize
+            ! Need to convert from neighbor to neighbor_M and neighbor_N
+            neighbor => BlocksCollection(iM, iN)%southFace%neighborBlock
+            neighborM = (neighbor-1)/N + 1
+            neighborN = mod(neighbor - 1 , N) + 1
+
+            p1 => BlocksCollection(iM, iN)%Points(i, 0)
+            p2 => BlocksCollection(neighborM, neighborN)%Points(i, jBlockSize - 1)
+
+!                      write(*,*), iM, iN, neighbor, neighborM, neighborN
+            p1%x = p2%x
+            p1%y = p2%y
+            p1%T = p2%T
+          end do
+
+          BlocksCollection(iM, iN)%localIMIN = 0
+        else
+          BlocksCollection(iM, iN)%localIMIN = 1
+        end if
+
+        if (BlocksCollection(iM, iN)%westFace%BC == -1) then
+          do j = 1, jBlockSize
+            ! Need to convert from neighbor to neighbor_M and neighbor_N
+            neighbor => BlocksCollection(iM, iN)%westFace%neighborBlock
+            neighborM = (neighbor-1)/N + 1
+            neighborN = mod(neighbor - 1 , N) + 1
+
+            p1 => BlocksCollection(iM, iN)%Points(0, j)
+            p2 => BlocksCollection(neighborM, neighborN)%Points(iBlockSize - 1, j)
+
+!                      write(*,*), iM, iN, neighbor, neighborM, neighborN
+            p1%x = p2%x
+            p1%y = p2%y
+            p1%T = p2%T
+          end do
+
+          BlocksCollection(iM, iN)%localJMIN = 0
+        else
+          BlocksCollection(iM, iN)%localJMIN = 1
+        end if
+
+        ! Need to set corners...
+
       end do
     end do
   end subroutine
