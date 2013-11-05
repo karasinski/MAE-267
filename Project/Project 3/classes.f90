@@ -109,74 +109,6 @@ module GridCellModule
     real(kind=8) :: yPP, yNP, yNN, yPN
     real(kind=8) :: xNN, xPN, xPP, xNP
   end type GridCell
-
-contains
-
-  subroutine set_secondary_areas(Cells, p)
-    type (GridCell), pointer :: c
-    type (GridCell), target :: Cells(1:IMAX-1, 1:JMAX-1)
-    type (GridPoint), target :: p(1:IMAX, 1:JMAX)
-    integer :: i, j
-    real(kind=8) :: Ayi, Axi, Ayj, Axj
-    real(kind=8) :: Ayi_half, Axi_half, Ayj_half, Axj_half
-
-    ! These 'area's are used to do trapezoidal counter-clockwise
-    ! integration to get the first derivatives in the x/y directions
-    ! at the cell-center using Gauss's theorem.
-    Ayi(i,j) = ( p(i, j+1)%y - p(i, j)%y )
-    Axi(i,j) = ( p(i, j+1)%x - p(i, j)%x )
-    Ayj(i,j) = ( p(i+1, j)%y - p(i, j)%y )
-    Axj(i,j) = ( p(i+1, j)%x - p(i, j)%x )
-
-    ! These areas are used in the calculation of fluxes
-    ! for the alternate distributive scheme second-
-    ! derivative operator.
-    Ayi_half(i,j) = ( Ayi(i+1, j) + Ayi(i, j)   ) * 0.25d0
-    Axi_half(i,j) = ( Axi(i+1, j) + Axi(i, j)   ) * 0.25d0
-    Ayj_half(i,j) = ( Ayj(i, j)   + Ayj(i, j+1) ) * 0.25d0
-    Axj_half(i,j) = ( Axj(i, j)   + Axj(i, j+1) ) * 0.25d0
-
-    do j = 1, JMAX-1
-      do i = 1, IMAX-1
-        c => Cells(i, j)
-        ! And these are the numbers that actually appear in the equations,
-        ! saved here to (hopefully) save a moment or two during iteration.
-        c%yPP = (  Ayi_half(i,j) + Ayj_half(i,j) )
-        c%yNP = ( -Ayi_half(i,j) + Ayj_half(i,j) )
-        c%yNN = ( -Ayi_half(i,j) - Ayj_half(i,j) )
-        c%yPN = (  Ayi_half(i,j) - Ayj_half(i,j) )
-
-        c%xNN = ( -Axi_half(i,j) - Axj_half(i,j) )
-        c%xPN = (  Axi_half(i,j) - Axj_half(i,j) )
-        c%xPP = (  Axi_half(i,j) + Axj_half(i,j) )
-        c%xNP = ( -Axi_half(i,j) + Axj_half(i,j) )
-      end do
-    end do
-  end subroutine
-
-  subroutine set_constants(Cells, Points)
-    type (GridCell), target :: Cells(1:IMAX-1, 1:JMAX-1)
-    type (GridPoint), target :: Points(1:IMAX, 1:JMAX)
-    integer :: i, j
-
-    ! Calculate timesteps and assign secondary volumes.
-    do j = 2, JMAX - 1
-      do i = 2, IMAX - 1
-        ! Calculate the timestep using the CFL method described in class.
-        Points(i, j)%timestep = ( ( CFL * 0.5d0 ) / alpha ) * Cells(i, j)%V ** 2 / &
-                                ( ( Points(i+1, j)%xp - Points(i, j)%xp )**2 + &
-                                  ( Points(i, j+1)%yp - Points(i, j)%yp )**2 )
-
-        ! Calculate the secondary volumes around each point. As we have rectangular points,
-        ! these are simply the sum of the surrounding primary cells divied by four.
-        Points(i, j)%Vol2 = ( Cells(i, j)%V + Cells(i - 1, j)%V + &
-                              Cells(i, j - 1)%V + Cells(i - 1, j - 1)%V ) * 0.25d0
-
-        ! Calculate this constant now so we don't recalculate in the solver loop.
-        Points(i, j)%const = ( Points(i, j)%timestep * alpha / Points(i, j)%Vol2 )
-      end do
-    end do
-  end subroutine
 end module GridCellModule
 
 module BlockModule
@@ -198,6 +130,7 @@ module BlockModule
 
     integer :: type, proc, lowJ, highJ, lowI, highI
     integer :: iLength, jLength
+    integer :: localJMIN, localIMIN, localJMAX, localIMAX
     type (face_type) :: northFace, southFace, eastFace, westFace
     type (face_type) :: NECorner, SECorner, SWCorner, NWCorner
   end type BlockType
@@ -335,6 +268,8 @@ contains
           b%northFace%neighborProc = 0
         end if
 
+        write(*,*), b%northFace%neighborBlock
+
         if (b%highI == IMAX) then
           b%eastFace%neighborBlock = i + 1
           b%eastFace%neighborProc = proc
@@ -452,6 +387,114 @@ contains
     end do
   end subroutine
 
+  subroutine set_secondary_areas(BlocksCollection)
+    type (BlockType), target :: BlocksCollection(:,:)
+    type (GridCell), pointer :: c
+    type (GridPoint), pointer :: p(:,:)
+    integer :: i, j,  iM, iN
+    real(kind=8) :: Ayi, Axi, Ayj, Axj
+    real(kind=8) :: Ayi_half, Axi_half, Ayj_half, Axj_half
+
+    ! These 'area's are used to do trapezoidal counter-clockwise
+    ! integration to get the first derivatives in the x/y directions
+    ! at the cell-center using Gauss's theorem.
+    Ayi(i,j) = ( p(i, j+1)%y - p(i, j)%y )
+    Axi(i,j) = ( p(i, j+1)%x - p(i, j)%x )
+    Ayj(i,j) = ( p(i+1, j)%y - p(i, j)%y )
+    Axj(i,j) = ( p(i+1, j)%x - p(i, j)%x )
+
+    ! These areas are used in the calculation of fluxes
+    ! for the alternate distributive scheme second-
+    ! derivative operator.
+    Ayi_half(i,j) = ( Ayi(i+1, j) + Ayi(i, j)   ) * 0.25d0
+    Axi_half(i,j) = ( Axi(i+1, j) + Axi(i, j)   ) * 0.25d0
+    Ayj_half(i,j) = ( Ayj(i, j)   + Ayj(i, j+1) ) * 0.25d0
+    Axj_half(i,j) = ( Axj(i, j)   + Axj(i, j+1) ) * 0.25d0
+
+    do iM=1, M
+      do iN=1, N
+        do j = 1, jBlockSize-1
+          do i = 1, iBlockSize-1
+            p => BlocksCollection(iM, iN)%Points
+            c => BlocksCollection(iM, iN)%Cells(i,j)
+            ! And these are the numbers that actually appear in the equations,
+            ! saved here to (hopefully) save a moment or two during iteration.
+            c%yPP = (  Ayi_half(i,j) + Ayj_half(i,j) )
+            c%yNP = ( -Ayi_half(i,j) + Ayj_half(i,j) )
+            c%yNN = ( -Ayi_half(i,j) - Ayj_half(i,j) )
+            c%yPN = (  Ayi_half(i,j) - Ayj_half(i,j) )
+
+            c%xNN = ( -Axi_half(i,j) - Axj_half(i,j) )
+            c%xPN = (  Axi_half(i,j) - Axj_half(i,j) )
+            c%xPP = (  Axi_half(i,j) + Axj_half(i,j) )
+            c%xNP = ( -Axi_half(i,j) + Axj_half(i,j) )
+          end do
+        end do
+      end do
+    end do
+  end subroutine
+
+  subroutine set_constants(BlocksCollection)
+    type (BlockType), target :: BlocksCollection(:,:)
+    type (GridCell), pointer :: Cells(:,:)
+    type (GridPoint), pointer :: Points(:,:)
+    integer :: i, j, iM, iN
+
+    ! Calculate timesteps and assign secondary volumes.
+    do iM=1, M
+      do iN=1, N
+        do j = 1, jBlockSize - 1
+          do i = 1, iBlockSize - 1
+            Points => BlocksCollection(iM, iN)%Points
+            Cells => BlocksCollection(iM, iN)%Cells
+            ! Calculate the timestep using the CFL method described in class.
+            Points(i, j)%timestep = ( ( CFL * 0.5d0 ) / alpha ) * Cells(i, j)%V ** 2 / &
+              ( ( Points(i+1, j)%xp - Points(i, j)%xp )**2 + &
+              ( Points(i, j+1)%yp - Points(i, j)%yp )**2 )
+
+            ! Calculate the secondary volumes around each point. As we have rectangular points,
+            ! these are simply the sum of the surrounding primary cells divied by four.
+            Points(i, j)%Vol2 = ( Cells(i, j)%V + Cells(i - 1, j)%V + &
+              Cells(i, j - 1)%V + Cells(i - 1, j - 1)%V ) * 0.25d0
+
+            ! Calculate this constant now so we don't recalculate in the solver loop.
+            Points(i, j)%const = ( Points(i, j)%timestep * alpha / Points(i, j)%Vol2 )
+          end do
+        end do
+      end do
+    end do
+  end subroutine
+
+  subroutine set_bounds(BlocksCollection)
+    type (BlockType), target :: BlocksCollection(:,:)
+    type (GridCell), pointer :: c(:,:)
+    type (GridPoint), pointer :: p1, p2
+    integer, pointer :: neighbor
+    integer :: i, j, iM, iN, neighborM, neighborN
+
+    ! Calculate timesteps and assign secondary volumes.
+    do iM=1, M
+      do iN=1, N
+!        do i = 1, iBlockSize
+          p1 =>BlocksCollection(iM, iN)%Points(i, jBlockSize+1)
+          p2 =>BlocksCollection(iM, iN)%Points(i, 2)
+
+          neighbor => BlocksCollection(iM, iN)%northFace%neighborBlock
+          neighborM = iM * M + iN - 1
+          neighborN = mod(neighbor, N)
+          ! Need to convert from neighbor to neighbor_M and neighbor_N
+
+          write(*,*), iM, iN, neighbor, neighborM, neighborN
+!          p%x =
+!        end do
+
+        do j = 1, jBlockSize
+
+        end do
+      end do
+    end do
+  end subroutine
+
   subroutine initialize_block_temp(BlocksCollection)
     type (BlockType), target :: BlocksCollection(:,:)
     type (BlockType), pointer :: b
@@ -517,11 +560,6 @@ contains
     type (GridPoint), pointer :: Points(:,:)
     integer :: i, j, iM, iN
 
-
-    ! Need to check this... it's my sister's birthday
-    ! Going to go drink now.
-
-
     do iM=1, M
       do iN=1, N
         Points => BlocksCollection(iM, iN)%Points
@@ -572,11 +610,8 @@ contains
     ! Reset the change in temperature to zero before we begin summing again.
     p%tempT = 0.d0
 
-    do j = 1, MyBlock%jBound-1
-!        write(*,*), j
-      do i = 1, MyBlock%iBound-1
-
-!        if (p(i,j)%T /= 666.d0) write(*,*),i,j,p(i,j)%T
+    do j = 1, jBlockSize-1
+      do i = 1, iBlockSize-1
 
         dTdx = + 0.5d0 * &
           ( ( p(i+1, j)%T + p(i+1,j+1)%T ) * Ayi(i+1, j) - &
@@ -601,7 +636,7 @@ contains
         p(i,  j+1)%tempT = p(i,  j+1)%tempT + p(i,  j+1)%const * ( c(i, j)%yPP * dTdx + c(i, j)%xNN * dTdy )
         p(i+1,j+1)%tempT = p(i+1,j+1)%tempT + p(i+1,j+1)%const * ( c(i, j)%yNP * dTdx + c(i, j)%xPN * dTdy )
 
-!        write(*,*), i, j, p(i,j)%tempT
+        write(*,*), i, j, p(i,j)%tempT
       end do
     end do
   end subroutine

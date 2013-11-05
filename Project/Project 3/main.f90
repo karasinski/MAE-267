@@ -32,9 +32,9 @@ program heat
   call initialization(BlocksCollection)
 
 !  call make_blocks(Points, BlocksCollection)
-!  call start_clock()
+  call start_clock()
 !  call solve(BlocksCollection, step)
-!  call end_clock()
+  call end_clock()
 !  call make_blocks(Points, BlocksCollection)
 !  call output(Blocks, step)
 !  call plot3D(BlocksCollection)
