@@ -8,7 +8,7 @@ program heat
 !  type (GridCell),  allocatable :: Cells(:,:)
 !  type (BlockType), allocatable :: Blocks(:,:)
   type (BlockType), allocatable :: BlocksCollection(:,:)
-!  integer :: step = 0
+  integer :: step = 0
 
   ! Set up our grid size and allocate our arrays for our grid points and grid cells.
   call SetGridSize(101)
@@ -31,11 +31,9 @@ program heat
   ! We then initialize the solver.
   call initialization(BlocksCollection)
 
-
 !  call make_blocks(Points, BlocksCollection)
-!  call initialize_blocks(Blocks, Points, Cells)
 !  call start_clock()
-!  call solve(Blocks, step)
+!  call solve(BlocksCollection, step)
 !  call end_clock()
 !  call make_blocks(Points, BlocksCollection)
 !  call output(Blocks, step)
