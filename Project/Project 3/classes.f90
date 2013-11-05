@@ -21,10 +21,10 @@ contains
     JMAX = length
   end subroutine SetGridSize
 
-  subroutine SetNumberOfBlocks(n_, m_)
+  subroutine SetNumberOfBlocks(m_, n_)
     integer :: n_, m_
-    N = n_
     M = m_
+    N = n_
     iBlockSize = 1 + (IMAX - 1) / N
     jBlockSize = 1 + (JMAX - 1) / M
   end subroutine SetNumberOfBlocks
@@ -242,7 +242,7 @@ contains
 !              Blocks(m_, n_)%Points(i, j)%T = 666.d0
             else
               ! Hand out points to the blocks.
-              write(*,*), m_,n_,j_,i_
+!              write(*,*), m_,n_,j_,i_
               Blocks(m_, n_)%Points(i, j) = Points(i_, j_)
               Blocks(m_, n_)%iBound = i
               Blocks(m_, n_)%jBound = j
@@ -444,7 +444,6 @@ contains
       do iN = 1, N
         do j = 1, jBlockSize
           do i = 1, iBlockSize
-            write(*,*), iM, iN, j, i
 
             b => BlocksCollection(iM, iN)
             p => BlocksCollection(iM, iN)%Points(i, j)
@@ -459,77 +458,65 @@ contains
         end do
       end do
     end do
-  write(*,*)
   end subroutine
 
   subroutine initialize_block_temp(BlocksCollection)
     type (BlockType), target :: BlocksCollection(:,:)
     type (BlockType), pointer :: b
     type (GridPoint), pointer :: p(:,:)
-    integer :: i, j, iM, iN, iter
+    integer :: i, j, iM, iN
     real(kind=8) :: T_0 = 3.5d0
 
-    iter = 1
     do iM = 1, M
       do iN = 1, N
-        write(*,*), iM, iN, iBlockSize, jBlockSize
-
         b => BlocksCollection(iM, iN)
         p => BlocksCollection(iM, iN)%Points
-
-        write(*,*), b%northFace%BC, b%eastFace%BC, b%southFace%BC, b%westFace%BC
 
         p(2:iBlockSize-1, 2:jBlockSize-1)%T = T_0
 
         if (b%northFace%BC == -1) then
-          write(*,*), "n -1"
           p(1:iBlockSize, jBlockSize)%T = T_0
         else if (b%northFace%BC == nB) then
-          write(*,*), "n loop"
           do i = 1, iBlockSize
             p(i, jBlockSize)%T = 5.d0 * (sin(pi * p(i, jBlockSize)%xp) + 1.d0)
           end do
         end if
 
         if (b%eastFace%BC == -1) then
-          write(*,*), "e -1"
-
           p(iBlockSize, 1:jBlockSize)%T = T_0
         else if (b%eastFace%BC == eB) then
-          write(*,*), "e loop"
-
           do j = 1, jBlockSize
             p(iBlockSize, j)%T = (3.d0 * p(iBlockSize, j)%yp) + 2.d0
           end do
         end if
 
         if (b%southFace%BC == -1) then
-          write(*,*), "s -1"
-
           p(1:iBlockSize, 1)%T = T_0
         else if (b%southFace%BC == sB) then
-          write(*,*), "s loop"
-
           do i = 1, iBlockSize
-            p(i, 1)%T = 5.d0 * (sin(pi * p(i, 1)%xp) + 1.d0)
+            p(i, 1)%T = abs(cos(pi * p(i,1)%xp)) + 1.d0
           end do
         end if
 
         if (b%westFace%BC == -1) then
-          write(*,*), "w -1"
-
           p(1, 1:jBlockSize)%T = T_0
         else if (b%westFace%BC == wB) then
-          write(*,*), "w loop"
-
           do j = 1, jBlockSize
             p(1, j)%T = (3.d0 * p(1, j)%yp) + 2.d0
           end do
         end if
-
-        iter = iter + 1
       end do
     end do
+  end subroutine
+
+  subroutine initialize_grid(b)
+    type (BlockType) :: b(:,:)
+
+    call create_blocks(b)
+    call initialize_block_grid(b)
+    call initialize_block_temp(b)
+
+    write(*,*),'Initialized Grid'
   end subroutine
 
 end module BlockModule

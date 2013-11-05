@@ -4,38 +4,52 @@ module MainRoutines
   use GridCellModule
   use BlockModule
   use UpdateTemperature
+  use plot3D_module
 
   implicit none
 
 contains
-  subroutine initialization(Points, Cells)
-    type (GridPoint), target :: Points(1:IMAX, 1:JMAX)
-    type (GridCell),  target :: Cells(1:IMAX-1, 1:JMAX-1)
-    integer :: i, j
+
+  subroutine initialization(BlocksCollection)
+    type (BlockType) :: BlocksCollection(:,:)
+!    type (GridPoint), target :: Points(1:IMAX, 1:JMAX)
+!    type (GridCell),  target :: Cells(1:IMAX-1, 1:JMAX-1)
+!    integer :: i, j
 
     !  Initialize grid.
-    call initialize_points(Points)
+!    call initialize_points(Points)
 
     !  Initialize Cells.
-    call initialize_cells(Cells, Points)
+!    call initialize_cells(Cells, Points)
 
     ! Set up secondary areas needed for integration.
-    call set_secondary_areas(Cells, Points)
+!    call set_secondary_areas(Cells, Points)
 
     ! Calculate constants for integration.
-    call set_constants(Cells, Points)
+!    call set_constants(Cells, Points)
 
     ! Set up Dirichlet condition.
     ! Consider refactor.
-    do j = 1, JMAX
-      call set_temperature(Points(1,j), 3.d0 * Points(1,j)%yp + 2.d0)
-      call set_temperature(Points(IMAX,j), 3.d0 * Points(IMAX,j)%yp + 2.d0)
-    end do
+!    do j = 1, JMAX
+!      call set_temperature(Points(1,j), 3.d0 * Points(1,j)%yp + 2.d0)
+!      call set_temperature(Points(IMAX,j), 3.d0 * Points(IMAX,j)%yp + 2.d0)
+!    end do
+!
+!    do i = 1, IMAX
+!      call set_temperature(Points(i,1), abs(cos(pi * Points(i,1)%xp)) + 1.d0)
+!      call set_temperature(Points(i,JMAX), 5.d0 * (sin(pi * Points(i,JMAX)%xp) + 1.d0))
+!    end do
 
-    do i = 1, IMAX
-      call set_temperature(Points(i,1), abs(cos(pi * Points(i,1)%xp)) + 1.d0)
-      call set_temperature(Points(i,JMAX), 5.d0 * (sin(pi * Points(i,JMAX)%xp) + 1.d0))
-    end do
+    ! We first read in the connectivity file.
+    call read_configuration_file(BlocksCollection)
+
+    ! We then read in the grid file.
+    call read_grid_file(BlocksCollection)
+
+    ! We then read in the initial temperature file.
+    call read_temp_file(BlocksCollection)
+
+    write(*,*), BlocksCollection(5,4)%Points(5,5)%x
   end subroutine
 
   subroutine identify_grid(x, n_, m_)
