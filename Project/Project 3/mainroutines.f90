@@ -57,15 +57,14 @@ contains
 
       ! Calculate our first and second derivatives for all our points.
       ! Calculate the new temperature for all of our interior points.
-      residual = 0d0
       call derivatives(Blocks)
-!      Blocks%Points%T = Blocks%Points%T + Blocks%Points%tempT
       call update_ghosts(Blocks)
 
       ! Find block with largest residual.
+      residual = 0.d0
       do n_ = 1, nBlocks
         temp_residual = maxval(abs(Blocks(n_)%Points(2:iBlockSize-1, 2:jBlockSize-1)%tempT))
-        write(*,*), "n ", n_, temp_residual
+!        write(*,*), "n ", n_, temp_residual
 
         if (temp_residual > residual) then
           residual = temp_residual
