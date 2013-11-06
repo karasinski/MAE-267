@@ -6,17 +6,14 @@ program heat
 
 !  type (GridPoint), allocatable :: Points(:,:)
 !  type (GridCell),  allocatable :: Cells(:,:)
-  type (BlockType), allocatable :: BlocksCollection(:,:)
+  type (BlockType), allocatable :: BlocksCollection(:)
   type (BlockType), allocatable :: Blocks(:)
   integer :: step = 0
 
   ! Set up our grid size and allocate our arrays for our grid points and grid cells.
   call SetGridSize(101)
-  call SetNumberOfBlocks(5,4)
-!  allocate(Points(1:IMAX, 1:JMAX))
-!  allocate(Cells(1:IMAX-1, 1:JMAX-1))
-  allocate(BlocksCollection(1:M,1:N))
-
+  call SetNumberOfBlocks(1,1)
+  allocate(BlocksCollection(nBlocks))
 
   ! First we create our blocks and pack them with nodes.
   call initialize_grid(BlocksCollection)
@@ -31,15 +28,15 @@ program heat
   allocate(Blocks(1:nBlocks))
   call initialization(Blocks)
 
-!  call make_blocks(Points, BlocksCollection)
+  ! Time our iterations until convergence.
   call start_clock()
-!  call solve(BlocksCollection, step)
+  call solve(Blocks, step)
   call end_clock()
-!  call make_blocks(Points, BlocksCollection)
+
+  ! Write final temperature distribution.
 !  call output(Blocks, step)
-!  call plot3D(BlocksCollection)
+  call plot3D(Blocks)
 
   ! Might as well be proper and cleanup before we leave.
-!  deallocate(Points, Cells, Blocks)
   deallocate(BlocksCollection)
 end program heat

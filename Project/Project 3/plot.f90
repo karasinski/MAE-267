@@ -13,9 +13,9 @@ module plot3D_module
 contains
 
   subroutine write_configuration_file(BlocksCollection)
-    type (BlockType), target :: BlocksCollection(:,:)
+    type (BlockType), target :: BlocksCollection(:)
     type (BlockType), pointer :: b
-    integer :: iM, iN
+    integer :: n_
 
     open(unit = 1, file = 'configuration_file.dat', form='formatted')
 
@@ -24,10 +24,9 @@ contains
 
     write(1, 10) M*N, iBlockSize, jBlockSize
 
-    do iM = 1, M
-      do iN = 1, N
-        b => BlocksCollection(iM, iN)
-        write(1, 20) iM, iN, b%type, b%proc, &
+      do n_ = 1, nBlocks
+        b => BlocksCollection(n_)
+        write(1, 20) n_, b%type, b%proc, &
                      b%lowI, b%highI, b%lowJ, b%highJ, &
                      b%northFace%BC, b%northFace%neighborBlock, b%northFace%neighborProc, &
                      b%southFace%BC, b%southFace%neighborBlock, b%southFace%neighborProc, &
@@ -38,7 +37,6 @@ contains
                      b%SWCorner%BC, b%SWCorner%neighborBlock, b%SWCorner%neighborProc, &
                      b%SECorner%BC, b%SECorner%neighborBlock, b%SECorner%neighborProc
       end do
-    end do
 
     close(1)
   end subroutine
@@ -46,7 +44,7 @@ contains
   subroutine read_configuration_file(Blocks)
     type (BlockType), target :: Blocks(:)
     type (BlockType), pointer :: b
-    integer :: i, iMFile, iNFile
+    integer :: n_, nFile
 
     open(unit = 1, file = 'configuration_file.dat', status='old')
 
@@ -55,9 +53,9 @@ contains
 
     read(1, 10) nBlocks, iBlockSize, jBlockSize
 
-    do i = 1, nBlocks
-        b => Blocks(i)
-        read(1, 20) iMFile, iNFile, b%type, b%proc, &
+    do n_ = 1, nBlocks
+        b => Blocks(n_)
+        read(1, 20) nFile, b%type, b%proc, &
                      b%lowI, b%highI, b%lowJ, b%highJ, &
                      b%northFace%BC, b%northFace%neighborBlock, b%northFace%neighborProc, &
                      b%southFace%BC, b%southFace%neighborBlock, b%southFace%neighborProc, &
@@ -132,16 +130,9 @@ contains
   subroutine plot3D(Blocks)
     implicit none
 
-    type (BlockType) :: Blocks(:,:)
-    integer :: m_, n_, M, N
+    type (BlockType) :: Blocks(:)
+    integer :: m_, n_
     integer :: i, j
-
-    ! Read M and N from Blocks.
-    M = size(Blocks, 1)
-    N = size(Blocks, 2)
-
-    ! Set number of blocks.
-    nBlocks = N * M
 
     ! Format statements
     10     format(I10)
@@ -155,26 +146,22 @@ contains
     ! Write to grid file
     write(gridUnit,10) nBlocks
     m_ = 1
-    write(gridUnit,20) ((iBlockSize, jBlockSize, m_=1, M), n_=1, N)
-    do m_ = 1, M
-      do n_ = 1, N
-        write(gridUnit,30) ((Blocks(m_,n_)%Points(i,j)%x,i=1,iBlockSize),j=1,jBlockSize), &
-                           ((Blocks(m_,n_)%Points(i,j)%y,i=1,iBlockSize),j=1,jBlockSize)
-      end do
+    write(gridUnit,20) (iBlockSize, jBlockSize, n_=1, nBlocks)
+      do n_ = 1, nBlocks
+        write(gridUnit,30) ((Blocks(n_)%Points(i,j)%x,i=1,iBlockSize),j=1,jBlockSize), &
+                           ((Blocks(n_)%Points(i,j)%y,i=1,iBlockSize),j=1,jBlockSize)
     end do
 
     ! Write to temperature file
     write(tempUnit,10) nBlocks
     m_ = 1
-    write(tempUnit,20) ((iBlockSize, jBlockSize, m_=1, M), n_=1, N)
-    do m_ = 1, M
-      do n_ = 1, N
+    write(tempUnit,20) (iBlockSize, jBlockSize, n_=1, nBlocks)
+      do n_ = 1, nBlocks
         write(tempUnit,30) tRef,dum,dum,dum
-        write(tempUnit,30) ((Blocks(m_,n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
-                           ((Blocks(m_,n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
-                           ((Blocks(m_,n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
-                           ((Blocks(m_,n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize)
-      end do
+        write(tempUnit,30) ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
+                           ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
+                           ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
+                           ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize)
     end do
 
     ! Close files
