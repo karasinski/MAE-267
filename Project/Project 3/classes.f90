@@ -2,7 +2,7 @@
 ! the size of the grid.
 module constants
   implicit none
-  real(kind=8), parameter :: CFL = 6.5d0
+  real(kind=8), parameter :: CFL = 2.5d0
   real(kind=8), parameter :: k = 18.8d0, rho = 8000.d0, c_p = 500.d0
   real(kind=8), parameter :: pi = 3.141592654d0, rot = 30.d0*pi/180.d0
   real(kind=8), parameter :: alpha = k / (c_p * rho)
@@ -133,8 +133,8 @@ contains
         b%lowI = b%highI - (iBlockSize - 1)
         b%highJ = 1 + iM * (jBlockSize - 1)
         b%lowJ = b%highJ - (jBlockSize - 1)
-        b%iLength = iBlockSize
-        b%jLength = jBlockSize
+!        b%iLength = iBlockSize
+!        b%jLength = jBlockSize
 
         if (b%highJ == JMAX) then
           nBound = nB
@@ -624,9 +624,8 @@ contains
             ( p(i, j+1)%T + p(i+1,j+1)%T ) * p(i, j+1)%Axj + &
             ( p(i,   j)%T + p(i+1,  j)%T ) * p(i,   j)%Axj   &
             ) / c(i ,j)%V
-!                  write(*,*), i, j, dTdx, dTdy
-!                  write(*,*), i, j, c(i ,j)%V
-
+!           write(*,*), i, j, dTdx, dTdy
+!           write(*,*), i, j, c(i ,j)%V
 
           ! Alternate distributive scheme second-derivative operator.
           ! Updates the second derivative by adding the first times a constant

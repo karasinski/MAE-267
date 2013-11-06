@@ -29,8 +29,8 @@ contains
         write(1, 20) n_, b%type, b%proc, &
                      b%lowI, b%highI, b%lowJ, b%highJ, &
                      b%northFace%BC, b%northFace%neighborBlock, b%northFace%neighborProc, &
-                     b%southFace%BC, b%southFace%neighborBlock, b%southFace%neighborProc, &
                      b%eastFace%BC, b%eastFace%neighborBlock, b%eastFace%neighborProc, &
+                     b%southFace%BC, b%southFace%neighborBlock, b%southFace%neighborProc, &
                      b%westFace%BC, b%westFace%neighborBlock, b%westFace%neighborProc, &
                      b%NECorner%BC, b%NECorner%neighborBlock, b%NECorner%neighborProc, &
                      b%NWCorner%BC, b%NWCorner%neighborBlock, b%NWCorner%neighborProc, &
@@ -58,8 +58,8 @@ contains
         read(1, 20) nFile, b%type, b%proc, &
                      b%lowI, b%highI, b%lowJ, b%highJ, &
                      b%northFace%BC, b%northFace%neighborBlock, b%northFace%neighborProc, &
-                     b%southFace%BC, b%southFace%neighborBlock, b%southFace%neighborProc, &
                      b%eastFace%BC, b%eastFace%neighborBlock, b%eastFace%neighborProc, &
+                     b%southFace%BC, b%southFace%neighborBlock, b%southFace%neighborProc, &
                      b%westFace%BC, b%westFace%neighborBlock, b%westFace%neighborProc, &
                      b%NECorner%BC, b%NECorner%neighborBlock, b%NECorner%neighborProc, &
                      b%NWCorner%BC, b%NWCorner%neighborBlock, b%NWCorner%neighborProc, &
