@@ -1,7 +1,5 @@
 module plot3D_module
-  use constants
   use clock
-  use GridPointModule
   use BlockModule
   implicit none
 
@@ -80,7 +78,7 @@ contains
     30     format(10E20.8)
 
     ! Open files
-    open(unit=gridUnit,file='initgrid.dat', status='old')
+    open(unit=gridUnit,file='i_grid.dat', status='old')
 
     ! Read grid file
     read(gridUnit,10) nBlocks
@@ -106,7 +104,7 @@ contains
     30     format(10E20.8)
 
     ! Open files
-    open(unit=tempUnit,file='inittemp.dat', status='old')
+    open(unit=tempUnit,file='i_temp.dat', status='old')
 
     ! Read temperature file
     read(tempUnit,10) nBlocks
@@ -127,10 +125,11 @@ contains
 
   ! Plot3D routine to output grid and temperature files in a
   ! machine readable format.
-  subroutine plot3D(Blocks)
+  subroutine plot3D(Blocks, name)
     implicit none
 
     type (BlockType) :: Blocks(:)
+    character :: name
     integer :: m_, n_
     integer :: i, j
 
@@ -140,8 +139,8 @@ contains
     30     format(10E20.8)
 
     ! Open files
-    open(unit=gridUnit,file='initgrid.dat',form='formatted')
-    open(unit=tempUnit,file='inittemp.dat',form='formatted')
+    open(unit=gridUnit,file=name//'_grid.dat',form='formatted')
+    open(unit=tempUnit,file=name//'_temp.dat',form='formatted')
 
     ! Write to grid file
     write(gridUnit,10) nBlocks
@@ -168,31 +167,28 @@ contains
     close(gridUnit)
     close(tempUnit)
   end subroutine plot3D
+
 ! Basic info output.
 subroutine output(Blocks, step)
-  type (BlockType) :: Blocks(:,:)
+  type (BlockType) :: Blocks(:)
   integer :: step
-  integer :: m_,n_,max_m,max_n
-  real(kind=8) :: temp_residual, residual
+  integer :: n_, max_n
+  real(kind=8) :: temp_residual, residual = 0.d0
 
   ! Some output to the screen so we know something happened.
-  do m_ = 1, size(Blocks, 1)
-    do n_ = 1, size(Blocks, 2)
-      temp_residual = maxval(abs(Blocks(m_,n_)%Points(2:Blocks(m_,n_)%iBound - 1, 2:Blocks(m_,n_)%iBound - 1)%tempT))
+  do n_ = 1, nBlocks
+    temp_residual = maxval(abs(Blocks(n_)%Points(2:iBlockSize-1, 2:jBlockSize-1)%tempT))
 
-      if (temp_residual > residual) then
-        max_m = m_
-        max_n = n_
-        residual = temp_residual
-      end if
-
-    end do
+    if (temp_residual > residual) then
+      max_n = n_
+      residual = temp_residual
+    end if
   end do
 
   if ( step > 0) then
     write (*,*), "steps", step
     write (*,*), "residual", residual
-    write (*,*), "mn", max_m, max_n, "ij", maxloc(abs(Blocks(max_m,max_n)%Points(2:IMAX - 1, 2:JMAX - 1)%tempT))
+!    write (*,*), "n ", max_n, "ij", maxloc(abs(Blocks(n_)%Points(2:iBlockSize-1, 2:jBlockSize-1)%tempT))
 
     ! Write down misc. info asked for by Prof.
     open (unit = 2, file = "info.dat")
@@ -201,7 +197,7 @@ subroutine output(Blocks, step)
     write (2,*), wall_time, "seconds"
     write (2,*)
     write (2,*), "Found max residual of ", residual
-    write (2,*), "mn",max_m, max_n,"ij", maxloc(abs(Blocks(max_m,max_n)%Points(2:IMAX - 1, 2:JMAX - 1)%tempT))
+!    write (2,*), "n ", max_n,"ij", maxloc(abs(Blocks(n_)%Points(2:iBlockSize-1, 2:jBlockSize-1)%tempT))
     close (2)
   end if
 end subroutine

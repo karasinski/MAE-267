@@ -1,18 +1,17 @@
 program heat
-  use clock
   use MainRoutines
-  use plot3D_module
   implicit none
 
-!  type (GridPoint), allocatable :: Points(:,:)
-!  type (GridCell),  allocatable :: Cells(:,:)
+  ! Block array for grid creation.
   type (BlockType), allocatable :: BlocksCollection(:)
+
+  ! Block array for solver.
   type (BlockType), allocatable :: Blocks(:)
   integer :: step = 0
 
   ! Set up our grid size and allocate our arrays for our grid points and grid cells.
   call SetGridSize(101)
-  call SetNumberOfBlocks(5,4)
+  call SetNumberOfBlocks(1,1)
   allocate(BlocksCollection(nBlocks))
 
   ! First we create our blocks and pack them with nodes.
@@ -22,7 +21,7 @@ program heat
   call write_configuration_file(BlocksCollection)
 
   ! We then write a grid file and initial temperature file.
-  call plot3D(BlocksCollection)
+  call plot3D(BlocksCollection, "i")
 
   ! We then initialize the solver.
   allocate(Blocks(1:nBlocks))
@@ -34,8 +33,8 @@ program heat
   call end_clock()
 
   ! Write final temperature distribution.
-!  call output(Blocks, step)
-  call plot3D(Blocks)
+  call output(Blocks, step)
+  call plot3D(Blocks, "f")
 
   ! Might as well be proper and cleanup before we leave.
   deallocate(BlocksCollection)
