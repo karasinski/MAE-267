@@ -2,7 +2,7 @@
 ! the size of the grid.
 module constants
   implicit none
-  real(kind=8), parameter :: CFL = 2.5d0
+  real(kind=8), parameter :: CFL = 1.d0
   real(kind=8), parameter :: k = 18.8d0, rho = 8000.d0, c_p = 500.d0
   real(kind=8), parameter :: pi = 3.141592654d0, rot = 30.d0*pi/180.d0
   real(kind=8), parameter :: alpha = k / (c_p * rho)
@@ -324,8 +324,8 @@ contains
           Cells => Blocks(n_)%Cells
           ! Calculate the timestep using the CFL method described in class.
           Points(i, j)%timestep = ( ( CFL * 0.5d0 ) / alpha ) * 4.d0 * Points(i,j)%Vol2 ** 2 / &
-            ( ( Points(i+1, j)%xp - Points(i-1, j)%xp )**2 + &
-              ( Points(i, j+1)%yp - Points(i, j-1)%yp )**2 )
+            ( ( Points(i+1, j)%xp - Points(i, j)%xp )**2 + &
+              ( Points(i, j+1)%yp - Points(i, j)%yp )**2 )
 
           ! Calculate this constant now so we don't recalculate in the solver loop.
           Points(i, j)%const = ( Points(i, j)%timestep * alpha / Points(i, j)%Vol2 )
@@ -540,19 +540,19 @@ contains
       p => Blocks(n_)%Points
       Cells => Blocks(n_)%Cells
 
-    do j = 0, jBlockSize
-      do i = 0, iBlockSize + 1
-        p(i,j)%Ayi = p(i,j+1)%y - p(i,j)%y
-        p(i,j)%Axi = p(i,j+1)%x - p(i,j)%x
+      do j = 0, jBlockSize
+        do i = 0, iBlockSize + 1
+          p(i,j)%Ayi = p(i,j+1)%y - p(i,j)%y
+          p(i,j)%Axi = p(i,j+1)%x - p(i,j)%x
+        end do
       end do
-    end do
 
-    do j = 0, jBlockSize+1
-      do i = 0, iBlockSize
-        p(i,j)%Ayj = p(i+1,j)%y - p(i,j)%y
-        p(i,j)%Axj = p(i+1,j)%x - p(i,j)%x
+      do j = 0, jBlockSize+1
+        do i = 0, iBlockSize
+          p(i,j)%Ayj = p(i+1,j)%y - p(i,j)%y
+          p(i,j)%Axj = p(i+1,j)%x - p(i,j)%x
+        end do
       end do
-    end do
 
       do j = 0, jBlockSize
         do i = 0, iBlockSize
@@ -562,18 +562,16 @@ contains
             p(i,  j+1)%x * p(i+1,j+1)%y - p(i,  j+1)%y * p(i+1,j+1)%x + &
             p(i+1,j+1)%x * p(i+1,  j)%y - p(i+1,j+1)%y * p(i+1,  j)%x + &
             p(i+1,  j)%x * p(i,    j)%y - p(i+1,  j)%y * p(i,    j)%x )
-!            write(*,*) n_, i, j, Cells(i,j)%V
+          !            write(*,*) n_, i, j, Cells(i,j)%V
 
-        p(i,    j)%Vol2 = p(i,    j)%Vol2 + Cells(i,    j)%V * 0.25d0
-        p(i+1,  j)%Vol2 = p(i+1,  j)%Vol2 + Cells(i+1,  j)%V * 0.25d0
-        p(i,  j+1)%Vol2 = p(i,  j+1)%Vol2 + Cells(i,  j+1)%V * 0.25d0
-        p(i+1,j+1)%Vol2 = p(i+1,j+1)%Vol2 + Cells(i+1,j+1)%V * 0.25d0
+          p(i, j)%Vol2 = ( Cells(i, j)%V + Cells(i + 1, j)%V + &
+            Cells(i, j + 1)%V + Cells(i + 1, j + 1)%V ) * 0.25d0
 
-        p(i,j)%Ayi_half = ( p(i+1,j)%Ayi + p(i,j)%Ayi ) * 0.25d0
-        p(i,j)%Axi_half = ( p(i+1,j)%Axi + p(i,j)%Axi ) * 0.25d0
+          p(i,j)%Ayi_half = ( p(i+1,j)%Ayi + p(i,j)%Ayi ) * 0.25d0
+          p(i,j)%Axi_half = ( p(i+1,j)%Axi + p(i,j)%Axi ) * 0.25d0
 
-        p(i,j)%Ayj_half = ( p(i,j+1)%Ayj + p(i,j)%Ayj ) * 0.25d0
-        p(i,j)%Axj_half = ( p(i,j+1)%Axj + p(i,j)%Axj ) * 0.25d0
+          p(i,j)%Ayj_half = ( p(i,j+1)%Ayj + p(i,j)%Ayj ) * 0.25d0
+          p(i,j)%Axj_half = ( p(i,j+1)%Axj + p(i,j)%Axj ) * 0.25d0
         end do
       end do
     end do

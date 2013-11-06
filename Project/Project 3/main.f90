@@ -11,8 +11,8 @@ program heat
   integer :: step = 0
 
   ! Set up our grid size and allocate our arrays for our grid points and grid cells.
-  call SetGridSize(11)
-  call SetNumberOfBlocks(2,2)
+  call SetGridSize(101)
+  call SetNumberOfBlocks(5,4)
   allocate(BlocksCollection(nBlocks))
 
   ! First we create our blocks and pack them with nodes.

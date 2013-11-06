@@ -41,7 +41,7 @@ contains
   subroutine solve(Blocks, step)
     type (BlockType), target :: Blocks(:)
     real(kind=8) :: temp_residual = 1.d0, residual = 1.d0 ! Arbitrary initial residuals.
-    integer :: n_, step, max_steps = 10000
+    integer :: n_, step, max_steps = 100000
 
     write(*,*), "Start solver"
 
