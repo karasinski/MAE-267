@@ -12,9 +12,6 @@ contains
 
   subroutine initialization(Blocks)
     type (BlockType) :: Blocks(:)
-    !    type (GridPoint), target :: Points(1:IMAX, 1:JMAX)
-    !    type (GridCell),  target :: Cells(1:IMAX-1, 1:JMAX-1)
-    !    integer :: i, j
 
     ! We first read in the connectivity file.
     call read_configuration_file(Blocks)
@@ -25,26 +22,24 @@ contains
     ! We then read in the initial temperature file.
     call read_temp_file(Blocks)
 
+    ! Calculate proper bounds for each block.
+    call set_bounds(Blocks)
+
+    !  Initialize the primary face areas and volumes.
+    call initialize_faces_and_volumes(Blocks)
+
     !  Initialize the points.
     call initialize_points(Blocks)
 
-    !  Initialize the cells.
-    call initialize_cells(Blocks)
-
-    ! Set up secondary areas needed for integration.
-    call set_secondary_areas(Blocks)
+    ! Set up fluxes needed for integration.
+    call set_fluxes(Blocks)
 
     ! Calculate constants for integration.
     call set_constants(Blocks)
-
-    ! Calculate proper bounds for each block.
-    call set_bounds(Blocks)
   end subroutine
 
   subroutine solve(Blocks, step)
     type (BlockType), target :: Blocks(:)
-    type (GridPoint), pointer :: Points(:,:)
-    !    type (GridCell), pointer :: Cells(:,:)
     real(kind=8) :: temp_residual = 1.d0, residual = 1.d0 ! Arbitrary initial residuals.
     integer :: n_, step, max_steps = 10000
 

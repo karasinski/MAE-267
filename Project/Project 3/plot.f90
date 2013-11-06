@@ -82,13 +82,13 @@ contains
     ! Open files
     open(unit=gridUnit,file='initgrid.dat', status='old')
 
-    ! Write to grid file
+    ! Read grid file
     read(gridUnit,10) nBlocks
 
     read(gridUnit,20) (iBlockSize, jBlockSize, i=1, nBlocks)
     do n_ = 1, nBlocks
         read(gridUnit,30) ((Blocks(n_)%Points(i,j)%x,i=1,iBlockSize),j=1,jBlockSize), &
-                           ((Blocks(n_)%Points(i,j)%y,i=1,iBlockSize),j=1,jBlockSize)
+                          ((Blocks(n_)%Points(i,j)%y,i=1,iBlockSize),j=1,jBlockSize)
     end do
 
     ! Close file
@@ -108,7 +108,7 @@ contains
     ! Open files
     open(unit=tempUnit,file='inittemp.dat', status='old')
 
-    ! Write to temperature file
+    ! Read temperature file
     read(tempUnit,10) nBlocks
     read(tempUnit,20) (iBlockSize, jBlockSize, n_=1, nBlocks)
       do n_ = 1, nBlocks
