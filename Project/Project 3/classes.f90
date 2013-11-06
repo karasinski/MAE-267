@@ -208,9 +208,9 @@ contains
           p1%T = p2%T
         end do
 
-        b%localIMIN = 0
+        b%localJMIN = 0
       else
-        b%localIMIN = 1
+        b%localJMIN = 1
       end if
 
       if (b%westFace%BC == -1) then
@@ -224,9 +224,9 @@ contains
           p1%T = p2%T
         end do
 
-        b%localJMIN = 0
+        b%localIMIN = 0
       else
-        b%localJMIN = 1
+        b%localIMIN = 1
       end if
 
       ! Set corner points.
