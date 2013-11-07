@@ -1,5 +1,5 @@
-! Various constants we need in a lot of places and a routine to set
-! the size of the grid.
+! Various constants we need in a lot of places, a routine to set
+! the size of the grid, and and a routine to set number of blocks.
 module constants
   implicit none
   real(kind=8), parameter :: CFL = 1.15d0
@@ -46,9 +46,9 @@ contains
   end subroutine end_clock
 end module
 
+! Contains derived data types and initialization routines.
 module BlockModule
   use constants
-
   implicit none
   public
 
@@ -67,97 +67,23 @@ module BlockModule
     real(kind=8) :: xNN, xPN, xPP, xNP
   end type GridCell
 
-  type Face
+  type Neighbor
     integer :: BC, neighborBlock, neighborProc
   end type
 
   type BlockType
-    ! This sucks.
     type (GridPoint) :: Points(0:103,0:103)
     type (GridCell)  :: Cells(0:102,0:102)
     integer :: iStart, jStart, iBound, jBound
 
     integer :: type, proc, lowJ, highJ, lowI, highI
-    integer :: iLength, jLength
     integer :: localJMIN, localIMIN, localJMAX, localIMAX
-    type (Face) :: northFace, southFace, eastFace, westFace
-    type (Face) :: NECorner, SECorner, SWCorner, NWCorner
+    type (Neighbor) :: northFace, southFace, eastFace, westFace
+    type (Neighbor) :: NECorner, SECorner, SWCorner, NWCorner
   end type BlockType
 
 contains
-  subroutine set_fluxes(Blocks)
-    type (BlockType), target :: Blocks(:)
-    type (GridCell), pointer :: c
-    type (GridPoint), pointer :: p(:,:)
-    integer :: i, j, n_
-
-    do n_=1, nBlocks
-      p => Blocks(n_)%Points
-      do j = 0, jBlockSize
-        do i = 0, iBlockSize
-          c => Blocks(n_)%Cells(i,j)
-          ! And these are the numbers that actually appear in the equations,
-          ! saved here to (hopefully) save a moment or two during iteration.
-          c%yPP = (  p(i,j)%Ayi_half + p(i,j)%Ayj_half )
-          c%yNP = ( -p(i,j)%Ayi_half + p(i,j)%Ayj_half )
-          c%yNN = ( -p(i,j)%Ayi_half - p(i,j)%Ayj_half )
-          c%yPN = (  p(i,j)%Ayi_half - p(i,j)%Ayj_half )
-
-          c%xNN = ( -p(i,j)%Axi_half - p(i,j)%Axj_half )
-          c%xPN = (  p(i,j)%Axi_half - p(i,j)%Axj_half )
-          c%xPP = (  p(i,j)%Axi_half + p(i,j)%Axj_half )
-          c%xNP = ( -p(i,j)%Axi_half + p(i,j)%Axj_half )
-        end do
-      end do
-    end do
-  end subroutine
-
-  subroutine set_constants(Blocks)
-    type (BlockType), target :: Blocks(:)
-    type (GridCell), pointer :: Cells(:,:)
-    type (GridPoint), pointer :: Points(:,:)
-    integer :: i, j, n_
-
-    ! Calculate timesteps and assign secondary volumes.
-    do n_ = 1, nBlocks
-      do j = 1, jBlockSize
-        do i = 1, iBlockSize
-          Points => Blocks(n_)%Points
-          Cells => Blocks(n_)%Cells
-          ! Calculate the timestep using the CFL method described in class.
-
-          Points(i, j)%timestep = ( ( CFL * 2.d0 ) / alpha ) * Points(i,j)%Vol2 ** 2 / &
-                                  ( ( Points(i+1, j)%xp - Points(i-1, j)%xp )**2 + &
-                                    ( Points(i, j+1)%yp - Points(i, j-1)%yp )**2 )
-
-
-          ! Calculate this constant now so we don't recalculate in the solver loop.
-          Points(i, j)%const = ( Points(i, j)%timestep * alpha / Points(i, j)%Vol2 )
-        end do
-      end do
-    end do
-  end subroutine
-
-  ! Set the locations of each grid point.
-  subroutine initialize_points(Blocks)
-    type (BlockType), target :: Blocks(:)
-    type (BlockType), pointer :: b
-    type (GridPoint), pointer :: p
-    integer :: i, j, n_
-
-    do n_ = 1, nBlocks
-      b=> Blocks(n_)
-      do j = 0, jBlockSize+1
-        do i = 0, iBlockSize+1
-          p => Blocks(n_)%Points(i, j)
-
-          p%xp = cos( 0.5d0 * pi * dfloat(IMAX - (i + b%lowI - 1)) / dfloat(IMAX-1))
-          p%yp = cos( 0.5d0 * pi * dfloat(JMAX - (j + b%lowJ - 1)) / dfloat(JMAX-1))
-        end do
-      end do
-    end do
-  end subroutine initialize_points
-
+  ! Set the true bounds and ghost nodes for each block.
   subroutine set_bounds(Blocks)
     type (BlockType), target :: Blocks(:)
     type (BlockType), pointer :: b
@@ -167,6 +93,9 @@ contains
     do n_= 1, nBlocks
       b => Blocks(n_)
 
+      ! Initialize ghost nodes. If block face is internal
+      ! also set different bounds for the solver loop.
+      ! North face.
       if (b%northFace%BC == -1) then
         do i = 1, iBlockSize
           neighbor = b%northFace%neighborBlock
@@ -183,6 +112,7 @@ contains
         b%localJMAX = jBlockSize - 1
       end if
 
+      ! East face.
       if (b%eastFace%BC == -1) then
         do j = 1, jBlockSize
           neighbor = b%eastFace%neighborBlock
@@ -199,6 +129,7 @@ contains
         b%localIMAX = iBlockSize - 1
       end if
 
+      ! South face.
       if (b%southFace%BC == -1) then
         do i = 1, iBlockSize
           neighbor = b%southFace%neighborBlock
@@ -215,6 +146,7 @@ contains
         b%localJMIN = 1
       end if
 
+      ! West face.
       if (b%westFace%BC == -1) then
         do j = 1, jBlockSize
           neighbor = b%westFace%neighborBlock
@@ -232,6 +164,7 @@ contains
       end if
 
       ! Set corner points.
+      ! North east corner
       if (b%NECorner%BC == -1) then
         neighbor = b%NECorner%neighborBlock
         p1 => b%Points(iBlockSize+1, jBlockSize+1)
@@ -242,6 +175,7 @@ contains
         p1%T = p2%T
       end if
 
+      ! South east corner
       if (b%SECorner%BC == -1) then
         neighbor = b%SECorner%neighborBlock
         p1 => b%Points(iBlockSize+1, 0)
@@ -252,6 +186,7 @@ contains
         p1%T = p2%T
       end if
 
+      ! South west corner
       if (b%SWCorner%BC == -1) then
         neighbor = b%SWCorner%neighborBlock
         p1 => b%Points(0, 0)
@@ -262,6 +197,7 @@ contains
         p1%T = p2%T
       end if
 
+      ! North west corner
       if (b%NWCorner%BC == -1) then
         neighbor = b%NWCorner%neighborBlock
         p1 => b%Points(0, jBlockSize+1)
@@ -274,6 +210,27 @@ contains
     end do
   end subroutine
 
+  ! Set the prime locations of each grid point.
+  subroutine initialize_points(Blocks)
+    type (BlockType), target :: Blocks(:)
+    type (BlockType), pointer :: b
+    type (GridPoint), pointer :: p
+    integer :: i, j, n_
+
+    do n_ = 1, nBlocks
+      b=> Blocks(n_)
+      do j = 0, jBlockSize+1
+        do i = 0, iBlockSize+1
+          p => Blocks(n_)%Points(i, j)
+
+          ! Have to convert from i, j to global i, j.
+          p%xp = cos( 0.5d0 * pi * dfloat(IMAX - (i + b%lowI - 1)) / dfloat(IMAX-1))
+          p%yp = cos( 0.5d0 * pi * dfloat(JMAX - (j + b%lowJ - 1)) / dfloat(JMAX-1))
+        end do
+      end do
+    end do
+  end subroutine initialize_points
+
   subroutine initialize_faces_and_volumes(Blocks)
     type (BlockType), target :: Blocks(:)
     type (GridCell), pointer :: Cells(:,:)
@@ -284,6 +241,7 @@ contains
       p => Blocks(n_)%Points
       Cells => Blocks(n_)%Cells
 
+      ! Calculate fluxes.
       do j = 0, jBlockSize
         do i = 0, iBlockSize + 1
           p(i,j)%Ayi = p(i,j+1)%y - p(i,j)%y
@@ -298,14 +256,15 @@ contains
         end do
       end do
 
+      ! Calculate the volumes.
       do j = 0, jBlockSize
         do i = 0, iBlockSize
-          ! Calculate the volume of each cell.
           Cells(i, j)%V = abs(( p(i+1, j)%xp - p(i, j)%xp) * &
             ( p(i, j+1)%yp - p(i, j)%yp))
         end do
       end do
 
+      ! Calculate secondary volumes and fluxes.
       do j = 0, jBlockSize
         do i = 0, iBlockSize
           p(i, j)%Vol2 = ( Cells(i, j)%V + Cells(i + 1, j)%V + &
@@ -316,6 +275,54 @@ contains
 
           p(i,j)%Ayj_half = ( p(i,j+1)%Ayj + p(i,j)%Ayj ) * 0.25d0
           p(i,j)%Axj_half = ( p(i,j+1)%Axj + p(i,j)%Axj ) * 0.25d0
+        end do
+      end do
+    end do
+  end subroutine
+
+  subroutine set_constants(Blocks)
+    type (BlockType), target :: Blocks(:)
+    type (GridCell), pointer :: c
+    type (GridCell), pointer :: Cells(:,:)
+    type (GridPoint), pointer :: Points(:,:)
+    integer :: i, j, n_
+
+    ! Constants used during iteration.
+    do n_=1, nBlocks
+      Points => Blocks(n_)%Points
+      do j = 0, jBlockSize
+        do i = 0, iBlockSize
+          c => Blocks(n_)%Cells(i,j)
+          ! These are the numbers that actually appear in the equations,
+          ! saved here to save a moment or two during iteration.
+          c%yPP = (  Points(i,j)%Ayi_half + Points(i,j)%Ayj_half )
+          c%yNP = ( -Points(i,j)%Ayi_half + Points(i,j)%Ayj_half )
+          c%yNN = ( -Points(i,j)%Ayi_half - Points(i,j)%Ayj_half )
+          c%yPN = (  Points(i,j)%Ayi_half - Points(i,j)%Ayj_half )
+
+          c%xNN = ( -Points(i,j)%Axi_half - Points(i,j)%Axj_half )
+          c%xPN = (  Points(i,j)%Axi_half - Points(i,j)%Axj_half )
+          c%xPP = (  Points(i,j)%Axi_half + Points(i,j)%Axj_half )
+          c%xNP = ( -Points(i,j)%Axi_half + Points(i,j)%Axj_half )
+        end do
+      end do
+    end do
+
+    ! Calculate timesteps and assign secondary volumes.
+    do n_ = 1, nBlocks
+      do j = 1, jBlockSize
+        do i = 1, iBlockSize
+          Points => Blocks(n_)%Points
+          Cells => Blocks(n_)%Cells
+          ! Calculate the timestep using the CFL method described in class.
+
+          Points(i, j)%timestep = ( ( CFL * 2.d0 ) / alpha ) * Points(i,j)%Vol2 ** 2 / &
+                                  ( ( Points(i+1, j)%xp - Points(i-1, j)%xp )**2 + &
+                                    ( Points(i, j+1)%yp - Points(i, j-1)%yp )**2 )
+
+
+          ! Calculate this constant now so we don't recalculate in the solver loop.
+          Points(i, j)%const = ( Points(i, j)%timestep * alpha / Points(i, j)%Vol2 )
         end do
       end do
     end do

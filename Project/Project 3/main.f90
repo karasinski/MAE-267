@@ -11,7 +11,7 @@ program heat
 
   ! Set up our grid size and allocate our arrays for our grid points and grid cells.
   call SetGridSize(101)
-  call SetNumberOfBlocks(10,10)
+  call SetNumberOfBlocks(5,4)
   allocate(BlocksCollection(nBlocks))
 
   ! First we create our blocks and pack them with nodes.
@@ -23,6 +23,9 @@ program heat
   ! We then write a grid file and initial temperature file.
   call plot3D(BlocksCollection, "i")
 
+  ! Deallocate our initialization array.
+  deallocate(BlocksCollection)
+
   ! We then initialize the solver.
   allocate(Blocks(1:nBlocks))
   call initialization(Blocks)
@@ -32,10 +35,12 @@ program heat
   call solve(Blocks, step)
   call end_clock()
 
-  ! Write final temperature distribution.
+  ! Write some results to file/screen.
   call output(Blocks, step)
+
+  ! Write final temperature distribution.
   call plot3D(Blocks, "f")
 
   ! Might as well be proper and cleanup before we leave.
-  deallocate(BlocksCollection)
+  deallocate(Blocks)
 end program heat

@@ -20,10 +20,9 @@ contains
     20 format(33I5)
 
     write(1, 10) M*N, iBlockSize, jBlockSize
-
     do n_ = 1, nBlocks
       b => BlocksCollection(n_)
-      write(1, 20) n_, b%type, b%proc, &
+      write(1, 20) n_, b%proc, &
                    b%lowI, b%highI, b%lowJ, b%highJ, &
                    b%northFace%BC, b%northFace%neighborBlock, b%northFace%neighborProc, &
                    b%eastFace%BC, b%eastFace%neighborBlock, b%eastFace%neighborProc, &
@@ -49,10 +48,9 @@ contains
     20 format(33I5)
 
     read(1, 10) nBlocks, iBlockSize, jBlockSize
-
     do n_ = 1, nBlocks
       b => Blocks(n_)
-      read(1, 20) nFile, b%type, b%proc, &
+      read(1, 20) nFile, b%proc, &
                   b%lowI, b%highI, b%lowJ, b%highJ, &
                   b%northFace%BC, b%northFace%neighborBlock, b%northFace%neighborProc, &
                   b%eastFace%BC, b%eastFace%neighborBlock, b%eastFace%neighborProc, &
@@ -65,6 +63,7 @@ contains
     end do
 
     close(1)
+    write(*,*), 'Read configuration file'
   end subroutine
 
   subroutine read_grid_file(Blocks)
@@ -81,11 +80,10 @@ contains
 
     ! Read grid file
     read(gridUnit,10) nBlocks
-
     read(gridUnit,20) (iBlockSize, jBlockSize, i=1, nBlocks)
     do n_ = 1, nBlocks
       read(gridUnit,30) ((Blocks(n_)%Points(i,j)%x,i=1,iBlockSize),j=1,jBlockSize), &
-        ((Blocks(n_)%Points(i,j)%y,i=1,iBlockSize),j=1,jBlockSize)
+                        ((Blocks(n_)%Points(i,j)%y,i=1,iBlockSize),j=1,jBlockSize)
     end do
 
     ! Close file
@@ -108,15 +106,16 @@ contains
     ! Read temperature file
     read(tempUnit,10) nBlocks
     read(tempUnit,20) (iBlockSize, jBlockSize, n_=1, nBlocks)
+
     do n_ = 1, nBlocks
       read(tempUnit,30) tRef,dum,dum,dum
       read(tempUnit,30) ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
-        ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
-        ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
-        ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize)
+                        ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
+                        ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
+                        ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize)
     end do
 
-    ! Close files
+    ! Close file
     close(tempUnit)
 
     write(*,*), 'Read initial temperature file'
@@ -125,12 +124,9 @@ contains
   ! Plot3D routine to output grid and temperature files in a
   ! machine readable format.
   subroutine plot3D(Blocks, name)
-    implicit none
-
     type (BlockType) :: Blocks(:)
     character :: name
-    integer :: m_, n_
-    integer :: i, j
+    integer :: n_, i, j
 
     ! Format statements
     10     format(I10)
@@ -143,23 +139,23 @@ contains
 
     ! Write to grid file
     write(gridUnit,10) nBlocks
-    m_ = 1
     write(gridUnit,20) (iBlockSize, jBlockSize, n_=1, nBlocks)
+
     do n_ = 1, nBlocks
       write(gridUnit,30) ((Blocks(n_)%Points(i,j)%x,i=1,iBlockSize),j=1,jBlockSize), &
-        ((Blocks(n_)%Points(i,j)%y,i=1,iBlockSize),j=1,jBlockSize)
+                         ((Blocks(n_)%Points(i,j)%y,i=1,iBlockSize),j=1,jBlockSize)
     end do
 
     ! Write to temperature file
     write(tempUnit,10) nBlocks
-    m_ = 1
     write(tempUnit,20) (iBlockSize, jBlockSize, n_=1, nBlocks)
+
     do n_ = 1, nBlocks
       write(tempUnit,30) tRef,dum,dum,dum
       write(tempUnit,30) ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
-        ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
-        ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
-        ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize)
+                         ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
+                         ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
+                         ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize)
     end do
 
     ! Close files
@@ -167,37 +163,57 @@ contains
     close(tempUnit)
   end subroutine plot3D
 
-  ! Basic info output.
+  ! Some output so we know something happened.
   subroutine output(Blocks, step)
     type (BlockType) :: Blocks(:)
     integer :: step
-    integer :: n_, max_n
+    integer :: n_, max_n = 1
+    integer :: i, j, max_i, max_j
     real(kind=8) :: temp_residual, residual = 0.d0
 
-    ! Some output to the screen so we know something happened.
-    do n_ = 1, nBlocks
-      temp_residual = maxval(abs(Blocks(n_)%Points(2:iBlockSize-1, 2:jBlockSize-1)%tempT))
-
-      if (temp_residual > residual) then
-        max_n = n_
-        residual = temp_residual
-      end if
-    end do
-
+    ! Write down misc. info asked for by Prof.
     if ( step > 0) then
-      write (*,*), "steps", step
-      write (*,*), "residual", residual
-      !    write (*,*), "n ", max_n, "ij", maxloc(abs(Blocks(n_)%Points(2:iBlockSize-1, 2:jBlockSize-1)%tempT))
-
-      ! Write down misc. info asked for by Prof.
       open (unit = 2, file = "info.dat")
-      write (2,*), "For a ", IMAX, " by ", JMAX, "size grid, we ran for: "
-      write (2,*), step, "steps"
-      write (2,*), wall_time, "seconds"
-      write (2,*)
-      write (2,*), "Found max residual of ", residual
-      !    write (2,*), "n ", max_n,"ij", maxloc(abs(Blocks(n_)%Points(2:iBlockSize-1, 2:jBlockSize-1)%tempT))
-      close (2)
+      write (2,*), wall_time, " seconds"
+      write (*,*), "steps ", step
+      write (2,*), "steps ", step
+
+      ! Loop over blocks, find largest residual.
+      do n_ = 1, nBlocks
+        temp_residual = maxval(abs(Blocks(n_)%Points(2:iBlockSize-1, 2:jBlockSize-1)%tempT))
+
+        if (temp_residual > residual) then
+          max_n = n_
+          residual = temp_residual
+        end if
+      end do
+
+      write (*,*), "residual ", residual
+      write (2,*), "residual ", residual
+      residual = 0.d0
+
+      ! Loop over points in block, find largest residual.
+      do j = Blocks(max_n)%localJMIN, Blocks(max_n)%localJMAX
+        do i =  Blocks(max_n)%localIMIN, Blocks(max_n)%localIMAX
+          temp_residual = abs(Blocks(max_n)%Points(i, j)%tempT)
+
+          if (temp_residual > residual) then
+            residual = temp_residual
+            max_i = i
+            max_j = j
+          end if
+        end do
+      end do
+
+      ! Readjust to global i, j
+      max_i = Blocks(max_n)%lowI + max_i - 2
+      max_j = Blocks(max_n)%lowJ + max_j - 2
+
+      write (*,*), "ij ", max_i, max_j
+      write (2,*), "ij ", max_i, max_j
+
+      close(2)
     end if
+
   end subroutine
 end module plot3D_module
