@@ -2,7 +2,7 @@
 ! the size of the grid.
 module constants
   implicit none
-  real(kind=8), parameter :: CFL = 1.1d0
+  real(kind=8), parameter :: CFL = 1.15d0
   real(kind=8), parameter :: k = 18.8d0, rho = 8000.d0, c_p = 500.d0
   real(kind=8), parameter :: pi = 3.141592654d0, rot = 30.d0*pi/180.d0
   real(kind=8), parameter :: alpha = k / (c_p * rho)
@@ -125,9 +125,11 @@ contains
           Points => Blocks(n_)%Points
           Cells => Blocks(n_)%Cells
           ! Calculate the timestep using the CFL method described in class.
-          Points(i, j)%timestep = ( ( CFL * 0.5d0 ) / alpha ) * Points(i,j)%Vol2 ** 2 / &
-            ( ( Points(i+1, j)%xp - Points(i, j)%xp )**2 + &
-              ( Points(i, j+1)%yp - Points(i, j)%yp )**2 )
+
+          Points(i, j)%timestep = ( ( CFL * 2.d0 ) / alpha ) * Points(i,j)%Vol2 ** 2 / &
+                                  ( ( Points(i+1, j)%xp - Points(i-1, j)%xp )**2 + &
+                                    ( Points(i, j+1)%yp - Points(i, j-1)%yp )**2 )
+
 
           ! Calculate this constant now so we don't recalculate in the solver loop.
           Points(i, j)%const = ( Points(i, j)%timestep * alpha / Points(i, j)%Vol2 )
@@ -300,14 +302,14 @@ contains
         do i = 0, iBlockSize
           ! Calculate the volume of each cell.
           Cells(i, j)%V = abs(( p(i+1, j)%xp - p(i, j)%xp) * &
-                               ( p(i, j+1)%yp - p(i, j)%yp))
+            ( p(i, j+1)%yp - p(i, j)%yp))
         end do
       end do
 
       do j = 0, jBlockSize
         do i = 0, iBlockSize
           p(i, j)%Vol2 = ( Cells(i, j)%V + Cells(i + 1, j)%V + &
-                           Cells(i, j + 1)%V + Cells(i + 1, j + 1)%V ) * 0.25d0
+            Cells(i, j + 1)%V + Cells(i + 1, j + 1)%V ) * 0.25d0
 
           p(i,j)%Ayi_half = ( p(i+1,j)%Ayi + p(i,j)%Ayi ) * 0.25d0
           p(i,j)%Axi_half = ( p(i+1,j)%Axi + p(i,j)%Axi ) * 0.25d0

@@ -71,12 +71,13 @@ contains
       residual = 0.d0
       do n_ = 1, nBlocks
         temp_residual = maxval(abs(Blocks(n_)%Points(2:iBlockSize-1, 2:jBlockSize-1)%tempT))
-!        write(*,*), "n ", n_, temp_residual
+        !        write(*,*), "n ", n_, temp_residual
 
         if (temp_residual > residual) then
           residual = temp_residual
         end if
       end do
+
       write(*,*), step, residual
       write(666,'(10E20.8)'), residual
     end do
@@ -116,19 +117,17 @@ contains
         do i =  MyBlock%localIMIN, MyBlock%localIMAX
           dTdx = + 0.5d0 * &
             ( ( p(i+1, j)%T + p(i+1,j+1)%T ) * p(i+1, j)%Ayi - &
-            ( p(i,   j)%T + p(i,  j+1)%T ) * p(i,   j)%Ayi - &
-            ( p(i, j+1)%T + p(i+1,j+1)%T ) * p(i, j+1)%Ayj + &
-            ( p(i,   j)%T + p(i+1,  j)%T ) * p(i,   j)%Ayj   &
+              ( p(i,   j)%T + p(i,  j+1)%T ) * p(i,   j)%Ayi - &
+              ( p(i, j+1)%T + p(i+1,j+1)%T ) * p(i, j+1)%Ayj + &
+              ( p(i,   j)%T + p(i+1,  j)%T ) * p(i,   j)%Ayj   &
             ) / c(i, j)%V
 
           dTdy = - 0.5d0 * &
             ( ( p(i+1, j)%T + p(i+1,j+1)%T ) * p(i+1, j)%Axi - &
-            ( p(i,   j)%T + p(i,  j+1)%T ) * p(i,   j)%Axi - &
-            ( p(i, j+1)%T + p(i+1,j+1)%T ) * p(i, j+1)%Axj + &
-            ( p(i,   j)%T + p(i+1,  j)%T ) * p(i,   j)%Axj   &
+              ( p(i,   j)%T + p(i,  j+1)%T ) * p(i,   j)%Axi - &
+              ( p(i, j+1)%T + p(i+1,j+1)%T ) * p(i, j+1)%Axj + &
+              ( p(i,   j)%T + p(i+1,  j)%T ) * p(i,   j)%Axj   &
             ) / c(i ,j)%V
-!           write(*,*), i, j, dTdx, dTdy
-!           write(*,*), i, j, c(i ,j)%V
 
           ! Alternate distributive scheme second-derivative operator.
           ! Updates the second derivative by adding the first times a constant
@@ -138,7 +137,6 @@ contains
           p(i,    j)%tempT = p(i,    j)%tempT + p(i,    j)%const * ( c(i, j)%yPN * dTdx + c(i, j)%xNP * dTdy )
           p(i,  j+1)%tempT = p(i,  j+1)%tempT + p(i,  j+1)%const * ( c(i, j)%yPP * dTdx + c(i, j)%xNN * dTdy )
           p(i+1,j+1)%tempT = p(i+1,j+1)%tempT + p(i+1,j+1)%const * ( c(i, j)%yNP * dTdx + c(i, j)%xPN * dTdy )
-!                  write(*,*), i, j, p(i,j)%tempT
 
           ! Update temperatures.
           p(i,j)%T = p(i,j)%T + p(i,j)%tempT

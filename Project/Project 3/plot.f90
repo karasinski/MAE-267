@@ -9,7 +9,6 @@ module plot3D_module
   real(kind=8) :: dum = 0.d0  ! dummy values
 
 contains
-
   subroutine write_configuration_file(BlocksCollection)
     type (BlockType), target :: BlocksCollection(:)
     type (BlockType), pointer :: b
@@ -22,19 +21,19 @@ contains
 
     write(1, 10) M*N, iBlockSize, jBlockSize
 
-      do n_ = 1, nBlocks
-        b => BlocksCollection(n_)
-        write(1, 20) n_, b%type, b%proc, &
-                     b%lowI, b%highI, b%lowJ, b%highJ, &
-                     b%northFace%BC, b%northFace%neighborBlock, b%northFace%neighborProc, &
-                     b%eastFace%BC, b%eastFace%neighborBlock, b%eastFace%neighborProc, &
-                     b%southFace%BC, b%southFace%neighborBlock, b%southFace%neighborProc, &
-                     b%westFace%BC, b%westFace%neighborBlock, b%westFace%neighborProc, &
-                     b%NECorner%BC, b%NECorner%neighborBlock, b%NECorner%neighborProc, &
-                     b%NWCorner%BC, b%NWCorner%neighborBlock, b%NWCorner%neighborProc, &
-                     b%SWCorner%BC, b%SWCorner%neighborBlock, b%SWCorner%neighborProc, &
-                     b%SECorner%BC, b%SECorner%neighborBlock, b%SECorner%neighborProc
-      end do
+    do n_ = 1, nBlocks
+      b => BlocksCollection(n_)
+      write(1, 20) n_, b%type, b%proc, &
+                   b%lowI, b%highI, b%lowJ, b%highJ, &
+                   b%northFace%BC, b%northFace%neighborBlock, b%northFace%neighborProc, &
+                   b%eastFace%BC, b%eastFace%neighborBlock, b%eastFace%neighborProc, &
+                   b%southFace%BC, b%southFace%neighborBlock, b%southFace%neighborProc, &
+                   b%westFace%BC, b%westFace%neighborBlock, b%westFace%neighborProc, &
+                   b%NECorner%BC, b%NECorner%neighborBlock, b%NECorner%neighborProc, &
+                   b%NWCorner%BC, b%NWCorner%neighborBlock, b%NWCorner%neighborProc, &
+                   b%SWCorner%BC, b%SWCorner%neighborBlock, b%SWCorner%neighborProc, &
+                   b%SECorner%BC, b%SECorner%neighborBlock, b%SECorner%neighborProc
+    end do
 
     close(1)
   end subroutine
@@ -52,18 +51,18 @@ contains
     read(1, 10) nBlocks, iBlockSize, jBlockSize
 
     do n_ = 1, nBlocks
-        b => Blocks(n_)
-        read(1, 20) nFile, b%type, b%proc, &
-                     b%lowI, b%highI, b%lowJ, b%highJ, &
-                     b%northFace%BC, b%northFace%neighborBlock, b%northFace%neighborProc, &
-                     b%eastFace%BC, b%eastFace%neighborBlock, b%eastFace%neighborProc, &
-                     b%southFace%BC, b%southFace%neighborBlock, b%southFace%neighborProc, &
-                     b%westFace%BC, b%westFace%neighborBlock, b%westFace%neighborProc, &
-                     b%NECorner%BC, b%NECorner%neighborBlock, b%NECorner%neighborProc, &
-                     b%NWCorner%BC, b%NWCorner%neighborBlock, b%NWCorner%neighborProc, &
-                     b%SWCorner%BC, b%SWCorner%neighborBlock, b%SWCorner%neighborProc, &
-                     b%SECorner%BC, b%SECorner%neighborBlock, b%SECorner%neighborProc
-      end do
+      b => Blocks(n_)
+      read(1, 20) nFile, b%type, b%proc, &
+                  b%lowI, b%highI, b%lowJ, b%highJ, &
+                  b%northFace%BC, b%northFace%neighborBlock, b%northFace%neighborProc, &
+                  b%eastFace%BC, b%eastFace%neighborBlock, b%eastFace%neighborProc, &
+                  b%southFace%BC, b%southFace%neighborBlock, b%southFace%neighborProc, &
+                  b%westFace%BC, b%westFace%neighborBlock, b%westFace%neighborProc, &
+                  b%NECorner%BC, b%NECorner%neighborBlock, b%NECorner%neighborProc, &
+                  b%NWCorner%BC, b%NWCorner%neighborBlock, b%NWCorner%neighborProc, &
+                  b%SWCorner%BC, b%SWCorner%neighborBlock, b%SWCorner%neighborProc, &
+                  b%SECorner%BC, b%SECorner%neighborBlock, b%SECorner%neighborProc
+    end do
 
     close(1)
   end subroutine
@@ -85,8 +84,8 @@ contains
 
     read(gridUnit,20) (iBlockSize, jBlockSize, i=1, nBlocks)
     do n_ = 1, nBlocks
-        read(gridUnit,30) ((Blocks(n_)%Points(i,j)%x,i=1,iBlockSize),j=1,jBlockSize), &
-                          ((Blocks(n_)%Points(i,j)%y,i=1,iBlockSize),j=1,jBlockSize)
+      read(gridUnit,30) ((Blocks(n_)%Points(i,j)%x,i=1,iBlockSize),j=1,jBlockSize), &
+        ((Blocks(n_)%Points(i,j)%y,i=1,iBlockSize),j=1,jBlockSize)
     end do
 
     ! Close file
@@ -109,13 +108,13 @@ contains
     ! Read temperature file
     read(tempUnit,10) nBlocks
     read(tempUnit,20) (iBlockSize, jBlockSize, n_=1, nBlocks)
-      do n_ = 1, nBlocks
-        read(tempUnit,30) tRef,dum,dum,dum
-        read(tempUnit,30) ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
-                           ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
-                           ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
-                           ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize)
-      end do
+    do n_ = 1, nBlocks
+      read(tempUnit,30) tRef,dum,dum,dum
+      read(tempUnit,30) ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
+        ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
+        ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
+        ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize)
+    end do
 
     ! Close files
     close(tempUnit)
@@ -146,21 +145,21 @@ contains
     write(gridUnit,10) nBlocks
     m_ = 1
     write(gridUnit,20) (iBlockSize, jBlockSize, n_=1, nBlocks)
-      do n_ = 1, nBlocks
-        write(gridUnit,30) ((Blocks(n_)%Points(i,j)%x,i=1,iBlockSize),j=1,jBlockSize), &
-                           ((Blocks(n_)%Points(i,j)%y,i=1,iBlockSize),j=1,jBlockSize)
+    do n_ = 1, nBlocks
+      write(gridUnit,30) ((Blocks(n_)%Points(i,j)%x,i=1,iBlockSize),j=1,jBlockSize), &
+        ((Blocks(n_)%Points(i,j)%y,i=1,iBlockSize),j=1,jBlockSize)
     end do
 
     ! Write to temperature file
     write(tempUnit,10) nBlocks
     m_ = 1
     write(tempUnit,20) (iBlockSize, jBlockSize, n_=1, nBlocks)
-      do n_ = 1, nBlocks
-        write(tempUnit,30) tRef,dum,dum,dum
-        write(tempUnit,30) ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
-                           ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
-                           ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
-                           ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize)
+    do n_ = 1, nBlocks
+      write(tempUnit,30) tRef,dum,dum,dum
+      write(tempUnit,30) ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
+        ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
+        ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
+        ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize)
     end do
 
     ! Close files
@@ -168,37 +167,37 @@ contains
     close(tempUnit)
   end subroutine plot3D
 
-! Basic info output.
-subroutine output(Blocks, step)
-  type (BlockType) :: Blocks(:)
-  integer :: step
-  integer :: n_, max_n
-  real(kind=8) :: temp_residual, residual = 0.d0
+  ! Basic info output.
+  subroutine output(Blocks, step)
+    type (BlockType) :: Blocks(:)
+    integer :: step
+    integer :: n_, max_n
+    real(kind=8) :: temp_residual, residual = 0.d0
 
-  ! Some output to the screen so we know something happened.
-  do n_ = 1, nBlocks
-    temp_residual = maxval(abs(Blocks(n_)%Points(2:iBlockSize-1, 2:jBlockSize-1)%tempT))
+    ! Some output to the screen so we know something happened.
+    do n_ = 1, nBlocks
+      temp_residual = maxval(abs(Blocks(n_)%Points(2:iBlockSize-1, 2:jBlockSize-1)%tempT))
 
-    if (temp_residual > residual) then
-      max_n = n_
-      residual = temp_residual
+      if (temp_residual > residual) then
+        max_n = n_
+        residual = temp_residual
+      end if
+    end do
+
+    if ( step > 0) then
+      write (*,*), "steps", step
+      write (*,*), "residual", residual
+      !    write (*,*), "n ", max_n, "ij", maxloc(abs(Blocks(n_)%Points(2:iBlockSize-1, 2:jBlockSize-1)%tempT))
+
+      ! Write down misc. info asked for by Prof.
+      open (unit = 2, file = "info.dat")
+      write (2,*), "For a ", IMAX, " by ", JMAX, "size grid, we ran for: "
+      write (2,*), step, "steps"
+      write (2,*), wall_time, "seconds"
+      write (2,*)
+      write (2,*), "Found max residual of ", residual
+      !    write (2,*), "n ", max_n,"ij", maxloc(abs(Blocks(n_)%Points(2:iBlockSize-1, 2:jBlockSize-1)%tempT))
+      close (2)
     end if
-  end do
-
-  if ( step > 0) then
-    write (*,*), "steps", step
-    write (*,*), "residual", residual
-!    write (*,*), "n ", max_n, "ij", maxloc(abs(Blocks(n_)%Points(2:iBlockSize-1, 2:jBlockSize-1)%tempT))
-
-    ! Write down misc. info asked for by Prof.
-    open (unit = 2, file = "info.dat")
-    write (2,*), "For a ", IMAX, " by ", JMAX, "size grid, we ran for: "
-    write (2,*), step, "steps"
-    write (2,*), wall_time, "seconds"
-    write (2,*)
-    write (2,*), "Found max residual of ", residual
-!    write (2,*), "n ", max_n,"ij", maxloc(abs(Blocks(n_)%Points(2:iBlockSize-1, 2:jBlockSize-1)%tempT))
-    close (2)
-  end if
-end subroutine
+  end subroutine
 end module plot3D_module

@@ -4,7 +4,7 @@
 module GridCreation
   use BlockModule
 
-  contains
+contains
   subroutine create_blocks(BlocksCollection)
     type (BlockType), target :: BlocksCollection(:)
     type (BlockType), pointer :: b

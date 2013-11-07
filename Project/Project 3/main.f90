@@ -11,7 +11,7 @@ program heat
 
   ! Set up our grid size and allocate our arrays for our grid points and grid cells.
   call SetGridSize(101)
-  call SetNumberOfBlocks(1,1)
+  call SetNumberOfBlocks(10,10)
   allocate(BlocksCollection(nBlocks))
 
   ! First we create our blocks and pack them with nodes.
