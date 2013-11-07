@@ -27,16 +27,17 @@ contains
         b%highJ = 1 + iM * (jBlockSize - 1)
         b%lowJ = b%highJ - (jBlockSize - 1)
 
-        ! Assume all faces are on the boundary and
-        ! don't point to anything.
-        b%northFace%neighborBlock = 0
-        b%northFace%neighborProc = 0
-        b%southFace%neighborBlock = 0
-        b%southFace%neighborProc = 0
-        b%eastFace%neighborBlock = 0
-        b%eastFace%neighborProc = 0
-        b%westFace%neighborBlock = 0
-        b%westFace%neighborProc = 0
+        ! Assume all faces are internal and find out who
+        ! their neighbor is. Set the neighbor block and set
+        ! their processor to 1 (only one processor).
+        b%northFace%neighborBlock = n_ + N
+        b%northFace%neighborProc = proc
+        b%southFace%neighborBlock = n_ - N
+        b%southFace%neighborProc = proc
+        b%eastFace%neighborBlock = n_ + 1
+        b%eastFace%neighborProc = proc
+        b%westFace%neighborBlock = n_ - 1
+        b%westFace%neighborProc = proc
 
         ! Assume all corners are internal.
         b%NECorner%BC = -1
@@ -82,27 +83,26 @@ contains
         b%eastFace%BC = eBound
         b%westFace%BC = wBound
 
-        ! If faces are internal find out who their
-        ! neighbor is. Set the neighbor block and set
-        ! their processor to 1 (only one processor).
-        if (b%northFace%BC == -1) then
-          b%northFace%neighborBlock = n_ + N
-          b%northFace%neighborProc = proc
+        ! Check if faces are on the boundary and
+        ! if so, set them to point to nothing.
+        if (b%northFace%BC /= -1) then
+          b%northFace%neighborBlock = 0
+          b%northFace%neighborProc = 0
         end if
 
-        if (b%eastFace%BC == -1) then
-          b%eastFace%neighborBlock = n_ + 1
-          b%eastFace%neighborProc = proc
+        if (b%southFace%BC /= -1) then
+          b%southFace%neighborBlock = 0
+          b%southFace%neighborProc = 0
         end if
 
-        if (b%southFace%BC == -1) then
-          b%southFace%neighborBlock = n_ - N
-          b%southFace%neighborProc = proc
+        if (b%eastFace%BC /= -1) then
+          b%eastFace%neighborBlock = 0
+          b%eastFace%neighborProc = 0
         end if
 
-        if (b%westFace%BC == -1) then
-          b%westFace%neighborBlock = n_ - 1
-          b%westFace%neighborProc = proc
+        if (b%westFace%BC /= -1) then
+          b%westFace%neighborBlock = 0
+          b%westFace%neighborProc = 0
         end if
 
         ! If corners are on boundary then they don't
