@@ -5,7 +5,7 @@ module plot3D_module
 
   integer :: gridUnit  = 30   ! Unit for grid file
   integer :: tempUnit = 21    ! Unit for temp file
-  real(kind=8) :: tRef = 1    ! tRef number
+  real(kind=8) :: tRef = 1.d0 ! tRef number
   real(kind=8) :: dum = 0.d0  ! dummy values
 
 contains

@@ -72,7 +72,7 @@ module BlockModule
   end type
 
   type BlockType
-    type (GridPoint) :: Points(0:103,0:103)
+    type (GridPoint) :: Points(0:102,0:102)
     type (GridCell)  :: Cells(0:102,0:102)
     integer :: iStart, jStart, iBound, jBound
 
@@ -260,7 +260,7 @@ contains
       do j = 0, jBlockSize
         do i = 0, iBlockSize
           Cells(i, j)%V = abs(( p(i+1, j)%xp - p(i, j)%xp) * &
-            ( p(i, j+1)%yp - p(i, j)%yp))
+                              ( p(i, j+1)%yp - p(i, j)%yp))
         end do
       end do
 
@@ -268,7 +268,7 @@ contains
       do j = 0, jBlockSize
         do i = 0, iBlockSize
           p(i, j)%Vol2 = ( Cells(i, j)%V + Cells(i + 1, j)%V + &
-            Cells(i, j + 1)%V + Cells(i + 1, j + 1)%V ) * 0.25d0
+                           Cells(i, j + 1)%V + Cells(i + 1, j + 1)%V ) * 0.25d0
 
           p(i,j)%Ayi_half = ( p(i+1,j)%Ayi + p(i,j)%Ayi ) * 0.25d0
           p(i,j)%Axi_half = ( p(i+1,j)%Axi + p(i,j)%Axi ) * 0.25d0

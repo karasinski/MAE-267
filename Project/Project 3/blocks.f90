@@ -10,6 +10,23 @@ contains
     integer :: n_, proc = 1, iN, iM
     integer :: nBound, sBound, eBound, wBound
 
+    !
+    !            |             |
+    !            |    North    |
+    !          NW|   (n + N)   |NE
+    ! (n + N + 1)|             |(n + N + 1)
+    ! -------------------------------------
+    !            |             |
+    !     West   |   Current   |    East
+    !   (n - 1)  |     (n)     |  (n + 1)
+    !            |             |
+    ! -------------------------------------
+    !          SW|             |SE
+    ! (n - N - 1)|    South    |(n - N + 1)
+    !            |   (n - N)   |
+    !            |             |
+    !
+
     ! Loop over our M x N blocks and a pack an
     ! array of BlocksCollection(n_).
     n_ = 1
@@ -17,7 +34,8 @@ contains
       do iN = 1, N
         b => BlocksCollection(n_)
 
-        ! We are only using one processor.
+        ! We are only using one processor, so we must
+        ! be on that processor.
         b%proc = proc
 
         ! High/low i/j corresponds to the
@@ -39,7 +57,8 @@ contains
         b%westFace%neighborBlock = n_ - 1
         b%westFace%neighborProc = proc
 
-        ! Assume all corners are internal.
+        ! Assume all corners are internal (BC=-1) and set their neighbor.
+        ! Set their processor to 1 (only one processor).
         b%NECorner%BC = -1
         b%NECorner%neighborBlock = n_ + N + 1
         b%NECorner%neighborProc = proc
