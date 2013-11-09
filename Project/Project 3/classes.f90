@@ -2,7 +2,7 @@
 ! the size of the grid, and and a routine to set number of blocks.
 module constants
   implicit none
-  real(kind=8), parameter :: CFL = 1.15d0
+  real(kind=8), parameter :: CFL = 1.09d0
   real(kind=8), parameter :: k = 18.8d0, rho = 8000.d0, c_p = 500.d0
   real(kind=8), parameter :: pi = 3.141592654d0, rot = 30.d0*pi/180.d0
   real(kind=8), parameter :: alpha = k / (c_p * rho)
@@ -267,8 +267,10 @@ contains
       ! Calculate secondary volumes and fluxes.
       do j = 0, jBlockSize
         do i = 0, iBlockSize
-          p(i, j)%Vol2 = ( Cells(i, j)%V + Cells(i + 1, j)%V + &
-                           Cells(i, j + 1)%V + Cells(i + 1, j + 1)%V ) * 0.25d0
+          p(i,    j)%Vol2 = p(i,    j)%Vol2 + Cells(i,    j)%V * 0.25d0
+          p(i+1,  j)%Vol2 = p(i+1,  j)%Vol2 + Cells(i+1,  j)%V * 0.25d0
+          p(i,  j+1)%Vol2 = p(i,  j+1)%Vol2 + Cells(i,  j+1)%V * 0.25d0
+          p(i+1,j+1)%Vol2 = p(i+1,j+1)%Vol2 + Cells(i+1,j+1)%V * 0.25d0
 
           p(i,j)%Ayi_half = ( p(i+1,j)%Ayi + p(i,j)%Ayi ) * 0.25d0
           p(i,j)%Axi_half = ( p(i+1,j)%Axi + p(i,j)%Axi ) * 0.25d0
