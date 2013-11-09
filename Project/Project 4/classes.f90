@@ -56,10 +56,9 @@ module BlockModule
     integer :: i, j
     real(kind=8) :: x, xp, y, yp
     real(kind=8) :: T, tempT
-    real(kind=8) :: timestep, Vol2, const
+    real(kind=8) :: const
     real(kind=8) :: Ayi, Axi, Ayj, Axj
-    real(kind=8) :: Ayi_half, Axi_half, Ayj_half, Axj_half
-    real(kind=8) :: V
+    real(kind=8) :: V, Vol2
     real(kind=8) :: yPP, yNP, yNN, yPN
     real(kind=8) :: xNN, xPN, xPP, xNP
   end type GridPoint
@@ -258,21 +257,16 @@ contains
         end do
       end do
 
-      ! Calculate secondary volumes and fluxes.
+      ! Calculate secondary volumes.
       do j = 0, jBlockSize
         do i = 0, iBlockSize
           p(i,    j)%Vol2 = p(i,    j)%Vol2 + p(i,    j)%V * 0.25d0
           p(i+1,  j)%Vol2 = p(i+1,  j)%Vol2 + p(i+1,  j)%V * 0.25d0
           p(i,  j+1)%Vol2 = p(i,  j+1)%Vol2 + p(i,  j+1)%V * 0.25d0
           p(i+1,j+1)%Vol2 = p(i+1,j+1)%Vol2 + p(i+1,j+1)%V * 0.25d0
-
-          p(i,j)%Ayi_half = ( p(i+1,j)%Ayi + p(i,j)%Ayi ) * 0.25d0
-          p(i,j)%Axi_half = ( p(i+1,j)%Axi + p(i,j)%Axi ) * 0.25d0
-
-          p(i,j)%Ayj_half = ( p(i,j+1)%Ayj + p(i,j)%Ayj ) * 0.25d0
-          p(i,j)%Axj_half = ( p(i,j+1)%Axj + p(i,j)%Axj ) * 0.25d0
         end do
       end do
+
     end do
   end subroutine
 
@@ -281,6 +275,14 @@ contains
     type (GridPoint), pointer :: Points(:,:)
     type (GridPoint), pointer :: p
     integer :: i, j, n_
+    real(kind=8) :: timestep
+    real(kind=8) :: Ayi_half, Axi_half, Ayj_half, Axj_half
+
+    ! Calculate fluxes.
+    Ayi_half(i,j) = ( Points(i+1,j)%Ayi + Points(i,j)%Ayi ) * 0.25d0
+    Axi_half(i,j) = ( Points(i+1,j)%Axi + Points(i,j)%Axi ) * 0.25d0
+    Ayj_half(i,j) = ( Points(i,j+1)%Ayj + Points(i,j)%Ayj ) * 0.25d0
+    Axj_half(i,j) = ( Points(i,j+1)%Axj + Points(i,j)%Axj ) * 0.25d0
 
     ! Constants used during iteration.
     do n_=1, nBlocks
@@ -290,15 +292,15 @@ contains
           p => Points(i,j)
           ! These are the numbers that actually appear in the equations,
           ! saved here to save a moment or two during iteration.
-          p%yPP = (  Points(i,j)%Ayi_half + Points(i,j)%Ayj_half )
-          p%yNP = ( -Points(i,j)%Ayi_half + Points(i,j)%Ayj_half )
-          p%yNN = ( -Points(i,j)%Ayi_half - Points(i,j)%Ayj_half )
-          p%yPN = (  Points(i,j)%Ayi_half - Points(i,j)%Ayj_half )
+          p%yPP = (  Ayi_half(i,j) + Ayj_half(i,j) )
+          p%yNP = ( -Ayi_half(i,j) + Ayj_half(i,j) )
+          p%yNN = ( -Ayi_half(i,j) - Ayj_half(i,j) )
+          p%yPN = (  Ayi_half(i,j) - Ayj_half(i,j) )
 
-          p%xNN = ( -Points(i,j)%Axi_half - Points(i,j)%Axj_half )
-          p%xPN = (  Points(i,j)%Axi_half - Points(i,j)%Axj_half )
-          p%xPP = (  Points(i,j)%Axi_half + Points(i,j)%Axj_half )
-          p%xNP = ( -Points(i,j)%Axi_half + Points(i,j)%Axj_half )
+          p%xNN = ( -Axi_half(i,j) - Axj_half(i,j) )
+          p%xPN = (  Axi_half(i,j) - Axj_half(i,j) )
+          p%xPP = (  Axi_half(i,j) + Axj_half(i,j) )
+          p%xNP = ( -Axi_half(i,j) + Axj_half(i,j) )
         end do
       end do
     end do
@@ -310,13 +312,13 @@ contains
           Points => Blocks(n_)%Points
           ! Calculate the timestep using the CFL method described in class.
 
-          Points(i, j)%timestep = ( ( CFL * 2.d0 ) / alpha ) * Points(i,j)%Vol2 ** 2 / &
-                                  ( ( Points(i+1, j)%xp - Points(i-1, j)%xp )**2 + &
-                                    ( Points(i, j+1)%yp - Points(i, j-1)%yp )**2 )
+          timestep = ( ( CFL * 2.d0 ) / alpha ) * Points(i,j)%Vol2 ** 2 / &
+                       ( ( Points(i+1, j)%xp - Points(i-1, j)%xp )**2 + &
+                         ( Points(i, j+1)%yp - Points(i, j-1)%yp )**2 )
 
 
           ! Calculate this constant now so we don't recalculate in the solver loop.
-          Points(i, j)%const = ( Points(i, j)%timestep * alpha / Points(i, j)%Vol2 )
+          Points(i, j)%const = ( timestep * alpha / Points(i, j)%Vol2 )
         end do
       end do
     end do

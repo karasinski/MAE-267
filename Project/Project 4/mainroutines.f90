@@ -131,10 +131,14 @@ contains
           ! Alternate distributive scheme second-derivative operator. Updates the
           ! second derivative by adding the first times a constant during each time
           ! step. Pass out x and y second derivatives contributions.
-          p(i+1,  j)%tempT = p(i+1,  j)%tempT + p(i+1,  j)%const * ( p(i, j)%yNN * dTdx + p(i, j)%xPP * dTdy )
-          p(i,    j)%tempT = p(i,    j)%tempT + p(i,    j)%const * ( p(i, j)%yPN * dTdx + p(i, j)%xNP * dTdy )
-          p(i,  j+1)%tempT = p(i,  j+1)%tempT + p(i,  j+1)%const * ( p(i, j)%yPP * dTdx + p(i, j)%xNN * dTdy )
-          p(i+1,j+1)%tempT = p(i+1,j+1)%tempT + p(i+1,j+1)%const * ( p(i, j)%yNP * dTdx + p(i, j)%xPN * dTdy )
+          p(i+1,  j)%tempT = p(i+1,  j)%tempT + p(i+1,  j)%const * &
+                           ( p(i, j)%yNN * dTdx + p(i, j)%xPP * dTdy )
+          p(i,    j)%tempT = p(i,    j)%tempT + p(i,    j)%const * &
+                           ( p(i, j)%yPN * dTdx + p(i, j)%xNP * dTdy )
+          p(i,  j+1)%tempT = p(i,  j+1)%tempT + p(i,  j+1)%const * &
+                           ( p(i, j)%yPP * dTdx + p(i, j)%xNN * dTdy )
+          p(i+1,j+1)%tempT = p(i+1,j+1)%tempT + p(i+1,j+1)%const * &
+                           ( p(i, j)%yNP * dTdx + p(i, j)%xPN * dTdy )
 
           ! Update temperatures.
           p(i,j)%T = p(i,j)%T + p(i,j)%tempT
