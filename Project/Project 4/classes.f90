@@ -59,13 +59,10 @@ module BlockModule
     real(kind=8) :: timestep, Vol2, const
     real(kind=8) :: Ayi, Axi, Ayj, Axj
     real(kind=8) :: Ayi_half, Axi_half, Ayj_half, Axj_half
-  end type GridPoint
-
-  type GridCell
     real(kind=8) :: V
     real(kind=8) :: yPP, yNP, yNN, yPN
     real(kind=8) :: xNN, xPN, xPP, xNP
-  end type GridCell
+  end type GridPoint
 
   type Neighbor
     integer :: BC, neighborBlock, neighborProc
@@ -73,7 +70,6 @@ module BlockModule
 
   type BlockType
     type (GridPoint) :: Points(0:102,0:102)
-    type (GridCell)  :: Cells(0:102,0:102)
     integer :: iStart, jStart, iBound, jBound
 
     integer :: type, proc, lowJ, highJ, lowI, highI
@@ -233,13 +229,11 @@ contains
 
   subroutine initialize_faces_and_volumes(Blocks)
     type (BlockType), target :: Blocks(:)
-    type (GridCell), pointer :: Cells(:,:)
     type (GridPoint), pointer :: p(:,:)
     integer :: i, j, n_
 
     do n_=1, nBlocks
       p => Blocks(n_)%Points
-      Cells => Blocks(n_)%Cells
 
       ! Calculate fluxes.
       do j = 0, jBlockSize
@@ -259,18 +253,18 @@ contains
       ! Calculate the volumes.
       do j = 0, jBlockSize
         do i = 0, iBlockSize
-          Cells(i, j)%V = abs(( p(i+1, j)%xp - p(i, j)%xp) * &
-                              ( p(i, j+1)%yp - p(i, j)%yp))
+          p(i, j)%V = abs(( p(i+1, j)%xp - p(i, j)%xp) * &
+                          ( p(i, j+1)%yp - p(i, j)%yp))
         end do
       end do
 
       ! Calculate secondary volumes and fluxes.
       do j = 0, jBlockSize
         do i = 0, iBlockSize
-          p(i,    j)%Vol2 = p(i,    j)%Vol2 + Cells(i,    j)%V * 0.25d0
-          p(i+1,  j)%Vol2 = p(i+1,  j)%Vol2 + Cells(i+1,  j)%V * 0.25d0
-          p(i,  j+1)%Vol2 = p(i,  j+1)%Vol2 + Cells(i,  j+1)%V * 0.25d0
-          p(i+1,j+1)%Vol2 = p(i+1,j+1)%Vol2 + Cells(i+1,j+1)%V * 0.25d0
+          p(i,    j)%Vol2 = p(i,    j)%Vol2 + p(i,    j)%V * 0.25d0
+          p(i+1,  j)%Vol2 = p(i+1,  j)%Vol2 + p(i+1,  j)%V * 0.25d0
+          p(i,  j+1)%Vol2 = p(i,  j+1)%Vol2 + p(i,  j+1)%V * 0.25d0
+          p(i+1,j+1)%Vol2 = p(i+1,j+1)%Vol2 + p(i+1,j+1)%V * 0.25d0
 
           p(i,j)%Ayi_half = ( p(i+1,j)%Ayi + p(i,j)%Ayi ) * 0.25d0
           p(i,j)%Axi_half = ( p(i+1,j)%Axi + p(i,j)%Axi ) * 0.25d0
@@ -284,9 +278,8 @@ contains
 
   subroutine set_constants(Blocks)
     type (BlockType), target :: Blocks(:)
-    type (GridCell), pointer :: c
-    type (GridCell), pointer :: Cells(:,:)
     type (GridPoint), pointer :: Points(:,:)
+    type (GridPoint), pointer :: p
     integer :: i, j, n_
 
     ! Constants used during iteration.
@@ -294,18 +287,18 @@ contains
       Points => Blocks(n_)%Points
       do j = 0, jBlockSize
         do i = 0, iBlockSize
-          c => Blocks(n_)%Cells(i,j)
+          p => Points(i,j)
           ! These are the numbers that actually appear in the equations,
           ! saved here to save a moment or two during iteration.
-          c%yPP = (  Points(i,j)%Ayi_half + Points(i,j)%Ayj_half )
-          c%yNP = ( -Points(i,j)%Ayi_half + Points(i,j)%Ayj_half )
-          c%yNN = ( -Points(i,j)%Ayi_half - Points(i,j)%Ayj_half )
-          c%yPN = (  Points(i,j)%Ayi_half - Points(i,j)%Ayj_half )
+          p%yPP = (  Points(i,j)%Ayi_half + Points(i,j)%Ayj_half )
+          p%yNP = ( -Points(i,j)%Ayi_half + Points(i,j)%Ayj_half )
+          p%yNN = ( -Points(i,j)%Ayi_half - Points(i,j)%Ayj_half )
+          p%yPN = (  Points(i,j)%Ayi_half - Points(i,j)%Ayj_half )
 
-          c%xNN = ( -Points(i,j)%Axi_half - Points(i,j)%Axj_half )
-          c%xPN = (  Points(i,j)%Axi_half - Points(i,j)%Axj_half )
-          c%xPP = (  Points(i,j)%Axi_half + Points(i,j)%Axj_half )
-          c%xNP = ( -Points(i,j)%Axi_half + Points(i,j)%Axj_half )
+          p%xNN = ( -Points(i,j)%Axi_half - Points(i,j)%Axj_half )
+          p%xPN = (  Points(i,j)%Axi_half - Points(i,j)%Axj_half )
+          p%xPP = (  Points(i,j)%Axi_half + Points(i,j)%Axj_half )
+          p%xNP = ( -Points(i,j)%Axi_half + Points(i,j)%Axj_half )
         end do
       end do
     end do
@@ -315,7 +308,6 @@ contains
       do j = 1, jBlockSize
         do i = 1, iBlockSize
           Points => Blocks(n_)%Points
-          Cells => Blocks(n_)%Cells
           ! Calculate the timestep using the CFL method described in class.
 
           Points(i, j)%timestep = ( ( CFL * 2.d0 ) / alpha ) * Points(i,j)%Vol2 ** 2 / &

@@ -97,7 +97,6 @@ contains
     type (BlockType), target :: Blocks(:)
     type (BlockType), pointer :: MyBlock
     type (GridPoint), pointer :: p(:,:)
-    type (GridCell), pointer :: c(:,:)
     real(kind=8) :: dTdx, dTdy
     integer :: i, j, n_
 
@@ -105,7 +104,6 @@ contains
     do n_ = 1, nBlocks
       MyBlock => Blocks(n_)
       p => MyBlock%Points
-      c => MyBlock%Cells
 
       ! Reset the change in temperature to zero before we begin summing again.
       p%tempT = 0.d0
@@ -121,22 +119,22 @@ contains
               ( p(i,   j)%T + p(i,  j+1)%T ) * p(i,   j)%Ayi - &
               ( p(i, j+1)%T + p(i+1,j+1)%T ) * p(i, j+1)%Ayj + &
               ( p(i,   j)%T + p(i+1,  j)%T ) * p(i,   j)%Ayj   &
-            ) / c(i, j)%V
+            ) / p(i, j)%V
 
           dTdy = - 0.5d0 * &
             ( ( p(i+1, j)%T + p(i+1,j+1)%T ) * p(i+1, j)%Axi - &
               ( p(i,   j)%T + p(i,  j+1)%T ) * p(i,   j)%Axi - &
               ( p(i, j+1)%T + p(i+1,j+1)%T ) * p(i, j+1)%Axj + &
               ( p(i,   j)%T + p(i+1,  j)%T ) * p(i,   j)%Axj   &
-            ) / c(i ,j)%V
+            ) / p(i ,j)%V
 
           ! Alternate distributive scheme second-derivative operator. Updates the
           ! second derivative by adding the first times a constant during each time
           ! step. Pass out x and y second derivatives contributions.
-          p(i+1,  j)%tempT = p(i+1,  j)%tempT + p(i+1,  j)%const * ( c(i, j)%yNN * dTdx + c(i, j)%xPP * dTdy )
-          p(i,    j)%tempT = p(i,    j)%tempT + p(i,    j)%const * ( c(i, j)%yPN * dTdx + c(i, j)%xNP * dTdy )
-          p(i,  j+1)%tempT = p(i,  j+1)%tempT + p(i,  j+1)%const * ( c(i, j)%yPP * dTdx + c(i, j)%xNN * dTdy )
-          p(i+1,j+1)%tempT = p(i+1,j+1)%tempT + p(i+1,j+1)%const * ( c(i, j)%yNP * dTdx + c(i, j)%xPN * dTdy )
+          p(i+1,  j)%tempT = p(i+1,  j)%tempT + p(i+1,  j)%const * ( p(i, j)%yNN * dTdx + p(i, j)%xPP * dTdy )
+          p(i,    j)%tempT = p(i,    j)%tempT + p(i,    j)%const * ( p(i, j)%yPN * dTdx + p(i, j)%xNP * dTdy )
+          p(i,  j+1)%tempT = p(i,  j+1)%tempT + p(i,  j+1)%const * ( p(i, j)%yPP * dTdx + p(i, j)%xNN * dTdy )
+          p(i+1,j+1)%tempT = p(i+1,j+1)%tempT + p(i+1,j+1)%const * ( p(i, j)%yNP * dTdx + p(i, j)%xPN * dTdy )
 
           ! Update temperatures.
           p(i,j)%T = p(i,j)%T + p(i,j)%tempT
