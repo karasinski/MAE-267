@@ -22,8 +22,9 @@ contains
     write(1, 10) M*N, iBlockSize, jBlockSize
     do n_ = 1, nBlocks
       b => BlocksCollection(n_)
-      write(1, 20) n_, b%proc, &
+      write(1, 20) n_, b%proc, b%size, &
                    b%lowI, b%highI, b%lowJ, b%highJ, &
+                   b%localIMIN, b%localIMAX, b%localJMIN, b%localJMAX, &
                    b%northFace%BC, b%northFace%neighborBlock, b%northFace%neighborProc, &
                    b%eastFace%BC, b%eastFace%neighborBlock, b%eastFace%neighborProc, &
                    b%southFace%BC, b%southFace%neighborBlock, b%southFace%neighborProc, &
@@ -50,8 +51,9 @@ contains
     read(1, 10) nBlocks, iBlockSize, jBlockSize
     do n_ = 1, nBlocks
       b => Blocks(n_)
-      read(1, 20) nFile, b%proc, &
+      read(1, 20) nFile, b%proc, b%size, &
                   b%lowI, b%highI, b%lowJ, b%highJ, &
+                  b%localIMIN, b%localIMAX, b%localJMIN, b%localJMAX, &
                   b%northFace%BC, b%northFace%neighborBlock, b%northFace%neighborProc, &
                   b%eastFace%BC, b%eastFace%neighborBlock, b%eastFace%neighborProc, &
                   b%southFace%BC, b%southFace%neighborBlock, b%southFace%neighborProc, &

@@ -2,6 +2,7 @@
 ! create our blocks and initial grid/temp files.
 module GridCreation
   use BlockModule
+  implicit none
 
 contains
   subroutine create_blocks(BlocksCollection)
@@ -171,6 +172,38 @@ contains
           b%NWCorner%neighborProc = 0
         end if
 
+        ! Calculate 'true' bounds of blocks.
+        ! North face.
+        if (b%northFace%BC == -1) then
+          b%localJMAX = jBlockSize
+        else
+          b%localJMAX = jBlockSize - 1
+        end if
+
+        ! East face.
+        if (b%eastFace%BC == -1) then
+          b%localIMAX = iBlockSize
+        else
+          b%localIMAX = iBlockSize - 1
+        end if
+
+        ! South face.
+        if (b%southFace%BC == -1) then
+          b%localJMIN = 0
+        else
+          b%localJMIN = 1
+        end if
+
+        ! West face.
+        if (b%westFace%BC == -1) then
+          b%localIMIN = 0
+        else
+          b%localIMIN = 1
+        end if
+
+        ! The true size of each block, used for load balancing.
+        b%size = (b%localIMAX - b%localIMIN) * (b%localJMAX - b%localJMIN)
+
         n_ = n_ + 1
       end do
     end do
@@ -240,6 +273,91 @@ contains
         end do
       end if
 
+    end do
+  end subroutine
+
+  subroutine distribute_blocks(BlocksCollection, Procs)
+    type (BlockType), target :: BlocksCollection(:)
+    type (Proc), allocatable :: Procs(:)
+    type (BlockType), pointer :: b
+    integer :: n_, sum = 0
+    integer :: most_empty_proc = 0, largest_block = 0, largest_block_number = 0
+    logical :: unAssignedBlocks = .TRUE.
+
+    ! Set starting weights on each proc equal to zero.
+    Procs%weight = 0
+    Procs%nBlocks = 0
+
+    ! Find the sum of the weights of the blocks.
+    ! This does not take into account any interblock communcation,
+    ! but is simply a measure of how long the solver should take
+    ! per iteration. A better algorithm would attempt to place blocks
+    ! near each other in order to reduce (eliminate) communcation cost.
+    do n_ = 1, nBlocks
+      b => BlocksCollection(n_)
+      sum = sum + b%size
+    end do
+
+    ! While there are unassigned blocks, distribute
+    ! blocks to most empty processor.
+    do while (unAssignedBlocks)
+      ! Log each step for debuggin.
+!      write(*,*), '------------------'
+!      do i = 1, nProcs
+!        write(*, *), 'proc ', i, Procs(i)%weight
+!      end do
+
+      ! Reset largest block to 0.
+      largest_block = 0
+      do n_ = 1, nBlocks
+        b => BlocksCollection(n_)
+
+        ! Find the block with the most weight.
+        if (b%size > largest_block) then
+          largest_block = b%size
+          largest_block_number = n_
+        end if
+      end do
+
+      ! Find the proc with the least weight.
+      most_empty_proc = minloc(Procs%weight,1)
+
+      ! Add this block to this proc.
+      ! Increase number of blocks on this proc by 1.
+      Procs(most_empty_proc)%nBlocks = Procs(most_empty_proc)%nBlocks + 1
+
+      ! Increase weight on the proc by the added block's weight.
+      Procs(most_empty_proc)%weight = Procs(most_empty_proc)%weight + largest_block
+
+      ! Copy block over to proc.
+      Procs(most_empty_proc)%Blocks(Procs(most_empty_proc)%nBlocks) = &
+                             BlocksCollection(largest_block_number)
+
+      ! Reduce the size of the block in the blockscollection to zero so it is
+      ! not assigned to any other procs.
+      BlocksCollection(largest_block_number)%size = 0
+
+      ! Check for unassigned blocks.
+      unAssignedBlocks = .FALSE.
+      do n_ = 1, nBlocks
+        b => BlocksCollection(n_)
+
+        ! If a block hasn't been assigned, we need to
+        ! continue looping.
+        if (b%size > 0) unAssignedBlocks = .TRUE.
+      end do
+    end do
+
+    ! Write the total weight, number of procs, ideal weight per proc.
+    write(*,*)
+    write(*,*), '      Weight  ', 'Weight/proc'
+    write(*,*), sum, dfloat(sum)/dfloat(nProcs)
+    write(*,*)
+
+    ! Write out the weight on each proc.
+    write(*, *), '          proc #      ', "nBlocks  ", "Weight"
+    do n_ = 1, nProcs
+      write(*, *), n_, Procs(n_)%nBlocks, Procs(n_)%weight
     end do
   end subroutine
 end module

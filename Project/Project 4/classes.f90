@@ -7,7 +7,7 @@ module constants
   real(kind=8), parameter :: pi = 3.141592654d0, rot = 30.d0*pi/180.d0
   real(kind=8), parameter :: alpha = k / (c_p * rho)
   integer :: IMAX, JMAX, N, M ! Number of blocks.
-  integer :: iBlockSize, jBlockSize, nBlocks
+  integer :: iBlockSize, jBlockSize, nBlocks, nProcs
   integer :: nB = 1, eB = 2, sB = 3, wB = 4
 contains
   subroutine SetGridSize(length)
@@ -24,6 +24,11 @@ contains
     jBlockSize = 1 + (JMAX - 1) / M
     nBlocks = M * N
   end subroutine SetNumberOfBlocks
+
+  subroutine SetNumberOfProcs(length)
+    integer :: length
+    nProcs = length
+  end subroutine SetNumberOfProcs
 end module
 
 ! Prof's clock module.
@@ -53,7 +58,6 @@ module BlockModule
   public
 
   type GridPoint
-    integer :: i, j
     real(kind=8) :: x, xp, y, yp
     real(kind=8) :: T, tempT
     real(kind=8) :: const
@@ -68,14 +72,17 @@ module BlockModule
   end type
 
   type BlockType
-    type (GridPoint) :: Points(0:102,0:102)
-    integer :: iStart, jStart, iBound, jBound
-
-    integer :: type, proc, lowJ, highJ, lowI, highI
+    type (GridPoint) :: Points(0:102,0:102)     ! 0 to IMAX + 1, 0 to JMAX + 1
+    integer :: proc, size, lowJ, highJ, lowI, highI
     integer :: localJMIN, localIMIN, localJMAX, localIMAX
     type (Neighbor) :: northFace, southFace, eastFace, westFace
     type (Neighbor) :: NECorner, SECorner, SWCorner, NWCorner
   end type BlockType
+
+  type Proc
+    integer :: procID, weight, nBlocks
+    type (BlockType) :: Blocks(10)      ! The larger of N and M
+  end type Proc
 
 contains
   ! Set the true bounds and ghost nodes for each block.
@@ -101,10 +108,6 @@ contains
           p1%y = p2%y
           p1%T = p2%T
         end do
-
-        b%localJMAX = jBlockSize
-      else
-        b%localJMAX = jBlockSize - 1
       end if
 
       ! East face.
@@ -118,10 +121,6 @@ contains
           p1%y = p2%y
           p1%T = p2%T
         end do
-
-        b%localIMAX = iBlockSize
-      else
-        b%localIMAX = iBlockSize - 1
       end if
 
       ! South face.
@@ -135,10 +134,6 @@ contains
           p1%y = p2%y
           p1%T = p2%T
         end do
-
-        b%localJMIN = 0
-      else
-        b%localJMIN = 1
       end if
 
       ! West face.
@@ -152,10 +147,6 @@ contains
           p1%y = p2%y
           p1%T = p2%T
         end do
-
-        b%localIMIN = 0
-      else
-        b%localIMIN = 1
       end if
 
       ! Set corner points.
