@@ -9,33 +9,41 @@ module plot3D_module
   real(kind=8) :: dum = 0.d0  ! dummy values
 
 contains
-  subroutine write_configuration_file(BlocksCollection)
-    type (BlockType), target :: BlocksCollection(:)
+  subroutine write_configuration_file(Procs)
+    type (Proc), target :: Procs(:)
+    type (BlockType), pointer :: BlocksCollection(:)
     type (BlockType), pointer :: b
-    integer :: n_
-
-    open(unit = 1, file = 'configuration_file.dat', form='formatted')
+    integer :: n_, p_
+    character(2) :: name, str
 
     10 format(3I5)
     20 format(33I5)
 
-    write(1, 10) M*N, iBlockSize, jBlockSize
-    do n_ = 1, nBlocks
-      b => BlocksCollection(n_)
-      write(1, 20) n_, b%proc, b%size, &
-                   b%lowI, b%lowJ, &
-                   b%localIMIN, b%localIMAX, b%localJMIN, b%localJMAX, &
-                   b%northFace%BC, b%northFace%neighborBlock, b%northFace%neighborProc, &
-                   b%eastFace%BC, b%eastFace%neighborBlock, b%eastFace%neighborProc, &
-                   b%southFace%BC, b%southFace%neighborBlock, b%southFace%neighborProc, &
-                   b%westFace%BC, b%westFace%neighborBlock, b%westFace%neighborProc, &
-                   b%NECorner%BC, b%NECorner%neighborBlock, b%NECorner%neighborProc, &
-                   b%NWCorner%BC, b%NWCorner%neighborBlock, b%NWCorner%neighborProc, &
-                   b%SWCorner%BC, b%SWCorner%neighborBlock, b%SWCorner%neighborProc, &
-                   b%SECorner%BC, b%SECorner%neighborBlock, b%SECorner%neighborProc
+    do p_ = 1, nProcs
+      BlocksCollection => Procs(p_)%Blocks
+
+      write( name, '(i2)' )  p_
+      read( name, * ) str
+
+      open(unit = p_, file = 'configuration_file.dat.p'//str, form='formatted')
+      write(p_, 10) M*N, iBlockSize, jBlockSize
+      do n_ = 1, Procs(p_)%nBlocks
+        b => BlocksCollection(n_)
+        write(p_, 20) n_, b%proc, b%size, &
+                     b%lowI, b%lowJ, &
+                     b%localIMIN, b%localIMAX, b%localJMIN, b%localJMAX, &
+                     b%northFace%BC, b%northFace%neighborBlock, b%northFace%neighborProc, &
+                     b%eastFace%BC, b%eastFace%neighborBlock, b%eastFace%neighborProc, &
+                     b%southFace%BC, b%southFace%neighborBlock, b%southFace%neighborProc, &
+                     b%westFace%BC, b%westFace%neighborBlock, b%westFace%neighborProc, &
+                     b%NECorner%BC, b%NECorner%neighborBlock, b%NECorner%neighborProc, &
+                     b%NWCorner%BC, b%NWCorner%neighborBlock, b%NWCorner%neighborProc, &
+                     b%SWCorner%BC, b%SWCorner%neighborBlock, b%SWCorner%neighborProc, &
+                     b%SECorner%BC, b%SECorner%neighborBlock, b%SECorner%neighborProc
+      end do
+      close(p_)
     end do
 
-    close(1)
   end subroutine
 
   subroutine read_configuration_file(Blocks)
@@ -122,6 +130,58 @@ contains
 
     write(*,*), 'Read initial temperature file'
   end subroutine
+
+  ! Plot3D routine to output grid and temperature files in a
+  ! machine readable format.
+  subroutine plotProcs(Procs)
+    type (Proc), target :: Procs(:)
+    type (BlockType), pointer :: Blocks(:)
+    character(2) :: name, str
+    integer :: n_, p_, i, j
+
+    ! Format statements
+    10     format(I10)
+    20     format(10I10)
+    30     format(10E20.8)
+
+    do p_ = 1, nProcs
+      Blocks => Procs(p_)%Blocks
+      ! Open files
+
+      write( name, '(i2)' )  p_
+      read( name, * ) str
+
+      open(unit=gridUnit,file='grid.dat.p'//str,form='formatted')
+      open(unit=tempUnit,file='temp.dat.p'//str,form='formatted')
+
+      ! Write to grid file
+      write(gridUnit,10) nBlocks
+      write(gridUnit,20) (iBlockSize, jBlockSize, n_=1, nBlocks)
+
+      do n_ = 1, Procs(p_)%nBlocks
+        write(gridUnit,30) ((Blocks(n_)%Points(i,j)%x,i=1,iBlockSize),j=1,jBlockSize), &
+                           ((Blocks(n_)%Points(i,j)%y,i=1,iBlockSize),j=1,jBlockSize)
+      end do
+
+      ! Write to temperature file
+      write(tempUnit,10) nBlocks
+      write(tempUnit,20) (iBlockSize, jBlockSize, n_=1, nBlocks)
+
+      do n_ = 1, Procs(p_)%nBlocks
+        write(tempUnit,30) tRef,dum,dum,dum
+        write(tempUnit,30) ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
+                           ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
+                           ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
+                           ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize)
+      end do
+
+      ! Close files
+      close(gridUnit)
+      close(tempUnit)
+    end do
+
+  end subroutine plotProcs
+
 
   ! Plot3D routine to output grid and temperature files in a
   ! machine readable format.

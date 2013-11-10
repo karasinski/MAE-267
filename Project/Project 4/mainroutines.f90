@@ -51,7 +51,7 @@ contains
   ! This is the main solver.
   subroutine solve(Blocks, step)
     type (BlockType), target :: Blocks(:)
-    integer, parameter :: max_steps = 10000
+    integer, parameter :: max_steps = 1
     real(kind=8) :: temp_residual = 1.d0, residual = 1.d0 ! Arbitrary initial residuals.
     real(kind=8) :: residuals(max_steps) = 0.d0
     integer :: n_, step
@@ -97,21 +97,19 @@ contains
 
   subroutine derivatives(Blocks)
     type (BlockType), target :: Blocks(:)
-    type (BlockType), pointer :: MyBlock
     type (GridPoint), pointer :: p(:,:)
     real(kind=8) :: dTdx, dTdy
     integer :: i, j, n_
 
     ! Loop over each block.
     do n_ = 1, nBlocks
-      MyBlock => Blocks(n_)
-      p => MyBlock%Points
+      p => Blocks(n_)%Points
 
       ! Reset the change in temperature to zero before we begin summing again.
       p%tempT = 0.d0
 
-      do j = MyBlock%localJMIN, MyBlock%localJMAX
-        do i =  MyBlock%localIMIN, MyBlock%localIMAX
+      do j = Blocks(n_)%localJMIN, Blocks(n_)%localJMAX
+        do i =  Blocks(n_)%localIMIN, Blocks(n_)%localIMAX
 
           ! Trapezoidal counter-clockwise integration to get the first
           ! derivatives in the x/y directions at the cell-center using
@@ -145,8 +143,8 @@ contains
       end do
 
       ! Update temperatures in the block.
-      do j = MyBlock%lowJTemp, MyBlock%localJMAX
-        do i =  MyBlock%lowITemp, MyBlock%localIMAX
+      do j = Blocks(n_)%lowJTemp, Blocks(n_)%localJMAX
+        do i =  Blocks(n_)%lowITemp, Blocks(n_)%localIMAX
           p(i,j)%T = p(i,j)%T + p(i,j)%tempT
         end do
       end do

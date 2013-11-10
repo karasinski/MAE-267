@@ -29,29 +29,29 @@ program heat
   call distribute_blocks(BlocksCollection, Procs)
 
   ! We then write a connectivity file.
-  call write_configuration_file(BlocksCollection)
+  call write_configuration_file(Procs)
 
   ! We then write a grid file and initial temperature file.
-  call plot3D(BlocksCollection, "i")
+  call plotProcs(Procs)
 
   ! Deallocate our initialization array.
-  deallocate(BlocksCollection)
-
-  ! We then initialize the solver.
-  allocate(Blocks(1:nBlocks))
-  call initialization(Blocks)
-
-  ! Time our iterations until convergence.
-  call start_clock()
-  call solve(Blocks, step)
-  call end_clock()
-
-  ! Write some results to file/screen.
-  call output(Blocks, step)
-
-  ! Write final temperature distribution.
-  call plot3D(Blocks, "f")
-
-  ! Might as well be proper and cleanup before we leave.
-  deallocate(Blocks)
+  deallocate(BlocksCollection, Procs)
+!
+!  ! We then initialize the solver.
+!  allocate(Blocks(1:nBlocks))
+!  call initialization(Blocks)
+!
+!  ! Time our iterations until convergence.
+!  call start_clock()
+!  call solve(Blocks, step)
+!  call end_clock()
+!
+!  ! Write some results to file/screen.
+!  call output(Blocks, step)
+!
+!  ! Write final temperature distribution.
+!  call plot3D(Blocks, "f")
+!
+!  ! Might as well be proper and cleanup before we leave.
+!  deallocate(Blocks)
 end program heat
