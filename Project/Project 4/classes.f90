@@ -73,11 +73,15 @@ module BlockModule
 
   type BlockType
     type (GridPoint) :: Points(0:102,0:102)     ! 0 to IMAX + 1, 0 to JMAX + 1
-    integer :: proc, size, lowJ, highJ, lowI, highI
+    integer :: proc, size
+    integer :: lowJ, lowI, lowITemp, lowJTemp
     integer :: localJMIN, localIMIN, localJMAX, localIMAX
     type (Neighbor) :: northFace, southFace, eastFace, westFace
     type (Neighbor) :: NECorner, SECorner, SWCorner, NWCorner
 !    procedure(updateNorthGhosts_init), pointer, nopass :: updateNorthGhosts
+!    procedure(updateNorthGhosts_init), pointer, nopass :: updateSouthGhosts
+!    procedure(updateNorthGhosts_init), pointer, nopass :: updateEastGhosts
+!    procedure(updateNorthGhosts_init), pointer, nopass :: updateWestGhosts
   end type BlockType
 
 !  abstract interface
@@ -96,27 +100,67 @@ contains
 !  subroutine setGhosts(this)
 !    type(BlockType), intent(inout) :: this
 !
+!    write(*,*), 'Setting Ghosts'
+!
 !    if (this%northFace%BC == -1) then
 !      ! We want to assign updateGhosts to ghostOne.
-!      this%updateNorthGhosts => ghostNorth1
+!      this%updateNorthGhosts => ghostNorth
 !    else
 !      ! We want to assign updateGhosts to ghostTwo.
-!      this%updateNorthGhosts => ghostNorth2
+!      this%updateNorthGhosts => null()
+!    end if
+!
+!    if (this%southFace%BC == -1) then
+!      ! We want to assign updateGhosts to ghostOne.
+!      this%updateSouthGhosts => ghostSouth
+!    else
+!      ! We want to assign updateGhosts to ghostTwo.
+!      this%updateSouthGhosts => null()
+!    end if
+!
+!    if (this%eastFace%BC == -1) then
+!      ! We want to assign updateGhosts to ghostOne.
+!      this%updateEastGhosts => ghostEast
+!    else
+!      ! We want to assign updateGhosts to ghostTwo.
+!      this%updateEastGhosts => null()
+!    end if
+!
+!    if (this%westFace%BC == -1) then
+!      ! We want to assign updateGhosts to ghostOne.
+!      this%updateWestGhosts => ghostWest
+!    else
+!      ! We want to assign updateGhosts to ghostTwo.
+!      this%updateWestGhosts => null()
 !    end if
 !  end subroutine
 !
 !  ! Routine will do something.
-!  subroutine ghostNorth1(this)
+!  subroutine ghostNorth(this)
 !    type(BlockType) :: this
-!    write(1,*), "One, ", this%northFace%BC
+!        ! Internal boundary
+!        do i = 1, iBlockSize
+!          b%Points(i, jBlockSize+1)%T = Blocks(b%northFace%neighborBlock)%Points(i, 2)%T
+!        end do
+!    end subroutine
+!
+!  ! Routine will do something.
+!  subroutine ghostSouth(this)
+!    type(BlockType) :: this
+!    write(*,*), "One, ", this%northFace%BC
 !  end subroutine
 !
-!  ! Routine will do something completely different, with same inputs.
-!  subroutine ghostNorth2(this)
+!  ! Routine will do something.
+!  subroutine ghostEast(this)
 !    type(BlockType) :: this
-!    write(1,*), "Two, ", this%northFace%BC
+!    write(*,*), "One, ", this%northFace%BC
 !  end subroutine
-
+!
+!  ! Routine will do something.
+!  subroutine ghostWest(this)
+!    type(BlockType) :: this
+!    write(*,*), "One, ", this%northFace%BC
+!  end subroutine
 
   ! Set the true bounds and ghost nodes for each block.
   subroutine set_bounds(Blocks)
@@ -226,6 +270,25 @@ contains
         p1%y = p2%y
         p1%T = p2%T
       end if
+
+      ! Set our lower bound for updating the temperature so
+      ! we don't update along the edge.
+      Blocks(n_)%lowITemp = Blocks(n_)%localIMIN
+      Blocks(n_)%lowJTemp = Blocks(n_)%localJMIN
+
+      if (Blocks(n_)%localIMIN == 1 .and. Blocks(n_)%localJMIN == 1) then
+        Blocks(n_)%lowITemp = Blocks(n_)%localIMIN+1
+        Blocks(n_)%lowJTemp = Blocks(n_)%localJMIN+1
+      else if (Blocks(n_)%localIMIN == 1) then
+        Blocks(n_)%lowITemp = Blocks(n_)%localIMIN+1
+      else if (Blocks(n_)%localJMIN == 1) then
+        Blocks(n_)%lowJTemp = Blocks(n_)%localJMIN+1
+      end if
+
+      ! Set the ghost node function pointers.
+!      call setGhosts(Blocks(n_))
+!      IF (ASSOCIATED(Blocks(n_)%updateNorthGhosts)) CALL Blocks(n_)%updateNorthGhosts(Blocks(n_))
+
     end do
   end subroutine
 

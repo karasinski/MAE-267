@@ -51,7 +51,7 @@ contains
   ! This is the main solver.
   subroutine solve(Blocks, step)
     type (BlockType), target :: Blocks(:)
-    integer, parameter :: max_steps = 100000
+    integer, parameter :: max_steps = 10000
     real(kind=8) :: temp_residual = 1.d0, residual = 1.d0 ! Arbitrary initial residuals.
     real(kind=8) :: residuals(max_steps) = 0.d0
     integer :: n_, step
@@ -78,7 +78,7 @@ contains
         end if
       end do
 
-      !      write(*,*), step, residual
+      write(*,*), step, residual
       residuals(step) = residual
     end do
 
@@ -141,8 +141,12 @@ contains
                            ( p(i, j)%yPP * dTdx + p(i, j)%xNN * dTdy )
           p(i+1,j+1)%tempT = p(i+1,j+1)%tempT + p(i+1,j+1)%const * &
                            ( p(i, j)%yNP * dTdx + p(i, j)%xPN * dTdy )
+        end do
+      end do
 
-          ! Update temperatures.
+      ! Update temperatures in the block.
+      do j = MyBlock%lowJTemp, MyBlock%localJMAX
+        do i =  MyBlock%lowITemp, MyBlock%localIMAX
           p(i,j)%T = p(i,j)%T + p(i,j)%tempT
         end do
       end do
@@ -168,6 +172,14 @@ contains
         end do
       end if
 
+      ! South face ghost nodes
+      if (b%southFace%BC == -1) then
+        ! Internal boundary
+        do i = 1, iBlockSize
+          b%Points(i, 0)%T = Blocks(b%southFace%neighborBlock)%Points(i, jBlockSize-1)%T
+        end do
+      end if
+
       ! East face ghost nodes
       if (b%eastFace%BC == -1) then
         ! Internal boundary
@@ -176,31 +188,11 @@ contains
         end do
       end if
 
-      ! South face ghost nodes
-      if (b%southFace%BC == -1) then
-        ! Internal boundary
-        do i = 1, iBlockSize
-          b%Points(i, 0)%T = Blocks(b%southFace%neighborBlock)%Points(i, jBlockSize-1)%T
-        end do
-      else
-        ! We must iterate over the south boundary to pass out their contribution to their
-        ! north neighbors. We now reset to dirichlet.
-        do i = 1, iBlockSize
-          b%Points(i, 1)%T = abs(cos(pi * b%Points(i,1)%xp)) + 1.d0
-        end do
-      end if
-
       ! West face ghost nodes
       if (b%westFace%BC == -1) then
         ! Internal boundary
         do j = 1, jBlockSize
           b%Points(0, j)%T = Blocks(b%westFace%neighborBlock)%Points(iBlockSize-1, j)%T
-        end do
-      else
-        ! We must iterate over the west boundary to pass out their contribution to their
-        ! east neighbors. We now reset to dirichlet.
-        do j = 1, jBlockSize
-          b%Points(1, j)%T = 3.d0 * b%Points(1, j)%yp + 2.d0
         end do
       end if
 

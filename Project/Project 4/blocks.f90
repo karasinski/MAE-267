@@ -10,6 +10,7 @@ contains
     type (BlockType), pointer :: b
     integer :: n_, proc = 1, iN, iM
     integer :: nBound, sBound, eBound, wBound
+    integer :: highI, highJ
 
     !
     !            |             |
@@ -41,10 +42,10 @@ contains
 
         ! High/low i/j corresponds to the
         ! global block number start and stop.
-        b%highI = 1 + iN * (iBlockSize - 1)
-        b%lowI = b%highI - (iBlockSize - 1)
-        b%highJ = 1 + iM * (jBlockSize - 1)
-        b%lowJ = b%highJ - (jBlockSize - 1)
+        highI = 1 + iN * (iBlockSize - 1)
+        b%lowI = highI - (iBlockSize - 1)
+        highJ = 1 + iM * (jBlockSize - 1)
+        b%lowJ = highJ - (jBlockSize - 1)
 
         ! Assume all faces are internal and find out who
         ! their neighbor is. Set the neighbor block and set
@@ -75,12 +76,12 @@ contains
 
         ! Determine whether block is on boundary or
         ! if they is internal for each face.
-        if (b%highJ == JMAX) then
+        if (highJ == JMAX) then
           nBound = nB
         else
           nBound = -1
         end if
-        if (b%highI == IMAX) then
+        if (highI == IMAX) then
           eBound = eB
         else
           eBound = -1
