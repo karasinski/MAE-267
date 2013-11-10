@@ -77,7 +77,15 @@ module BlockModule
     integer :: localJMIN, localIMIN, localJMAX, localIMAX
     type (Neighbor) :: northFace, southFace, eastFace, westFace
     type (Neighbor) :: NECorner, SECorner, SWCorner, NWCorner
+!    procedure(updateNorthGhosts_init), pointer, nopass :: updateNorthGhosts
   end type BlockType
+
+!  abstract interface
+!    subroutine updateNorthGhosts_init(this)
+!      import
+!      type(BlockType) :: this
+!    end subroutine
+!  end interface
 
   type Proc
     integer :: procID, weight, nBlocks
@@ -85,6 +93,31 @@ module BlockModule
   end type Proc
 
 contains
+!  subroutine setGhosts(this)
+!    type(BlockType), intent(inout) :: this
+!
+!    if (this%northFace%BC == -1) then
+!      ! We want to assign updateGhosts to ghostOne.
+!      this%updateNorthGhosts => ghostNorth1
+!    else
+!      ! We want to assign updateGhosts to ghostTwo.
+!      this%updateNorthGhosts => ghostNorth2
+!    end if
+!  end subroutine
+!
+!  ! Routine will do something.
+!  subroutine ghostNorth1(this)
+!    type(BlockType) :: this
+!    write(1,*), "One, ", this%northFace%BC
+!  end subroutine
+!
+!  ! Routine will do something completely different, with same inputs.
+!  subroutine ghostNorth2(this)
+!    type(BlockType) :: this
+!    write(1,*), "Two, ", this%northFace%BC
+!  end subroutine
+
+
   ! Set the true bounds and ghost nodes for each block.
   subroutine set_bounds(Blocks)
     type (BlockType), target :: Blocks(:)

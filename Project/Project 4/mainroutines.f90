@@ -51,11 +51,12 @@ contains
   ! This is the main solver.
   subroutine solve(Blocks, step)
     type (BlockType), target :: Blocks(:)
+    integer, parameter :: max_steps = 100000
     real(kind=8) :: temp_residual = 1.d0, residual = 1.d0 ! Arbitrary initial residuals.
-    integer :: n_, step, max_steps = 100000
+    real(kind=8) :: residuals(max_steps) = 0.d0
+    integer :: n_, step
 
     write(*,*), "Start solver"
-    open(unit = 666, file = 'convergence.dat', form='formatted')
 
     !  Begin main loop, stop if we hit our mark or after max_steps iterations.
     do while (residual >= .00001d0 .and. step < max_steps)
@@ -77,11 +78,13 @@ contains
         end if
       end do
 
-      ! Write the residual information to screen/output file.
       !      write(*,*), step, residual
-      write(666,'(10E20.8)'), residual
+      residuals(step) = residual
     end do
 
+    ! Write the residual information to output file.
+    open(unit = 666, file = 'convergence.dat', form='formatted')
+    write(666,*), residuals
     close(666)
 
     ! Check for convergence.
@@ -90,7 +93,6 @@ contains
     else
       write(*,*) "Failed to converge."
     end if
-
   end subroutine
 
   subroutine derivatives(Blocks)
