@@ -14,7 +14,7 @@ program heat
 
   ! Set up our grid size, set number of blocks and processors.
   call SetGridSize(101)
-  call SetNumberOfBlocks(5,4)
+  call SetNumberOfBlocks(10,10)
   call SetNumberOfProcs(4)
 
   ! Allocate an initial array to hold all blocks and an additional

@@ -165,36 +165,44 @@ contains
 
       ! Faces
       ! North face ghost nodes
-      if (b%northFace%BC == -1) then
-        ! Internal boundary
-        do i = 1, iBlockSize
-          b%Points(i, jBlockSize+1)%T = Blocks(b%northFace%neighborBlock)%Points(i, 2)%T
-        end do
-      end if
+      CALL Blocks(n_)%updateNorthGhosts(Blocks, n_)
+
+!      if (b%northFace%BC == -1) then
+!        ! Internal boundary
+!        do i = 1, iBlockSize
+!          b%Points(i, jBlockSize+1)%T = Blocks(b%northFace%neighborBlock)%Points(i, 2)%T
+!        end do
+!      end if
 
       ! South face ghost nodes
-      if (b%southFace%BC == -1) then
-        ! Internal boundary
-        do i = 1, iBlockSize
-          b%Points(i, 0)%T = Blocks(b%southFace%neighborBlock)%Points(i, jBlockSize-1)%T
-        end do
-      end if
+      CALL Blocks(n_)%updateSouthGhosts(Blocks, n_)
+
+!      if (b%southFace%BC == -1) then
+!        ! Internal boundary
+!        do i = 1, iBlockSize
+!          b%Points(i, 0)%T = Blocks(b%southFace%neighborBlock)%Points(i, jBlockSize-1)%T
+!        end do
+!      end if
 
       ! East face ghost nodes
-      if (b%eastFace%BC == -1) then
-        ! Internal boundary
-        do j = 1, jBlockSize
-          b%Points(iBlockSize+1, j)%T = Blocks(b%eastFace%neighborBlock)%Points(2, j)%T
-        end do
-      end if
+      CALL Blocks(n_)%updateEastGhosts(Blocks, n_)
+
+!      if (b%eastFace%BC == -1) then
+!        ! Internal boundary
+!        do j = 1, jBlockSize
+!          b%Points(iBlockSize+1, j)%T = Blocks(b%eastFace%neighborBlock)%Points(2, j)%T
+!        end do
+!      end if
 
       ! West face ghost nodes
-      if (b%westFace%BC == -1) then
-        ! Internal boundary
-        do j = 1, jBlockSize
-          b%Points(0, j)%T = Blocks(b%westFace%neighborBlock)%Points(iBlockSize-1, j)%T
-        end do
-      end if
+      CALL Blocks(n_)%updateWestGhosts(Blocks, n_)
+
+!      if (b%westFace%BC == -1) then
+!        ! Internal boundary
+!        do j = 1, jBlockSize
+!          b%Points(0, j)%T = Blocks(b%westFace%neighborBlock)%Points(iBlockSize-1, j)%T
+!        end do
+!      end if
 
       ! Corners
       ! North east corner

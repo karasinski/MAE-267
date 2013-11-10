@@ -247,7 +247,7 @@ contains
       p => BlocksCollection(n_)%Points
 
       ! Initialize all points to T_0.
-      p(1:iBlockSize, 1:jBlockSize)%T = T_0
+      p%T = T_0
 
       ! Set the boundary conditions if our blocks are on the boundary.
       if (b%northFace%BC == nB) then

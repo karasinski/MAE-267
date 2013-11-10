@@ -78,89 +78,103 @@ module BlockModule
     integer :: localJMIN, localIMIN, localJMAX, localIMAX
     type (Neighbor) :: northFace, southFace, eastFace, westFace
     type (Neighbor) :: NECorner, SECorner, SWCorner, NWCorner
-!    procedure(updateNorthGhosts_init), pointer, nopass :: updateNorthGhosts
-!    procedure(updateNorthGhosts_init), pointer, nopass :: updateSouthGhosts
-!    procedure(updateNorthGhosts_init), pointer, nopass :: updateEastGhosts
-!    procedure(updateNorthGhosts_init), pointer, nopass :: updateWestGhosts
+    procedure(updateNorthGhosts_init), pointer, nopass :: updateNorthGhosts
+    procedure(updateNorthGhosts_init), pointer, nopass :: updateSouthGhosts
+    procedure(updateNorthGhosts_init), pointer, nopass :: updateEastGhosts
+    procedure(updateNorthGhosts_init), pointer, nopass :: updateWestGhosts
   end type BlockType
 
-!  abstract interface
-!    subroutine updateNorthGhosts_init(this)
-!      import
-!      type(BlockType) :: this
-!    end subroutine
-!  end interface
+  abstract interface
+    subroutine updateNorthGhosts_init(Blocks, id)
+      import
+      type(BlockType) :: Blocks(:)
+      integer :: id
+    end subroutine
+  end interface
 
   type Proc
     integer :: procID, weight, nBlocks
-    type (BlockType) :: Blocks(10)      ! The larger of N and M
+    type (BlockType) :: Blocks(25)      ! N*M/procs
   end type Proc
 
 contains
-!  subroutine setGhosts(this)
-!    type(BlockType), intent(inout) :: this
-!
-!    write(*,*), 'Setting Ghosts'
-!
-!    if (this%northFace%BC == -1) then
-!      ! We want to assign updateGhosts to ghostOne.
-!      this%updateNorthGhosts => ghostNorth
-!    else
-!      ! We want to assign updateGhosts to ghostTwo.
-!      this%updateNorthGhosts => null()
-!    end if
-!
-!    if (this%southFace%BC == -1) then
-!      ! We want to assign updateGhosts to ghostOne.
-!      this%updateSouthGhosts => ghostSouth
-!    else
-!      ! We want to assign updateGhosts to ghostTwo.
-!      this%updateSouthGhosts => null()
-!    end if
-!
-!    if (this%eastFace%BC == -1) then
-!      ! We want to assign updateGhosts to ghostOne.
-!      this%updateEastGhosts => ghostEast
-!    else
-!      ! We want to assign updateGhosts to ghostTwo.
-!      this%updateEastGhosts => null()
-!    end if
-!
-!    if (this%westFace%BC == -1) then
-!      ! We want to assign updateGhosts to ghostOne.
-!      this%updateWestGhosts => ghostWest
-!    else
-!      ! We want to assign updateGhosts to ghostTwo.
-!      this%updateWestGhosts => null()
-!    end if
-!  end subroutine
-!
-!  ! Routine will do something.
-!  subroutine ghostNorth(this)
-!    type(BlockType) :: this
-!        ! Internal boundary
-!        do i = 1, iBlockSize
-!          b%Points(i, jBlockSize+1)%T = Blocks(b%northFace%neighborBlock)%Points(i, 2)%T
-!        end do
-!    end subroutine
-!
-!  ! Routine will do something.
-!  subroutine ghostSouth(this)
-!    type(BlockType) :: this
-!    write(*,*), "One, ", this%northFace%BC
-!  end subroutine
-!
-!  ! Routine will do something.
-!  subroutine ghostEast(this)
-!    type(BlockType) :: this
-!    write(*,*), "One, ", this%northFace%BC
-!  end subroutine
-!
-!  ! Routine will do something.
-!  subroutine ghostWest(this)
-!    type(BlockType) :: this
-!    write(*,*), "One, ", this%northFace%BC
-!  end subroutine
+  subroutine setGhosts(this)
+    type(BlockType), intent(inout) :: this
+
+    if (this%northFace%BC == -1) then
+      ! We want to assign updateGhosts to ghostOne.
+      this%updateNorthGhosts => ghostNorth
+    else
+      ! We want to assign updateGhosts to ghostTwo.
+      this%updateNorthGhosts => nothing
+    end if
+
+    if (this%southFace%BC == -1) then
+      ! We want to assign updateGhosts to ghostOne.
+      this%updateSouthGhosts => ghostSouth
+    else
+      ! We want to assign updateGhosts to ghostTwo.
+      this%updateSouthGhosts => nothing
+    end if
+
+    if (this%eastFace%BC == -1) then
+      ! We want to assign updateGhosts to ghostOne.
+      this%updateEastGhosts => ghostEast
+    else
+      ! We want to assign updateGhosts to ghostTwo.
+      this%updateEastGhosts => nothing
+    end if
+
+    if (this%westFace%BC == -1) then
+      ! We want to assign updateGhosts to ghostOne.
+      this%updateWestGhosts => ghostWest
+    else
+      ! We want to assign updateGhosts to ghostTwo.
+      this%updateWestGhosts => nothing
+    end if
+  end subroutine
+
+  subroutine nothing(Blocks, id)
+    type(BlockType) :: Blocks(:)
+    integer :: id
+  end subroutine
+
+  ! Routine will do something.
+  subroutine ghostNorth(Blocks, id)
+    type(BlockType) :: Blocks(:)
+    integer :: id, i
+    ! Internal boundary
+    do i = 1, iBlockSize
+      Blocks(id)%Points(i, jBlockSize+1)%T = Blocks(Blocks(id)%northFace%neighborBlock)%Points(i, 2)%T
+    end do
+  end subroutine
+
+  ! Routine will do something.
+  subroutine ghostSouth(Blocks, id)
+    type(BlockType) :: Blocks(:)
+    integer :: id, i
+      do i = 1, iBlockSize
+        Blocks(id)%Points(i, 0)%T = Blocks(Blocks(id)%southFace%neighborBlock)%Points(i, jBlockSize-1)%T
+      end do
+    end subroutine
+
+  ! Routine will do something.
+  subroutine ghostEast(Blocks, id)
+    type(BlockType) :: Blocks(:)
+    integer :: id, j
+      do j = 1, jBlockSize
+        Blocks(id)%Points(iBlockSize+1, j)%T = Blocks(Blocks(id)%eastFace%neighborBlock)%Points(2, j)%T
+      end do
+    end subroutine
+
+  ! Routine will do something.
+  subroutine ghostWest(Blocks, id)
+    type(BlockType) :: Blocks(:)
+    integer :: id, j
+    do j = 1, jBlockSize
+      Blocks(id)%Points(0, j)%T = Blocks(Blocks(id)%westFace%neighborBlock)%Points(iBlockSize-1, j)%T
+    end do
+  end subroutine
 
   ! Set the true bounds and ghost nodes for each block.
   subroutine set_bounds(Blocks)
@@ -286,8 +300,8 @@ contains
       end if
 
       ! Set the ghost node function pointers.
-!      call setGhosts(Blocks(n_))
-!      IF (ASSOCIATED(Blocks(n_)%updateNorthGhosts)) CALL Blocks(n_)%updateNorthGhosts(Blocks(n_))
+      call setGhosts(Blocks(n_))
+!      IF (ASSOCIATED(Blocks(n_)%updateNorthGhosts)) CALL Blocks(n_)%updateNorthGhosts(Blocks, n_)
 
     end do
   end subroutine
