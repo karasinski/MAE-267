@@ -73,7 +73,7 @@ module BlockModule
 
   type BlockType
     type (GridPoint) :: Points(0:102,0:102)     ! 0 to IMAX + 1, 0 to JMAX + 1
-    integer :: proc, size
+    integer :: id, proc, size
     integer :: lowJ, lowI, lowITemp, lowJTemp
     integer :: localJMIN, localIMIN, localJMAX, localIMAX
     type (Neighbor) :: northFace, southFace, eastFace, westFace
@@ -82,7 +82,7 @@ module BlockModule
 
   type Proc
     integer :: procID, weight, nBlocks
-    type (BlockType) :: Blocks(25)      ! N*M/procs
+    type (BlockType) :: Blocks(30)      ! N*M/procs
   end type Proc
 
 contains

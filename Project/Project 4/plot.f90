@@ -137,43 +137,51 @@ contains
     type (Proc), target :: Procs(:)
     type (BlockType), pointer :: Blocks(:)
     character(2) :: name, str
-    integer :: n_, p_, i, j
+    integer :: globn, n_, p_, i, j
 
     ! Format statements
     10     format(I10)
     20     format(10I10)
     30     format(10E20.8)
 
+    globn = 1
     do p_ = 1, nProcs
-      Blocks => Procs(p_)%Blocks
+      ! Convert integer to string for filename concat.
+      write(name,'(i2)')  p_
+      read (name,*) str
+
       ! Open files
-
-      write( name, '(i2)' )  p_
-      read( name, * ) str
-
       open(unit=gridUnit,file='grid.dat.p'//str,form='formatted')
       open(unit=tempUnit,file='temp.dat.p'//str,form='formatted')
 
       ! Write to grid file
-      write(gridUnit,10) nBlocks
-      write(gridUnit,20) (iBlockSize, jBlockSize, n_=1, nBlocks)
+      write(gridUnit,10) Procs(p_)%nBlocks
+      write(gridUnit,20) (iBlockSize, jBlockSize, n_=1, Procs(p_)%nBlocks)
 
-      do n_ = 1, Procs(p_)%nBlocks
+      write(*,*)
+      Blocks => Procs(p_)%Blocks
+      do n_ = globn, globn + Procs(p_)%nBlocks - 1
+!        write(*,*), Blocks(n_)%id
         write(gridUnit,30) ((Blocks(n_)%Points(i,j)%x,i=1,iBlockSize),j=1,jBlockSize), &
                            ((Blocks(n_)%Points(i,j)%y,i=1,iBlockSize),j=1,jBlockSize)
       end do
 
       ! Write to temperature file
-      write(tempUnit,10) nBlocks
-      write(tempUnit,20) (iBlockSize, jBlockSize, n_=1, nBlocks)
+      write(tempUnit,10) Procs(p_)%nBlocks
+      write(tempUnit,20) (iBlockSize, jBlockSize, n_=1, Procs(p_)%nBlocks)
 
-      do n_ = 1, Procs(p_)%nBlocks
+      do n_ = globn, globn + Procs(p_)%nBlocks - 1
         write(tempUnit,30) tRef,dum,dum,dum
-        write(tempUnit,30) ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
-                           ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
-                           ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
-                           ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize)
+        write(tempUnit,30) ((real(p_),i=1,iBlockSize),j=1,jBlockSize), &
+                           ((real(p_),i=1,iBlockSize),j=1,jBlockSize), &
+                           ((real(p_),i=1,iBlockSize),j=1,jBlockSize), &
+                           ((real(p_),i=1,iBlockSize),j=1,jBlockSize)
+
+                           ! Should be Blocks(n_)%Points(i,j)%T rather than real(p_), but this
+                           ! makes it easy to see which processors have which blocks.
       end do
+
+!      globn = globn + Procs(p_)%nBlocks
 
       ! Close files
       close(gridUnit)

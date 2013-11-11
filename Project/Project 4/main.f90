@@ -26,7 +26,7 @@ program heat
   call initialize_grid(BlocksCollection)
 
   ! Hand out blocks to processors.
-  call distribute_blocks(BlocksCollection, Procs)
+  call distribute_blocks(BlocksCollection, Procs, 2)
 
   ! We then write a connectivity file.
   call write_configuration_file(Procs)
