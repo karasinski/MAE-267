@@ -207,12 +207,13 @@ contains
 
         ! Weight of each block, used for load balancing.
         ! We add the 'area' of the block to the length of the sides of the block
-        ! (communication cost), which we weigh 5 times more than the solver weight.
-        b%size = (b%localIMAX - b%localIMIN) * (b%localJMAX - b%localJMIN)
-        if (b%northFace%BC == -1) b%size = b%size + (b%localJMAX - b%localJMIN) * 0.25d0
-        if (b%southFace%BC == -1) b%size = b%size + (b%localJMAX - b%localJMIN) * 0.25d0
-        if (b%eastFace%BC == -1) b%size = b%size + (b%localIMAX - b%localIMIN) * 0.25d0
-        if (b%westFace%BC == -1) b%size = b%size + (b%localIMAX - b%localIMIN) * 0.25d0
+        ! (communication cost), which we weigh equal to the solver weight.
+        b%comm = 0
+        if (b%northFace%BC == -1) b%comm = b%comm + b%localJMAX - b%localJMIN
+        if (b%southFace%BC == -1) b%comm = b%comm + b%localJMAX - b%localJMIN
+        if (b%eastFace%BC == -1) b%comm = b%comm + b%localIMAX - b%localIMIN
+        if (b%westFace%BC == -1) b%comm = b%comm + b%localIMAX - b%localIMIN
+        b%size = (b%localIMAX - b%localIMIN) * (b%localJMAX - b%localJMIN) + b%comm
 
         n_ = n_ + 1
       end do
@@ -286,12 +287,12 @@ contains
     end do
   end subroutine
 
-  recursive subroutine distribute_blocks(BlocksCollection, Procs, method)
+  recursive subroutine distribute_blocks(BlocksCollection, Procs, method, fudge_factor)
     type (BlockType), target :: BlocksCollection(:)
     type (Proc), allocatable :: Procs(:)
     type (BlockType), pointer :: b
-    real(kind=8) :: optimal
-    integer :: method, p_, n_, i, sum = 0
+    real(kind=8) :: optimal, rel, fudge_factor
+    integer :: method, neighbors, p_, n_, b_, m_, i, sum = 0
     integer :: most_empty_proc = 0, largest_block = 0, largest_block_number = 0
     logical :: unAssignedBlocks = .TRUE., error = .FALSE.
 
@@ -304,33 +305,25 @@ contains
     ! but is simply a measure of how long the solver should take
     ! per iteration. A better algorithm would attempt to place blocks
     ! near each other in order to reduce (eliminate) communcation cost.
+
     do n_ = 1, nBlocks
       b => BlocksCollection(n_)
       sum = sum + b%size
     end do
-
     optimal = dfloat(sum)/dfloat(nProcs)
 
-    ! Write the total weight, number of procs, ideal weight per proc.
-    write(*,*)
-    write(*,*), '      Weight  ', 'Ideal Weight/proc'
-    write(*,*), sum, optimal
-    write(*,*)
+    ! Log each step for debuggin.
+    !      write(*,*), '------------------'
+    !      do i = 1, nProcs
+    !        write(*, *), 'proc ', i, Procs(i)%weight
+    !      end do
 
 
     if (method == 1) then
-    write(*,*), "Method One, why not?"
-
       ! While there are unassigned blocks, distribute
       ! blocks to most empty processor. This method does not
       ! attempt to put nearby blocks on the same processor.
       do while (unAssignedBlocks)
-        ! Log each step for debuggin.
-  !      write(*,*), '------------------'
-  !      do i = 1, nProcs
-  !        write(*, *), 'proc ', i, Procs(i)%weight
-  !      end do
-
         ! Reset largest block to 0.
         largest_block = 0
         do n_ = 1, nBlocks
@@ -355,7 +348,7 @@ contains
 
         ! Copy block over to proc.
         Procs(most_empty_proc)%Blocks(Procs(most_empty_proc)%nBlocks) = &
-                               BlocksCollection(largest_block_number)
+          BlocksCollection(largest_block_number)
 
         ! Reduce the size of the block in the blockscollection to zero so it is
         ! not assigned to any other procs.
@@ -371,27 +364,23 @@ contains
           if (b%size > 0) unAssignedBlocks = .TRUE.
         end do
       end do
-
     else if (method == 2) then
-    write(*,*), "Method Two it is then..."
-
-    ! While this processor has less than the optimal weight,
-    ! if the largest weight won't push it past optimal,
-    ! add the next block's weight.
-!    do while (unAssignedBlocks)
+      ! While this processor has less than the optimal weight,
+      ! if the largest weight won't push it past optimal,
+      ! add the next block's weight.
+      !    do while (unAssignedBlocks)
 
       ! Check to see if proc has less than optimal weight.
       do p_ = 1, nProcs
+        do n_ = 1, nBlocks
+          b => BlocksCollection(n_)
 
-          do n_ = 1, nBlocks
-            b => BlocksCollection(n_)
-
-            ! Find the first nonzero size block.
-            if (b%size > 0) then
-              largest_block = b%size
-              largest_block_number = n_
-            end if
-          end do
+          ! Find the first nonzero size block.
+          if (b%size > 0) then
+            largest_block = b%size
+            largest_block_number = n_
+          end if
+        end do
 
         do while (Procs(p_)%weight + largest_block < 1.05 * optimal)
           ! Reset largest block to zero.
@@ -427,34 +416,135 @@ contains
           ! Reduce the size of the block in the blockscollection to zero so it is
           ! not assigned to any other procs.
           BlocksCollection(largest_block_number)%size = 0
+        end do
+      end do
+    else if (method == 3) then
+      ! Vary this number to find an optimal setting.
 
-!          ! Log each step for debuggin.
-!          write(*,*), '------------------'
-!          do i = 1, nProcs
-!            write(*, *), 'proc ', i, Procs(i)%weight
-!          end do
+      ! Check to see if proc has less than optimal weight.
+      do p_ = 1, nProcs
+
+        do n_ = 1, nBlocks
+          b => BlocksCollection(n_)
+
+          ! Find the first nonzero size block.
+          if (b%size > 0) then
+            largest_block = b%size
+            largest_block_number = n_
+          end if
+        end do
+
+        do while (Procs(p_)%weight + largest_block < fudge_factor * optimal)
+          ! Reset largest block to zero.
+          largest_block = 0
+
+          ! Loop over all blocks.
+          do n_ = 1, nBlocks
+            b => BlocksCollection(n_)
+
+            ! Find the first nonzero size block.
+            if (b%size > 0) then
+              largest_block = b%size
+              largest_block_number = n_
+            end if
+          end do
+
+          if (largest_block == 0) then
+            write(*,*) "Largest Block is 0, we're done here"
+            exit
+          end if
+
+          ! Add this block to this proc.
+          ! Increase number of blocks on this proc by 1.
+          Procs(p_)%nBlocks = Procs(p_)%nBlocks + 1
+
+          ! Increase weight on the proc by the added block's weight.
+          Procs(p_)%weight = Procs(p_)%weight + largest_block
+
+          ! Copy block over to proc.
+          Procs(p_)%Blocks(Procs(p_)%nBlocks) = &
+            BlocksCollection(largest_block_number)
+
+          ! Reduce the size of the block in the blockscollection to zero so it is
+          ! not assigned to any other procs.
+          BlocksCollection(largest_block_number)%size = 0
         end do
       end do
 
-  end if
+    else if (method == 4) then
+      ! While there are unassigned blocks, distribute
+      ! blocks to most empty processor. This method does not
+      ! attempt to put nearby blocks on the same processor.
 
-    ! Write out the weight on each proc.
-    write(*, *), '          proc #      ', "nBlocks  ", "Weight"
-    do n_ = 1, nProcs
-      write(*, *), n_, Procs(n_)%nBlocks, Procs(n_)%weight
-    end do
+      ! Reset largest block to 0.
+      largest_block = 0
+      i = 1
+      do n_ = 1, N
+        do m_ = 1, M
+          i = m_ + (n_ - 1) * M
+          write(*,*), n_, N, m_, M, i
+          b => BlocksCollection(i)
+
+          ! Find the block with the most weight.
+          if (b%size > largest_block) then
+            largest_block = b%size
+          end if
+
+
+          ! Find the proc with the least weight.
+          most_empty_proc = minloc(Procs%weight,1)
+
+          ! Add this block to this proc.
+          ! Increase number of blocks on this proc by 1.
+          Procs(most_empty_proc)%nBlocks = Procs(most_empty_proc)%nBlocks + 1
+
+          ! Increase weight on the proc by the added block's weight.
+          Procs(most_empty_proc)%weight = Procs(most_empty_proc)%weight + largest_block
+
+          ! Copy block over to proc.
+          Procs(most_empty_proc)%Blocks(Procs(most_empty_proc)%nBlocks) = &
+            BlocksCollection(i)
+
+          ! Reduce the size of the block in the blockscollection to zero so it is
+          ! not assigned to any other procs.
+          BlocksCollection(i)%size = 0
+
+        end do
+      end do
+
+    end if
+
+    ! If we screwed this up we need to terminated execution.
     do n_ = 1, nBlocks
       if (BlocksCollection(n_)%size > 0) then
         write(*,*), "We forgot block ", n_, BlocksCollection(n_)%size
-!        error = .TRUE.
+        !        error = .TRUE.
       end if
     end do
 
     if (error) then
-      write(*,*), "Sorry, Something went terribly wrong."
+      write(*,*), "Sorry, something went terribly wrong."
       write(*,*), "Program exiting."
       STOP
     end if
+
+    ! Write the total weight, number of procs, ideal weight per proc.
+    write(*,*)
+    write(*,*), '      Weight  ', 'Ideal Weight/proc'
+    write(*,*), sum, optimal
+    write(*,*)
+
+    ! Write out the weight on each proc.
+    ! Find the relative error.
+    rel = 0.d0
+    write(*, *), '          proc #      ', "nBlocks  ", "Weight ", "Err"
+    do n_ = 1, nProcs
+      write(*, *), n_, Procs(n_)%nBlocks, Procs(n_)%weight, dfloat(Procs(n_)%weight) - optimal
+      rel = rel + abs( optimal - dfloat(Procs(n_)%weight) )
+    end do
+
+    rel = rel / optimal * 100.d0
+    write (*,*), "The relative error is ", rel, " percent."
 
   end subroutine
 end module

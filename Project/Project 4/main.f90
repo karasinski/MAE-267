@@ -14,8 +14,8 @@ program heat
 
   ! Set up our grid size, set number of blocks and processors.
   call SetGridSize(101)
-  call SetNumberOfBlocks(10,10)
-  call SetNumberOfProcs(4)
+  call SetNumberOfBlocks(5,4)
+  call SetNumberOfProcs(6)
 
   ! Allocate an initial array to hold all blocks and an additional
   ! array to store block information to go onto each proc.
@@ -26,7 +26,11 @@ program heat
   call initialize_grid(BlocksCollection)
 
   ! Hand out blocks to processors.
-  call distribute_blocks(BlocksCollection, Procs, 2)
+  ! 3, 1.04d0 for 10,10,6 (totally decent)
+  ! 3, 1.2d0  for  5, 4,6 (not that nice)
+  ! 3, 1.02d0 for 10,10,4 (totally decent)
+  ! 4, null  for  5, 4,4  (perfect)
+  call distribute_blocks(BlocksCollection, Procs, 3, 1.2d0)
 
   ! We then write a connectivity file.
   call write_configuration_file(Procs)
