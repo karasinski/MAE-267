@@ -5,6 +5,7 @@ module plot3D_module
 
   integer :: gridUnit  = 30   ! Unit for grid file
   integer :: tempUnit = 21    ! Unit for temp file
+  integer :: configUnit = 99    ! Unit for temp file
   real(kind=8) :: tRef = 1.d0 ! tRef number
   real(kind=8) :: dum = 0.d0  ! dummy values
 
@@ -25,11 +26,11 @@ contains
       write( name, '(i2)' )  p_
       read( name, * ) str
 
-      open(unit = p_, file = 'configuration_file.dat.p'//str, form='formatted')
-      write(p_, 10) M*N, iBlockSize, jBlockSize
+      open(unit = configUnit, file = 'configuration_file.dat.p'//str, form='formatted')
+      write(configUnit, 10) M*N, iBlockSize, jBlockSize
       do n_ = 1, Procs(p_)%nBlocks
         b => BlocksCollection(n_)
-        write(p_, 20) n_, b%proc, b%size, &
+        write(configUnit, 20) n_, b%proc, b%size, &
                      b%lowI, b%lowJ, &
                      b%localIMIN, b%localIMAX, b%localJMIN, b%localJMAX, &
                      b%northFace%BC, b%northFace%neighborBlock, b%northFace%neighborProc, &
@@ -41,7 +42,7 @@ contains
                      b%SWCorner%BC, b%SWCorner%neighborBlock, b%SWCorner%neighborProc, &
                      b%SECorner%BC, b%SECorner%neighborBlock, b%SECorner%neighborProc
       end do
-      close(p_)
+      close(configUnit)
     end do
 
   end subroutine
@@ -158,7 +159,6 @@ contains
       write(gridUnit,10) Procs(p_)%nBlocks
       write(gridUnit,20) (iBlockSize, jBlockSize, n_=1, Procs(p_)%nBlocks)
 
-      write(*,*)
       Blocks => Procs(p_)%Blocks
       do n_ = globn, globn + Procs(p_)%nBlocks - 1
 !        write(*,*), Blocks(n_)%id
@@ -180,8 +180,6 @@ contains
                            ! Should be Blocks(n_)%Points(i,j)%T rather than real(p_), but this
                            ! makes it easy to see which processors have which blocks.
       end do
-
-!      globn = globn + Procs(p_)%nBlocks
 
       ! Close files
       close(gridUnit)
