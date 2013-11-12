@@ -310,20 +310,26 @@ contains
 
     ! Pick our method depending on our settings.
     if (M == 5  .and. N == 4  .and. nProcs == 6) then
+      ! Hard coded.
       method = 1
-    else if (M == 5  .and. N == 4  .and. nProcs == 4) then
+    else if (mod(nProcs, N) == 0 ) then
+      ! General method.
       method = 2
-    else if (M == 10 .and. N == 10 .and. nProcs == 6) then
-      method = 3
-      fudge_factor = 1.04d0
-    else if (M == 10 .and. N == 10 .and. nProcs == 4) then
-      method = 3
-      fudge_factor = 1.02d0
+    else if (M == 10 .and. N == 10) then
+      ! General method with precomputed fudge factor.
+      if (nProcs == 6) then
+        method = 3
+        fudge_factor = 1.04d0
+      else if (nProcs == 4) then
+        method = 3
+        fudge_factor = 1.02d0
+      end if
     else
-    ! If that didn't work we need to stop.
-      write(*,*), "Error, unknown configuration."
-      STOP
+      ! Otherwise we'll do our best.
+      method = 3
+      fudge_factor = 1.05d0
     end if
+    write(*,*), "method ", method
 
     if (method == 1) then
       ! Hard coding is hard work.
