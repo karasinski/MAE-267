@@ -7,11 +7,8 @@ program heat
 
   ! Block array for solver.
   type (BlockType), allocatable :: Blocks(:)
-  integer :: step = 0
 
   ! Set up our grid size and allocate our arrays for our grid points and grid cells.
-  call SetGridSize(101)
-  call SetNumberOfBlocks(5,4)
   allocate(BlocksCollection(nBlocks))
 
   ! First we create our blocks and pack them with nodes.
@@ -32,11 +29,11 @@ program heat
 
   ! Time our iterations until convergence.
   call start_clock()
-  call solve(Blocks, step)
+  call solve(Blocks)
   call end_clock()
 
   ! Write some results to file/screen.
-  call output(Blocks, step)
+  call output(Blocks)
 
   ! Write final temperature distribution.
   call plot3D(Blocks, "f")

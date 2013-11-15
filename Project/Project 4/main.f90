@@ -10,11 +10,8 @@ program heat
 
   ! Block array for solver.
   type (BlockType), allocatable :: Blocks(:)
-  integer :: step = 0
 
   ! Set up our grid size, set number of blocks and processors.
-  call SetGridSize(101)
-  call SetNumberOfBlocks(5,4)
   call SetNumberOfProcs(4)
 
   ! Allocate an initial array to hold all blocks and an additional
@@ -43,11 +40,11 @@ program heat
 !
 !  ! Time our iterations until convergence.
 !  call start_clock()
-!  call solve(Blocks, step)
+!  call solve(Blocks)
 !  call end_clock()
 !
 !  ! Write some results to file/screen.
-!  call output(Blocks, step)
+!  call output(Blocks)
 !
 !  ! Write final temperature distribution.
 !  call plot3D(Blocks, "f")

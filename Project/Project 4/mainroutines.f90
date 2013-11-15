@@ -49,12 +49,12 @@ contains
   end subroutine
 
   ! This is the main solver.
-  subroutine solve(Blocks, step)
+  subroutine solve(Blocks)
     type (BlockType), target :: Blocks(:)
     integer, parameter :: max_steps = 10000
     real(kind=8) :: temp_residual = 1.d0, residual = 1.d0 ! Arbitrary initial residuals.
     real(kind=8) :: residuals(max_steps) = 0.d0
-    integer :: n_, step
+    integer :: n_
 
     write(*,*), "Start solver"
 

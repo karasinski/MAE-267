@@ -41,13 +41,15 @@ contains
     type (BlockType), target :: Blocks(:)
     type (BlockType), pointer :: b
     integer :: n_, nFile
+    integer :: readnBlocks, readiBlockSize, readjBlockSize
+
 
     open(unit = 1, file = 'configuration_file.dat', status='old')
 
     10 format(3I5)
     20 format(33I5)
 
-    read(1, 10) nBlocks, iBlockSize, jBlockSize
+    read(1, 10) readnBlocks, readiBlockSize, readjBlockSize
     do n_ = 1, nBlocks
       b => Blocks(n_)
       read(1, 20) nFile, b%proc, &
@@ -69,6 +71,7 @@ contains
   subroutine read_grid_file(Blocks)
     type (BlockType) :: Blocks(:)
     integer :: n_, i, j
+    integer :: readnBlocks, readiBlockSize, readjBlockSize
 
     ! Format statements
     10     format(I10)
@@ -79,8 +82,8 @@ contains
     open(unit=gridUnit,file='i_grid.dat', status='old')
 
     ! Read grid file
-    read(gridUnit,10) nBlocks
-    read(gridUnit,20) (iBlockSize, jBlockSize, i=1, nBlocks)
+    read(gridUnit,10) readnBlocks
+    read(gridUnit,20) (readiBlockSize, readjBlockSize, i=1, nBlocks)
     do n_ = 1, nBlocks
       read(gridUnit,30) ((Blocks(n_)%Points(i,j)%x,i=1,iBlockSize),j=1,jBlockSize), &
                         ((Blocks(n_)%Points(i,j)%y,i=1,iBlockSize),j=1,jBlockSize)
@@ -94,6 +97,7 @@ contains
   subroutine read_temp_file(Blocks)
     type (BlockType) :: Blocks(:)
     integer :: n_, i, j
+    integer :: readnBlocks, readiBlockSize, readjBlockSize
 
     ! Format statements
     10     format(I10)
@@ -104,8 +108,8 @@ contains
     open(unit=tempUnit,file='i_temp.dat', status='old')
 
     ! Read temperature file
-    read(tempUnit,10) nBlocks
-    read(tempUnit,20) (iBlockSize, jBlockSize, n_=1, nBlocks)
+    read(tempUnit,10) readnBlocks
+    read(tempUnit,20) (readiBlockSize, readjBlockSize, n_=1, nBlocks)
 
     do n_ = 1, nBlocks
       read(tempUnit,30) tRef,dum,dum,dum
@@ -164,9 +168,8 @@ contains
   end subroutine plot3D
 
   ! Some output so we know something happened.
-  subroutine output(Blocks, step)
+  subroutine output(Blocks)
     type (BlockType) :: Blocks(:)
-    integer :: step
     integer :: n_, max_n = 1
     integer :: i, j, max_i, max_j
     real(kind=8) :: temp_residual, residual = 0.d0

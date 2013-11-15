@@ -2,29 +2,23 @@
 ! the size of the grid, and and a routine to set number of blocks.
 module constants
   implicit none
+
+  integer, parameter :: IMAX = 101
+  integer, parameter :: JMAX = 101
+  integer, parameter :: M = 10
+  integer, parameter :: N = 10
+  integer, parameter :: iBlockSize = 1 + (IMAX - 1) / N
+  integer, parameter :: jBlockSize = 1 + (JMAX - 1) / M
+  integer, parameter :: nBlocks = M * N
+
   real(kind=8), parameter :: CFL = 1.09d0
   real(kind=8), parameter :: k = 18.8d0, rho = 8000.d0, c_p = 500.d0
   real(kind=8), parameter :: pi = 3.141592654d0, rot = 30.d0*pi/180.d0
   real(kind=8), parameter :: alpha = k / (c_p * rho)
-  integer :: IMAX, JMAX, N, M ! Number of blocks.
-  integer :: iBlockSize, jBlockSize, nBlocks, nProcs
   integer :: nB = 1, eB = 2, sB = 3, wB = 4
+  integer :: nProcs, step = 0
+
 contains
-  subroutine SetGridSize(length)
-    integer :: length
-    IMAX = length
-    JMAX = length
-  end subroutine SetGridSize
-
-  subroutine SetNumberOfBlocks(m_, n_)
-    integer :: n_, m_
-    M = m_
-    N = n_
-    iBlockSize = 1 + (IMAX - 1) / N
-    jBlockSize = 1 + (JMAX - 1) / M
-    nBlocks = M * N
-  end subroutine SetNumberOfBlocks
-
   subroutine SetNumberOfProcs(length)
     integer :: length
     nProcs = length
@@ -72,7 +66,7 @@ module BlockModule
   end type
 
   type BlockType
-    type (GridPoint) :: Points(0:102,0:102)     ! 0 to IMAX + 1, 0 to JMAX + 1
+    type (GridPoint) :: Points(0:iBlockSize + 1,0:jBlockSize + 1)     ! 0 to IMAX + 1, 0 to JMAX + 1
     integer :: id, proc, size, comm
     integer :: lowJ, lowI, lowITemp, lowJTemp
     integer :: localJMIN, localIMIN, localJMAX, localIMAX

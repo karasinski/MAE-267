@@ -49,10 +49,10 @@ contains
   end subroutine
 
   ! This is the main solver.
-  subroutine solve(Blocks, step)
+  subroutine solve(Blocks)
     type (BlockType), target :: Blocks(:)
     real(kind=8) :: temp_residual = 1.d0, residual = 1.d0 ! Arbitrary initial residuals.
-    integer :: n_, step, max_steps = 100000
+    integer :: n_, max_steps = 100000
 
     write(*,*), "Start solver"
     open(unit = 666, file = 'convergence.dat', form='formatted')
