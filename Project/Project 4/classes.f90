@@ -76,7 +76,7 @@ module BlockModule
 
   type Proc
     integer :: procID, weight, nBlocks
-    type (BlockType) :: Blocks(30)      ! N*M/procs
+    type (BlockType) :: Blocks((N*M)/4)      ! N*M/procs
   end type Proc
 
 contains
