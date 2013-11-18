@@ -27,7 +27,7 @@ contains
       read( name, * ) str
 
       open(unit = configUnit, file = 'configuration_file.dat.p'//str, form='formatted')
-      write(configUnit, 10) M*N, iBlockSize, jBlockSize
+      write(configUnit, 10) Procs(p_)%nBlocks, iBlockSize, jBlockSize
       do n_ = 1, Procs(p_)%nBlocks
         b => BlocksCollection(n_)
         write(configUnit, 20) n_, b%proc, b%size, &

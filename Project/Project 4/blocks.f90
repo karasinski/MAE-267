@@ -39,8 +39,7 @@ contains
         ! Global id.
         b%id = n_
 
-        ! We are only using one processor, so we must
-        ! be on that processor.
+        ! Set our proc to 1 for now.
         b%proc = proc
 
         ! High/low i/j corresponds to the
@@ -52,7 +51,7 @@ contains
 
         ! Assume all faces are internal and find out who
         ! their neighbor is. Set the neighbor block and set
-        ! their processor to 1 (only one processor).
+        ! their processor to 1 for now.
         b%northFace%neighborBlock = n_ + N
         b%northFace%neighborProc = proc
         b%southFace%neighborBlock = n_ - N
@@ -63,7 +62,7 @@ contains
         b%westFace%neighborProc = proc
 
         ! Assume all corners are internal (BC=-1) and set their neighbor.
-        ! Set their processor to 1 (only one processor).
+        ! Set their processor to 1 for now.
         b%NECorner%BC = -1
         b%NECorner%neighborBlock = n_ + N + 1
         b%NECorner%neighborProc = proc
@@ -293,36 +292,72 @@ contains
     end do
   end subroutine
 
-  subroutine add_block_to_proc(MyProc, Block)
-    type (Proc) :: MyProc
-    type (BlockType) :: Block
+  subroutine update_neighbor_procs(Procs)
+    type (Proc), target :: Procs(:)
+    type (Proc), pointer :: MyProc, ThisProc
+    type (BlockType), pointer :: MyBlock, ThisBlock
+    integer :: b, p, b2, p2
 
-    MyProc%nBlocks = MyProc%nBlocks + 1
-    MyProc%weight = MyProc%weight + Block%size
-    MyProc%Blocks(MyProc%nBlocks) = Block
-    MyProc%Blocks(MyProc%nBlocks)%proc = MyProc%procID
+    do p = 1, nProcs
+      MyProc => Procs(p)
 
-    Block%size = 0
+      ! Set proc ids.
+      MyProc%procID = p
+
+      ! All blocks on this proc have this proc id.
+      MyProc%Blocks%proc = MyProc%procID
+    end do
+
+    ! Now we find which procs all our blocks neighbors live on.
+    do p = 1, nProcs
+      MyProc => Procs(p)
+
+      do b = 1, Procs(p)%nBlocks
+        MyBlock => MyProc%Blocks(b)
+
+        do p2 = 1, nProcs
+            ThisProc => Procs(p2)
+          do b2 = 1, Procs(p2)%nBlocks
+            ThisBlock => MyProc%Blocks(b2)
+
+            if (MyBlock%northFace%neighborBlock == ThisBlock%id) MyBlock%northFace%neighborProc = ThisBlock%proc
+            if (MyBlock%southFace%neighborBlock == ThisBlock%id) MyBlock%southFace%neighborProc = ThisBlock%proc
+            if (MyBlock%eastFace%neighborBlock == ThisBlock%id)  MyBlock%eastFace%neighborProc  = ThisBlock%proc
+            if (MyBlock%westFace%neighborBlock == ThisBlock%id)  MyBlock%westFace%neighborProc  = ThisBlock%proc
+
+            if (MyBlock%NECorner%neighborBlock == ThisBlock%id)  MyBlock%NECorner%neighborProc  = ThisBlock%proc
+            if (MyBlock%NWCorner%neighborBlock == ThisBlock%id)  MyBlock%NWCorner%neighborProc  = ThisBlock%proc
+            if (MyBlock%SECorner%neighborBlock == ThisBlock%id)  MyBlock%SECorner%neighborProc  = ThisBlock%proc
+            if (MyBlock%SWCorner%neighborBlock == ThisBlock%id)  MyBlock%SWCorner%neighborProc  = ThisBlock%proc
+
+          end do
+        end do
+      end do
+    end do
+
   end subroutine
 
   subroutine check_communication_cost(Procs)
     type (Proc), target :: Procs(:)
     type (Proc), pointer :: MyProc
     type (BlockType), pointer :: Block
-    integer :: comm, ID, b, p, i
+    integer :: comm, b, p, i
 
     ! Check if this block has neighbors on the processor.
     ! If so we go ahead and remove the communication cost.
     do p = 1, nProcs
       MyProc => Procs(p)
-      ID = MyProc%procID
       comm = 0
 
+      ! We loop over each block.
       do b = 1, MyProc%nBlocks
         Block => MyProc%Blocks(b)
 
+        ! And then loop over each block again, ignoring when we are on the same block as
+        ! the first loop.
         do i = 1, MyProc%nBlocks
           if (MyProc%Blocks(i)%id /= Block%id) then
+            ! Check to see if this block is a neighbor to another block on this processor.
             if (MyProc%Blocks(i)%id == Block%northFace%neighborBlock) comm = comm + ( Block%localJMAX - Block%localJMIN )
             if (MyProc%Blocks(i)%id == Block%southFace%neighborBlock) comm = comm + ( Block%localJMAX - Block%localJMIN )
             if (MyProc%Blocks(i)%id == Block%eastFace%neighborBlock)  comm = comm + ( Block%localIMAX - Block%localIMIN )
@@ -336,12 +371,12 @@ contains
         end do
       end do
 
-      if (comm > 0) write(*,*), "Winner", comm
+      ! Remove the communication cost.
       MyProc%weight = MyProc%weight - comm
     end do
-
   end subroutine
 
+  ! Helper subroutine to allow us to pass a list of ids.
   subroutine add_blocks_to_proc(MyProc, BlocksCollection, BlockIDs)
     type (Proc) :: MyProc
     type (BlockType), target :: BlocksCollection(:)
@@ -353,11 +388,25 @@ contains
 
   end subroutine
 
+  ! Various actions to add a block to a processor.
+  subroutine add_block_to_proc(MyProc, Block)
+    type (Proc) :: MyProc
+    type (BlockType) :: Block
+
+    MyProc%nBlocks = MyProc%nBlocks + 1
+    MyProc%weight = MyProc%weight + Block%size
+    MyProc%Blocks(MyProc%nBlocks) = Block
+    MyProc%Blocks(MyProc%nBlocks)%proc = MyProc%procID
+
+    ! Setting the old block size to zero to note it has been assigned.
+    Block%size = 0
+  end subroutine
+
   subroutine distribute_blocks(BlocksCollection, Procs)
     type (BlockType), target :: BlocksCollection(:)
     type (Proc), allocatable :: Procs(:)
     type (BlockType), pointer :: b
-    real(kind=8) :: optimal, fudge_factor = 1.05d0
+    real(kind=8) :: optimal, fudge_factor = 1.1d0
     integer :: method, p_, n_, sum = 0
     integer :: largest_block = 0, largest_block_number = 0
 
@@ -376,27 +425,27 @@ contains
     optimal = dfloat(sum)/dfloat(nProcs)
 
     ! Pick our method depending on our settings.
+    ! Hard coded for all the decompositions we're interested in.
     if (M == 5  .and. N == 4) then
       if (nProcs == 6) then
         method = 546
       else if (nProcs == 4) then
-        ! General method.
         method = 544
       end if
     else if (M == 10 .and. N == 10) then
-      ! General method with precomputed fudge factor.
       if (nProcs == 6) then
         method = 10106
       else if (nProcs == 4) then
         method = 10104
       end if
     else
-      ! Otherwise we'll do our best.
+      ! Otherwise we'll do our best and use an automated method.
       method = 666
     end if
     write(*,*), "method ", method
 
     if (method == 546) then
+      ! 5x4 blocks on 6 processors.
       ! Hard coding is hard work.
       call add_blocks_to_proc(Procs(1), BlocksCollection, [1, 2, 3, 4])
       call add_blocks_to_proc(Procs(2), BlocksCollection, [5, 6, 7])
@@ -406,6 +455,7 @@ contains
       call add_blocks_to_proc(Procs(6), BlocksCollection, [17, 18, 19, 20])
 
     else if (method == 544) then
+      ! 5x4 blocks on 4 processors. Break the domain into columns.
       ! Hard coding is still hard work.
       call add_blocks_to_proc(Procs(1), BlocksCollection, [1, 5, 9, 13, 17])
       call add_blocks_to_proc(Procs(2), BlocksCollection, [2, 6, 10, 14, 18])
@@ -413,6 +463,7 @@ contains
       call add_blocks_to_proc(Procs(4), BlocksCollection, [4, 8, 12, 16, 20])
 
     else if (method == 10106) then
+      ! 10x10 blocks on 6 processors.
       ! Hard coding is okay.
       do n_ = 1, 10
         call add_block_to_proc(Procs(1), BlocksCollection(n_))
@@ -422,22 +473,22 @@ contains
         call add_block_to_proc(Procs(6), BlocksCollection(n_ + 90))
       end do
 
-      do n_ = 2, 4
+      do n_ = 0, 2
         call add_blocks_to_proc(Procs(2), BlocksCollection, &
-          [1 + n_*10, 2 + n_*10, 3 + n_*10, 4 + n_*10, 5 + n_*10])
+          [21 + n_*10, 22 + n_*10, 23 + n_*10, 24 + n_*10, 25 + n_*10])
 
         call add_blocks_to_proc(Procs(3), BlocksCollection, &
-          [6 + n_*10, 7 + n_*10, 8 + n_*10, 9 + n_*10, 10 + n_*10])
-      end do
+          [26 + n_*10, 27 + n_*10, 28 + n_*10, 29 + n_*10, 30 + n_*10])
 
-      do n_ = 5, 7
         call add_blocks_to_proc(Procs(4), BlocksCollection, &
-          [1 + n_*10, 2 + n_*10, 3 + n_*10, 4 + n_*10, 5 + n_*10])
+          [51 + n_*10, 52 + n_*10, 53 + n_*10, 54 + n_*10, 55 + n_*10])
 
         call add_blocks_to_proc(Procs(5), BlocksCollection, &
-          [6 + n_*10, 7 + n_*10, 8 + n_*10, 9 + n_*10, 10 + n_*10])
+          [56 + n_*10, 57 + n_*10, 58 + n_*10, 59 + n_*10, 60 + n_*10])
       end do
+
     else if (method == 10104) then
+      ! 10x10 blocks on 4 processors. Break the domain into quadrants.
       ! Hard coding isn't that bad.
       do n_ = 0, 4
         call add_blocks_to_proc(Procs(1), BlocksCollection, &
@@ -507,6 +558,7 @@ contains
 
     ! Update each proc's communication cost.
     call check_communication_cost(Procs)
+    call update_neighbor_procs(Procs)
 
     ! If we screwed this up we need to terminated execution.
     do n_ = 1, nBlocks
