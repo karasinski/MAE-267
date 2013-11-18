@@ -9,10 +9,7 @@ program heat
   type (Proc), allocatable :: Procs(:)
 
   ! Block array for solver.
-  type (BlockType), allocatable :: Blocks(:)
-
-  ! Set up our grid size, set number of blocks and processors.
-  call SetNumberOfProcs(6)
+!  type (BlockType), allocatable :: Blocks(:)
 
   ! Allocate an initial array to hold all blocks and an additional
   ! array to store block information to go onto each proc.

@@ -7,6 +7,7 @@ module constants
   integer, parameter :: JMAX = 101
   integer, parameter :: M = 10
   integer, parameter :: N = 10
+  integer, parameter :: nProcs = 6
   integer, parameter :: iBlockSize = 1 + (IMAX - 1) / N
   integer, parameter :: jBlockSize = 1 + (JMAX - 1) / M
   integer, parameter :: nBlocks = M * N
@@ -16,13 +17,7 @@ module constants
   real(kind=8), parameter :: pi = 3.141592654d0, rot = 30.d0*pi/180.d0
   real(kind=8), parameter :: alpha = k / (c_p * rho)
   integer :: nB = 1, eB = 2, sB = 3, wB = 4
-  integer :: nProcs, step = 0
-
-contains
-  subroutine SetNumberOfProcs(length)
-    integer :: length
-    nProcs = length
-  end subroutine SetNumberOfProcs
+  integer :: step = 0
 end module
 
 ! Prof's clock module.
@@ -66,7 +61,7 @@ module BlockModule
   end type
 
   type BlockType
-    type (GridPoint) :: Points(0:iBlockSize + 1,0:jBlockSize + 1)     ! 0 to IMAX + 1, 0 to JMAX + 1
+    type (GridPoint) :: Points(0:iBlockSize + 1,0:jBlockSize + 1)
     integer :: id, proc, size, comm
     integer :: lowJ, lowI, lowITemp, lowJTemp
     integer :: localJMIN, localIMIN, localJMAX, localIMAX
@@ -76,7 +71,8 @@ module BlockModule
 
   type Proc
     integer :: procID, weight, nBlocks
-    type (BlockType) :: Blocks((N*M)/4)      ! N*M/procs
+    ! Number of blocks on each proc should be roughly nBlocks/nProcs.
+    type (BlockType) :: Blocks(nBlocks/nProcs + 5)
   end type Proc
 
 contains

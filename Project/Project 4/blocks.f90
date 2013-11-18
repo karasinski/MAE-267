@@ -309,17 +309,24 @@ contains
     end do
 
     ! Now we find which procs all our blocks neighbors live on.
+    ! We loop through all procs...
     do p = 1, nProcs
       MyProc => Procs(p)
 
+      ! ...we loop through this blocks procs...
       do b = 1, Procs(p)%nBlocks
         MyBlock => MyProc%Blocks(b)
 
+        ! ...we look at each proc...
         do p2 = 1, nProcs
             ThisProc => Procs(p2)
+
+          ! ...and compare this blocks id to our faces id.
+          ! When we find a match we set our faces proc to the proc this block is on.
           do b2 = 1, Procs(p2)%nBlocks
             ThisBlock => MyProc%Blocks(b2)
 
+            ! Check each face and corner for a match.
             if (MyBlock%northFace%neighborBlock == ThisBlock%id) MyBlock%northFace%neighborProc = ThisBlock%proc
             if (MyBlock%southFace%neighborBlock == ThisBlock%id) MyBlock%southFace%neighborProc = ThisBlock%proc
             if (MyBlock%eastFace%neighborBlock == ThisBlock%id)  MyBlock%eastFace%neighborProc  = ThisBlock%proc
@@ -334,7 +341,6 @@ contains
         end do
       end do
     end do
-
   end subroutine
 
   subroutine check_communication_cost(Procs)
@@ -385,7 +391,6 @@ contains
     do i = 1, size(BlockIDs)
         call add_block_to_proc(MyProc, BlocksCollection(BlockIDs(i)))
     end do
-
   end subroutine
 
   ! Various actions to add a block to a processor.
