@@ -459,10 +459,10 @@ contains
     else if (method == 544) then
       ! 5x4 blocks on 4 processors. Break the domain into columns.
       ! Hard coding is still hard work.
-      call add_blocks_to_proc(Procs(1), BlocksCollection, [1, 5, 9, 13, 17])
-      call add_blocks_to_proc(Procs(2), BlocksCollection, [2, 6, 10, 14, 18])
-      call add_blocks_to_proc(Procs(3), BlocksCollection, [3, 7, 11, 15, 19])
-      call add_blocks_to_proc(Procs(4), BlocksCollection, [4, 8, 12, 16, 20])
+      call add_blocks_to_proc(Procs(1), BlocksCollection, [1, 2, 5, 6, 9])
+      call add_blocks_to_proc(Procs(2), BlocksCollection, [3, 4, 7, 8, 12])
+      call add_blocks_to_proc(Procs(3), BlocksCollection, [10, 13, 14, 17, 18])
+      call add_blocks_to_proc(Procs(4), BlocksCollection, [11, 15, 16, 19, 20])
 
     else if (method == 10106) then
       ! 10x10 blocks on 6 processors.
@@ -473,7 +473,21 @@ contains
 
         call add_blocks_to_proc(Procs(2), BlocksCollection, &
           [6 + n_*10, 7 + n_*10, 8 + n_*10, 9 + n_*10, 10 + n_*10])
+      end do
 
+      call add_blocks_to_proc(Procs(1), BlocksCollection, &
+        [34, 35])
+
+      call add_blocks_to_proc(Procs(2), BlocksCollection, &
+        [36, 37])
+
+      call add_blocks_to_proc(Procs(3), BlocksCollection, &
+        [31, 32, 33])
+
+      call add_blocks_to_proc(Procs(4), BlocksCollection, &
+        [38, 39, 40])
+
+      do n_ = 1, 2
         call add_blocks_to_proc(Procs(3), BlocksCollection, &
           [31 + n_*10, 32 + n_*10, 33 + n_*10, 34 + n_*10, 35 + n_*10])
 
@@ -481,7 +495,19 @@ contains
           [36 + n_*10, 37 + n_*10, 38 + n_*10, 39 + n_*10, 40 + n_*10])
       end do
 
-      do n_ = 0, 3
+      call add_blocks_to_proc(Procs(3), BlocksCollection, &
+        [61, 62, 63])
+
+      call add_blocks_to_proc(Procs(4), BlocksCollection, &
+        [68, 69, 70])
+
+      call add_blocks_to_proc(Procs(5), BlocksCollection, &
+        [64, 65])
+
+      call add_blocks_to_proc(Procs(6), BlocksCollection, &
+        [66, 67])
+
+      do n_ = 1, 3
         call add_blocks_to_proc(Procs(5), BlocksCollection, &
           [61 + n_*10, 62 + n_*10, 63 + n_*10, 64 + n_*10, 65 + n_*10])
 
@@ -579,9 +605,10 @@ contains
     write(*,*)
 
     ! Write out the weight on each proc.
-    write(*, *), '          proc #     ', "nBlocks   ", "Weight       ", "Comm        ", "Err"
+    write(*, *), '     proc #     ', "nBlocks   ", "   Weight        ", "Comm        ", "  Err"
     do n_ = 1, nProcs
-      write(*, *), n_, Procs(n_)%nBlocks, Procs(n_)%weight, Procs(n_)%comm, Procs(n_)%weight + Procs(n_)%comm - optimal
+      write(*, *), n_, Procs(n_)%nBlocks, Procs(n_)%weight, Procs(n_)%comm, &
+                  100*real(Procs(n_)%weight + Procs(n_)%comm - optimal)/real(optimal)
     end do
 
   end subroutine
