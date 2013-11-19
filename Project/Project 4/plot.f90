@@ -23,7 +23,7 @@ contains
     do p_ = 1, nProcs
       BlocksCollection => Procs(p_)%Blocks
 
-      write( name, '(i2)' )  p_
+      write( name, '(i2)' )  Procs(p_)%procID
       read( name, * ) str
 
       open(unit = configUnit, file = 'configuration_file.dat.p'//str, form='formatted')
@@ -151,7 +151,7 @@ contains
     globn = 1
     do p_ = 1, nProcs
       ! Convert integer to string for filename concat.
-      write(name,'(i2)')  p_
+      write(name,'(i2)')  Procs(p_)%procID
       read (name,*) str
 
       ! Open files
@@ -175,12 +175,11 @@ contains
 
       do n_ = globn, globn + Procs(p_)%nBlocks - 1
         write(tempUnit,30) tRef,dum,dum,dum
-        write(tempUnit,30) ((real(p_),i=1,iBlockSize),j=1,jBlockSize), &
-                           ((real(p_),i=1,iBlockSize),j=1,jBlockSize), &
-                           ((real(p_),i=1,iBlockSize),j=1,jBlockSize), &
-                           ((real(p_),i=1,iBlockSize),j=1,jBlockSize)
-
-                           ! Should be Blocks(n_)%Points(i,j)%T rather than real(p_), but this
+        write(tempUnit,30) ((real(Blocks(n_)%proc),i=1,iBlockSize),j=1,jBlockSize), &
+                           ((real(Blocks(n_)%proc),i=1,iBlockSize),j=1,jBlockSize), &
+                           ((real(Blocks(n_)%proc),i=1,iBlockSize),j=1,jBlockSize), &
+                           ((real(Blocks(n_)%proc),i=1,iBlockSize),j=1,jBlockSize)
+                           ! Should be Blocks(n_)%Points(i,j)%T rather than real(Procs(n_)%procID), but this
                            ! makes it easy to see which processors have which blocks.
       end do
 

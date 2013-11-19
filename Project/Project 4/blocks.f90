@@ -39,9 +39,6 @@ contains
         ! Global id.
         b%id = n_
 
-        ! Set our proc to 1 for now.
-        b%proc = proc
-
         ! High/low i/j corresponds to the
         ! global block number start and stop.
         highI = 1 + iN * (iBlockSize - 1)
@@ -53,28 +50,20 @@ contains
         ! their neighbor is. Set the neighbor block and set
         ! their processor to 1 for now.
         b%northFace%neighborBlock = n_ + N
-        b%northFace%neighborProc = proc
         b%southFace%neighborBlock = n_ - N
-        b%southFace%neighborProc = proc
         b%eastFace%neighborBlock = n_ + 1
-        b%eastFace%neighborProc = proc
         b%westFace%neighborBlock = n_ - 1
-        b%westFace%neighborProc = proc
 
         ! Assume all corners are internal (BC=-1) and set their neighbor.
         ! Set their processor to 1 for now.
         b%NECorner%BC = -1
         b%NECorner%neighborBlock = n_ + N + 1
-        b%NECorner%neighborProc = proc
         b%SECorner%BC = -1
         b%SECorner%neighborBlock = n_ - N + 1
-        b%SECorner%neighborProc = proc
         b%SWCorner%BC = -1
         b%SWCorner%neighborBlock = n_ - N - 1
-        b%SWCorner%neighborProc = proc
         b%NWCorner%BC = -1
         b%NWCorner%neighborBlock = n_ + N - 1
-        b%NWCorner%neighborProc = proc
 
         ! Determine whether block is on boundary or
         ! if they is internal for each face.
@@ -109,70 +98,70 @@ contains
         ! Check if faces are on the boundary and
         ! if so, set them to point to nothing.
         if (b%northFace%BC /= -1) then
-          b%northFace%neighborBlock = 0
-          b%northFace%neighborProc = 0
+          b%northFace%neighborBlock = -1
+          b%northFace%neighborProc = -1
         end if
 
         if (b%southFace%BC /= -1) then
-          b%southFace%neighborBlock = 0
-          b%southFace%neighborProc = 0
+          b%southFace%neighborBlock = -1
+          b%southFace%neighborProc = -1
         end if
 
         if (b%eastFace%BC /= -1) then
-          b%eastFace%neighborBlock = 0
-          b%eastFace%neighborProc = 0
+          b%eastFace%neighborBlock = -1
+          b%eastFace%neighborProc = -1
         end if
 
         if (b%westFace%BC /= -1) then
-          b%westFace%neighborBlock = 0
-          b%westFace%neighborProc = 0
+          b%westFace%neighborBlock = -1
+          b%westFace%neighborProc = -1
         end if
 
         ! If corners are on boundary then they don't
         ! have associated blocks. Set their processor
-        ! to 0 so we know that there's nowhere to look.
+        ! to -1 so we know that there's nowhere to look.
         ! North East Corner
         if (b%northFace%BC == nB) then
           b%NECorner%BC = nBound
-          b%NECorner%neighborBlock = 0
-          b%NECorner%neighborProc = 0
+          b%NECorner%neighborBlock = -1
+          b%NECorner%neighborProc = -1
         else if (b%eastFace%BC == eB) then
           b%NECorner%BC = eBound
-          b%NECorner%neighborBlock = 0
-          b%NECorner%neighborProc = 0
+          b%NECorner%neighborBlock = -1
+          b%NECorner%neighborProc = -1
         end if
 
         ! South East Corner
         if (b%southFace%BC == sB) then
           b%SECorner%BC = sBound
-          b%SECorner%neighborBlock = 0
-          b%SECorner%neighborProc = 0
+          b%SECorner%neighborBlock = -1
+          b%SECorner%neighborProc = -1
         else if (b%eastFace%BC == eB) then
           b%SECorner%BC = eBound
-          b%SECorner%neighborBlock = 0
-          b%SECorner%neighborProc = 0
+          b%SECorner%neighborBlock = -1
+          b%SECorner%neighborProc = -1
         end if
 
         ! South West Corner
         if (b%southFace%BC == sB) then
           b%SWCorner%BC = sBound
-          b%SWCorner%neighborBlock = 0
-          b%SWCorner%neighborProc = 0
+          b%SWCorner%neighborBlock = -1
+          b%SWCorner%neighborProc = -1
         else if (b%westFace%BC == wB) then
           b%SWCorner%BC = wBound
-          b%SWCorner%neighborBlock = 0
-          b%SWCorner%neighborProc = 0
+          b%SWCorner%neighborBlock = -1
+          b%SWCorner%neighborProc = -1
         end if
 
         ! North West Corner
         if (b%northFace%BC == nB) then
           b%NWCorner%BC = nBound
-          b%NWCorner%neighborBlock = 0
-          b%NWCorner%neighborProc = 0
+          b%NWCorner%neighborBlock = -1
+          b%NWCorner%neighborProc = -1
         else if (b%westFace%BC == wB) then
           b%NWCorner%BC = wBound
-          b%NWCorner%neighborBlock = 0
-          b%NWCorner%neighborProc = 0
+          b%NWCorner%neighborBlock = -1
+          b%NWCorner%neighborProc = -1
         end if
 
         ! Calculate 'true' bounds of blocks.
@@ -205,20 +194,8 @@ contains
         end if
 
         ! Weight of each block, used for load balancing.
-        ! We add the 'area' of the block to the length of the sides of the block
-        ! (communication cost), which we weigh equal to the solver weight.
-        b%comm = 0
-        if (b%northFace%BC == -1) b%comm = b%comm + b%localJMAX - b%localJMIN
-        if (b%southFace%BC == -1) b%comm = b%comm + b%localJMAX - b%localJMIN
-        if (b%eastFace%BC == -1) b%comm = b%comm + b%localIMAX - b%localIMIN
-        if (b%westFace%BC == -1) b%comm = b%comm + b%localIMAX - b%localIMIN
-
-        if (b%NECorner%BC == -1) b%comm = b%comm + 1
-        if (b%NWCorner%BC == -1) b%comm = b%comm + 1
-        if (b%SECorner%BC == -1) b%comm = b%comm + 1
-        if (b%SWCorner%BC == -1) b%comm = b%comm + 1
-
-        b%size = (b%localIMAX - b%localIMIN) * (b%localJMAX - b%localJMIN) + b%comm
+        ! We calculate the 'area' of the block.
+        b%size = (b%localIMAX - b%localIMIN) * (b%localJMAX - b%localJMIN)
 
         n_ = n_ + 1
       end do
@@ -301,11 +278,22 @@ contains
     do p = 1, nProcs
       MyProc => Procs(p)
 
-      ! Set proc ids.
-      MyProc%procID = p
+      ! Set proc ids. (Start at 0.)
+      MyProc%procID = p-1
 
-      ! All blocks on this proc have this proc id.
+      ! All blocks on this proc are on this proc.
       MyProc%Blocks%proc = MyProc%procID
+
+      ! Default all neighbors to be on this proc as well.
+      MyProc%Blocks%northFace%neighborProc = MyProc%procID
+      MyProc%Blocks%southFace%neighborProc = MyProc%procID
+      MyProc%Blocks%eastFace%neighborProc = MyProc%procID
+      MyProc%Blocks%westFace%neighborProc = MyProc%procID
+
+      MyProc%Blocks%NECorner%neighborProc = MyProc%procID
+      MyProc%Blocks%NWCorner%neighborProc = MyProc%procID
+      MyProc%Blocks%SECorner%neighborProc = MyProc%procID
+      MyProc%Blocks%SWCorner%neighborProc = MyProc%procID
     end do
 
     ! Now we find which procs all our blocks neighbors live on.
@@ -313,31 +301,33 @@ contains
     do p = 1, nProcs
       MyProc => Procs(p)
 
-      ! ...we loop through this blocks procs...
+      ! ...we loop through each proc's blocks...
       do b = 1, Procs(p)%nBlocks
         MyBlock => MyProc%Blocks(b)
 
-        ! ...we look at each proc...
+        ! ...we check each proc...
         do p2 = 1, nProcs
-            ThisProc => Procs(p2)
+          ThisProc => Procs(p2)
 
-          ! ...and compare this blocks id to our faces id.
-          ! When we find a match we set our faces proc to the proc this block is on.
-          do b2 = 1, Procs(p2)%nBlocks
-            ThisBlock => MyProc%Blocks(b2)
+          if (MyProc%procID /= ThisProc%procID) then
+            ! ...and compare this blocks id to our faces id.
+            ! When we find a match we set our faces proc to the proc this block is on.
+            do b2 = 1, Procs(p2)%nBlocks
+              ThisBlock => ThisProc%Blocks(b2)
 
-            ! Check each face and corner for a match.
-            if (MyBlock%northFace%neighborBlock == ThisBlock%id) MyBlock%northFace%neighborProc = ThisBlock%proc
-            if (MyBlock%southFace%neighborBlock == ThisBlock%id) MyBlock%southFace%neighborProc = ThisBlock%proc
-            if (MyBlock%eastFace%neighborBlock == ThisBlock%id)  MyBlock%eastFace%neighborProc  = ThisBlock%proc
-            if (MyBlock%westFace%neighborBlock == ThisBlock%id)  MyBlock%westFace%neighborProc  = ThisBlock%proc
+              ! Check each face and corner for a match and assign.
+              if (MyBlock%northFace%neighborBlock == ThisBlock%id) MyBlock%northFace%neighborProc = ThisProc%procID
+              if (MyBlock%southFace%neighborBlock == ThisBlock%id) MyBlock%southFace%neighborProc = ThisProc%procID
+              if (MyBlock%eastFace%neighborBlock  == ThisBlock%id) MyBlock%eastFace%neighborProc  = ThisProc%procID
+              if (MyBlock%westFace%neighborBlock  == ThisBlock%id) MyBlock%westFace%neighborProc  = ThisProc%procID
 
-            if (MyBlock%NECorner%neighborBlock == ThisBlock%id)  MyBlock%NECorner%neighborProc  = ThisBlock%proc
-            if (MyBlock%NWCorner%neighborBlock == ThisBlock%id)  MyBlock%NWCorner%neighborProc  = ThisBlock%proc
-            if (MyBlock%SECorner%neighborBlock == ThisBlock%id)  MyBlock%SECorner%neighborProc  = ThisBlock%proc
-            if (MyBlock%SWCorner%neighborBlock == ThisBlock%id)  MyBlock%SWCorner%neighborProc  = ThisBlock%proc
+              if (MyBlock%NECorner%neighborBlock == ThisBlock%id)  MyBlock%NECorner%neighborProc  = ThisProc%procID
+              if (MyBlock%NWCorner%neighborBlock == ThisBlock%id)  MyBlock%NWCorner%neighborProc  = ThisProc%procID
+              if (MyBlock%SECorner%neighborBlock == ThisBlock%id)  MyBlock%SECorner%neighborProc  = ThisProc%procID
+              if (MyBlock%SWCorner%neighborBlock == ThisBlock%id)  MyBlock%SWCorner%neighborProc  = ThisProc%procID
+            end do
 
-          end do
+          end if
         end do
       end do
     end do
@@ -346,39 +336,46 @@ contains
   subroutine check_communication_cost(Procs)
     type (Proc), target :: Procs(:)
     type (Proc), pointer :: MyProc
-    type (BlockType), pointer :: Block
+    type (BlockType), pointer :: MyBlock
     integer :: comm, b, p, i
+    integer, pointer :: northProc, southProc, eastProc, westProc, NEProc, NWProc, SEProc, SWProc
 
     ! Check if this block has neighbors on the processor.
-    ! If so we go ahead and remove the communication cost.
+    ! If so we go ahead and add the communication cost.
+    ! For each proc...
     do p = 1, nProcs
       MyProc => Procs(p)
+      MyProc%comm = 0
       comm = 0
 
-      ! We loop over each block.
+      ! ...we loop over each block.
       do b = 1, MyProc%nBlocks
-        Block => MyProc%Blocks(b)
+        MyBlock => MyProc%Blocks(b)
 
-        ! And then loop over each block again, ignoring when we are on the same block as
-        ! the first loop.
-        do i = 1, MyProc%nBlocks
-          if (MyProc%Blocks(i)%id /= Block%id) then
-            ! Check to see if this block is a neighbor to another block on this processor.
-            if (MyProc%Blocks(i)%id == Block%northFace%neighborBlock) comm = comm + ( Block%localJMAX - Block%localJMIN )
-            if (MyProc%Blocks(i)%id == Block%southFace%neighborBlock) comm = comm + ( Block%localJMAX - Block%localJMIN )
-            if (MyProc%Blocks(i)%id == Block%eastFace%neighborBlock)  comm = comm + ( Block%localIMAX - Block%localIMIN )
-            if (MyProc%Blocks(i)%id == Block%westFace%neighborBlock)  comm = comm + ( Block%localIMAX - Block%localIMIN )
+        ! Check to see if this block is a neighbor to another block on this processor.
+        ! The communication cost is equal to the length of the sides of the block.
+        northProc => MyBlock%northFace%neighborProc
+        southProc => MyBlock%southFace%neighborProc
+        eastProc => MyBlock%eastFace%neighborProc
+        westProc => MyBlock%westFace%neighborProc
+        NEProc => MyBlock%NECorner%neighborProc
+        NWProc => MyBlock%NWCorner%neighborProc
+        SEProc => MyBlock%SECorner%neighborProc
+        SWProc => MyBlock%SWCorner%neighborProc
 
-            if (MyProc%Blocks(i)%id == Block%NECorner%neighborBlock)  comm = comm + 1
-            if (MyProc%Blocks(i)%id == Block%NWCorner%neighborBlock)  comm = comm + 1
-            if (MyProc%Blocks(i)%id == Block%SECorner%neighborBlock)  comm = comm + 1
-            if (MyProc%Blocks(i)%id == Block%SWCorner%neighborBlock)  comm = comm + 1
-          end if
-        end do
+        if (northProc /= MyProc%procID .and. northProc /= -1) comm = comm + ( MyBlock%localJMAX - MyBlock%localJMIN )
+        if (southProc /= MyProc%procID .and. southProc /= -1) comm = comm + ( MyBlock%localJMAX - MyBlock%localJMIN )
+        if (eastProc  /= MyProc%procID .and. eastProc /= -1)  comm = comm + ( MyBlock%localIMAX - MyBlock%localIMIN )
+        if (westProc  /= MyProc%procID .and. westProc /= -1)  comm = comm + ( MyBlock%localIMAX - MyBlock%localIMIN )
+
+        if (NEProc /= MyProc%procID .and. NEProc /= -1)       comm = comm + 1
+        if (NWProc /= MyProc%procID .and. NWProc /= -1)       comm = comm + 1
+        if (SEProc /= MyProc%procID .and. SEProc /= -1)       comm = comm + 1
+        if (SWProc /= MyProc%procID .and. SWProc /= -1)       comm = comm + 1
       end do
 
-      ! Remove the communication cost.
-      MyProc%weight = MyProc%weight - comm
+      ! Set the communication cost.
+      MyProc%comm = comm
     end do
   end subroutine
 
@@ -400,6 +397,7 @@ contains
 
     MyProc%nBlocks = MyProc%nBlocks + 1
     MyProc%weight = MyProc%weight + Block%size
+
     MyProc%Blocks(MyProc%nBlocks) = Block
     MyProc%Blocks(MyProc%nBlocks)%proc = MyProc%procID
 
@@ -411,8 +409,8 @@ contains
     type (BlockType), target :: BlocksCollection(:)
     type (Proc), allocatable :: Procs(:)
     type (BlockType), pointer :: b
-    real(kind=8) :: optimal, fudge_factor = 1.1d0
-    integer :: method, p_, n_, sum = 0
+    real(kind=8) :: fudge_factor = 1.1d0
+    integer :: optimal, method, p_, n_, sum = 0
     integer :: largest_block = 0, largest_block_number = 0
 
     ! Set starting weights on each proc equal to zero.
@@ -423,11 +421,11 @@ contains
     ! This is an ideal we cannot meet.
     do n_ = 1, nBlocks
       b => BlocksCollection(n_)
-      sum = sum + b%size - b%comm
+      sum = sum + b%size
     end do
 
     ! The optimal distribution is an equal weight on each block.
-    optimal = dfloat(sum)/dfloat(nProcs)
+    optimal = int(dfloat(sum)/dfloat(nProcs))
 
     ! Pick our method depending on our settings.
     ! Hard coded for all the decompositions we're interested in.
@@ -447,7 +445,6 @@ contains
       ! Otherwise we'll do our best and use an automated method.
       method = 666
     end if
-    write(*,*), "method ", method
 
     if (method == 546) then
       ! 5x4 blocks on 6 processors.
@@ -470,26 +467,26 @@ contains
     else if (method == 10106) then
       ! 10x10 blocks on 6 processors.
       ! Hard coding is okay.
-      do n_ = 1, 10
-        call add_block_to_proc(Procs(1), BlocksCollection(n_))
-        call add_block_to_proc(Procs(1), BlocksCollection(n_ + 10))
-
-        call add_block_to_proc(Procs(6), BlocksCollection(n_ + 80))
-        call add_block_to_proc(Procs(6), BlocksCollection(n_ + 90))
-      end do
-
       do n_ = 0, 2
+        call add_blocks_to_proc(Procs(1), BlocksCollection, &
+          [1 + n_*10, 2 + n_*10, 3 + n_*10, 4 + n_*10, 5 + n_*10])
+
         call add_blocks_to_proc(Procs(2), BlocksCollection, &
-          [21 + n_*10, 22 + n_*10, 23 + n_*10, 24 + n_*10, 25 + n_*10])
+          [6 + n_*10, 7 + n_*10, 8 + n_*10, 9 + n_*10, 10 + n_*10])
 
         call add_blocks_to_proc(Procs(3), BlocksCollection, &
-          [26 + n_*10, 27 + n_*10, 28 + n_*10, 29 + n_*10, 30 + n_*10])
+          [31 + n_*10, 32 + n_*10, 33 + n_*10, 34 + n_*10, 35 + n_*10])
 
         call add_blocks_to_proc(Procs(4), BlocksCollection, &
-          [51 + n_*10, 52 + n_*10, 53 + n_*10, 54 + n_*10, 55 + n_*10])
+          [36 + n_*10, 37 + n_*10, 38 + n_*10, 39 + n_*10, 40 + n_*10])
+      end do
 
+      do n_ = 0, 3
         call add_blocks_to_proc(Procs(5), BlocksCollection, &
-          [56 + n_*10, 57 + n_*10, 58 + n_*10, 59 + n_*10, 60 + n_*10])
+          [61 + n_*10, 62 + n_*10, 63 + n_*10, 64 + n_*10, 65 + n_*10])
+
+        call add_blocks_to_proc(Procs(6), BlocksCollection, &
+          [66 + n_*10, 67 + n_*10, 68 + n_*10, 69 + n_*10, 70 + n_*10])
       end do
 
     else if (method == 10104) then
@@ -562,12 +559,13 @@ contains
     end if
 
     ! Update each proc's communication cost.
-    call check_communication_cost(Procs)
     call update_neighbor_procs(Procs)
+    call check_communication_cost(Procs)
 
     ! If we screwed this up we need to terminated execution.
     do n_ = 1, nBlocks
       if (BlocksCollection(n_)%size > 0) then
+        write(*,*), n_
         write(*,*), "Sorry, something went terribly wrong."
         write(*,*), "Program exiting."
 !        STOP
@@ -581,9 +579,9 @@ contains
     write(*,*)
 
     ! Write out the weight on each proc.
-    write(*, *), '          proc #      ', "nBlocks  ", "Weight ", "Err"
+    write(*, *), '          proc #     ', "nBlocks   ", "Weight       ", "Comm        ", "Err"
     do n_ = 1, nProcs
-      write(*, *), n_, Procs(n_)%nBlocks, Procs(n_)%weight, dfloat(Procs(n_)%weight) - optimal
+      write(*, *), n_, Procs(n_)%nBlocks, Procs(n_)%weight, Procs(n_)%comm, Procs(n_)%weight + Procs(n_)%comm - optimal
     end do
 
   end subroutine
