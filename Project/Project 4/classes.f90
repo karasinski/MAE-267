@@ -5,9 +5,9 @@ module constants
 
   integer, parameter :: IMAX = 101
   integer, parameter :: JMAX = 101
-  integer, parameter :: M = 5
-  integer, parameter :: N = 4
-  integer, parameter :: nProcs = 6
+  integer, parameter :: M = 10
+  integer, parameter :: N = 10
+  integer, parameter :: nProcs = 4
   integer, parameter :: iBlockSize = 1 + (IMAX - 1) / N
   integer, parameter :: jBlockSize = 1 + (JMAX - 1) / M
   integer, parameter :: nBlocks = M * N

@@ -337,7 +337,7 @@ contains
     type (Proc), target :: Procs(:)
     type (Proc), pointer :: MyProc
     type (BlockType), pointer :: MyBlock
-    integer :: comm, b, p, i
+    integer :: comm, b, p
     integer, pointer :: northProc, southProc, eastProc, westProc, NEProc, NWProc, SEProc, SWProc
 
     ! Check if this block has neighbors on the processor.
