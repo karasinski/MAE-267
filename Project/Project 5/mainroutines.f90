@@ -2,7 +2,11 @@ module MainRoutines
   use BlockModule
   use plot3D_module
   use GridCreation
+
   implicit none
+
+  ! Block array for solver.
+  type (BlockType), allocatable :: Blocks(:)
 
 contains
 
@@ -25,10 +29,6 @@ contains
   ! This subroutine reads the block files and initializes the simulation.
   subroutine initialization(Blocks)
     type (BlockType) :: Blocks(:)
-
-    ! We first read in the connectivity file.
-    call read_configuration_file(Blocks)
-
     ! We then read in the grid file.
     call read_grid_file(Blocks)
 

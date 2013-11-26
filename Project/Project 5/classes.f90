@@ -19,6 +19,8 @@ module constants
   integer :: nB = 1, eB = 2, sB = 3, wB = 4
   integer :: Internal = -1
   integer :: step = 0
+  
+  integer :: MyID
 end module
 
 ! Prof's clock module.

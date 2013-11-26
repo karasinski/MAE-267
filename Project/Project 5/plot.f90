@@ -47,19 +47,26 @@ contains
 
   end subroutine
 
-  subroutine read_configuration_file(Blocks)
-    type (BlockType), target :: Blocks(:)
+  subroutine read_configuration_file
+    type (BlockType), allocatable, target :: Blocks(:)
     type (BlockType), pointer :: b
     integer :: n_, nFile
     integer :: readnBlocks, readiBlockSize, readjBlockSize
+    character(2) :: name, str
 
-    open(unit = 1, file = 'configuration_file.dat', status='old')
+    write( name, '(i2)' )  MyID
+    read( name, * ) str
+    open(unit = 1, file = 'configuration_file.dat.p'//str, status='old')
 
     10 format(3I5)
     20 format(33I5)
 
     read(1, 10) readnBlocks, readiBlockSize, readjBlockSize
-    do n_ = 1, nBlocks
+
+    ! Allocate our blocks array.
+    allocate(Blocks(1:readnBlocks))
+
+    do n_ = 1, readnBlocks
       b => Blocks(n_)
       read(1, 20) nFile, b%proc, b%size, &
                   b%lowI, b%lowJ, &
@@ -75,7 +82,7 @@ contains
     end do
 
     close(1)
-    write(*,*), 'Read configuration file'
+    write(*,*), 'Processor ', MyID, ' read configuration file.'
   end subroutine
 
   subroutine read_grid_file(Blocks)
