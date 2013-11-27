@@ -6,7 +6,7 @@ module MainRoutines
   implicit none
 
   ! Block array for solver.
-  type (BlockType), allocatable :: Blocks(:)
+  type (BlockType), allocatable, target :: Blocks(:)
 
 contains
 
@@ -55,8 +55,7 @@ contains
     real(kind=8) :: temp_residual = 1.d0, residual = 1.d0 ! Arbitrary initial residuals.
     real(kind=8) :: residuals(max_steps) = 0.d0
     integer :: n_
-
-    write(*,*), "Start solver"
+    character(2) :: name, str
 
     !  Begin main loop, stop if we hit our mark or after max_steps iterations.
     do while (residual >= .00001d0 .and. step < max_steps)
@@ -65,12 +64,19 @@ contains
 
       ! Calculate our first and second derivatives for all our points, and
       ! calculate the new temperature for all of our interior points.
-      call derivatives(Blocks)
-      call update_ghosts(Blocks)
+      call derivatives
+
+      call MPI_Barrier(barrier, ierror)
+
+      call update_ghosts
+
+      ! Hold after we send information. This requires that all Procs have
+      ! send and received their info for this loop before we continue.
+      call MPI_Barrier(barrier, ierror)
 
       ! Find block with largest residual.
       residual = 0.d0
-      do n_ = 1, nBlocks
+      do n_ = 1, MyNBlocks
         temp_residual = maxval(abs(Blocks(n_)%Points(2:iBlockSize-1, 2:jBlockSize-1)%tempT))
 
         if (temp_residual > residual) then
@@ -78,16 +84,22 @@ contains
         end if
       end do
 
-      write(*,*), step, residual
+      call MPI_Barrier(barrier, ierror)
+      write(*,*), MyID, step, residual
+
       residuals(step) = residual
     end do
 
     ! Write the residual information to output file.
-    open(unit = 666, file = 'convergence.dat', form='formatted')
-    write(666,*), residuals
-    close(666)
+!     write( name, '(i2)' )  MyID
+!     read( name, * ) str
+
+!     open(unit = 666, file = 'convergence.dat.p'//str, form='formatted')
+!     write(666,*), residuals
+!     close(666)
 
     ! Check for convergence.
+    call MPI_Barrier(barrier, ierror)
     if (step < max_steps) then
       write(*,*) "Converged."
     else
@@ -95,15 +107,14 @@ contains
     end if
   end subroutine
 
-  subroutine derivatives(Blocks)
-    type (BlockType), target :: Blocks(:)
+  subroutine derivatives
     type (BlockType), pointer :: MyBlock
     type (GridPoint), pointer :: p(:,:)
     real(kind=8) :: dTdx, dTdy
     integer :: i, j, n_
 
     ! Loop over each block.
-    do n_ = 1, nBlocks
+    do n_ = 1, MyNBlocks
       MyBlock => Blocks(n_)
       p => MyBlock%Points
 
@@ -154,68 +165,111 @@ contains
   end subroutine
 
   ! After each iteration of temperature updates we need to update our ghost nodes.
-  subroutine update_ghosts(Blocks)
-    type (BlockType), target :: Blocks(:)
+  subroutine update_ghosts
     type (BlockType), pointer :: b
     integer :: n_, i, j
 
     ! For each block...
-    do n_ = 1, nBlocks
+    do n_ = 1, MyNBlocks
       b => Blocks(n_)
 
       ! Faces
       ! North face ghost nodes
       if (b%northFace%BC == -1) then
         ! Internal boundary
-        do i = 1, iBlockSize
-          b%Points(i, jBlockSize+1)%T = Blocks(b%northFace%neighborBlock)%Points(i, 2)%T
-        end do
+
+        if (b%proc == b%northFace%neighborProc) then
+          ! Our neighbor block is on same proc, we can grab directly.
+          do i = 1, iBlockSize
+            b%Points(i, jBlockSize+1)%T = Blocks(b%northFace%neighborLocalBlock)%Points(i, 2)%T
+          end do
+        else
+          ! Our neighbor block is on different proc, so it will also need information from
+          ! this block. We must send this information now and do receives at the end of this
+          ! subroutine.
+          ! Nonblocking send.
+          ! MPI CALL HERE
+
+          ! Our neighbor block is on different proc, we must receive with MPI.
+          ! Blocking receive.
+          ! MPI CALL HERE
+!           write(*,*), MyID, " North info is on other proc."
+        end if
       end if
 
       ! South face ghost nodes
       if (b%southFace%BC == -1) then
-        ! Internal boundary
-        do i = 1, iBlockSize
-          b%Points(i, 0)%T = Blocks(b%southFace%neighborBlock)%Points(i, jBlockSize-1)%T
-        end do
+        if (b%proc == b%southFace%neighborProc) then
+          ! Internal boundary
+          do i = 1, iBlockSize
+            b%Points(i, 0)%T = Blocks(b%southFace%neighborLocalBlock)%Points(i, jBlockSize-1)%T
+          end do
+        else
+!           write(*,*), MyID, " South info is on other proc."
+        end if
       end if
 
       ! East face ghost nodes
       if (b%eastFace%BC == -1) then
-        ! Internal boundary
-        do j = 1, jBlockSize
-          b%Points(iBlockSize+1, j)%T = Blocks(b%eastFace%neighborBlock)%Points(2, j)%T
-        end do
+        if (b%proc == b%eastFace%neighborProc) then
+          ! Internal boundary
+          do j = 1, jBlockSize
+            b%Points(iBlockSize+1, j)%T = Blocks(b%eastFace%neighborLocalBlock)%Points(2, j)%T
+          end do
+        else
+!           write(*,*), MyID, " East info is on other proc."
+        end if
       end if
 
       ! West face ghost nodes
       if (b%westFace%BC == -1) then
-        ! Internal boundary
-        do j = 1, jBlockSize
-          b%Points(0, j)%T = Blocks(b%westFace%neighborBlock)%Points(iBlockSize-1, j)%T
-        end do
+        if (b%proc == b%westFace%neighborProc) then
+          ! Internal boundary
+          do j = 1, jBlockSize
+            b%Points(0, j)%T = Blocks(b%westFace%neighborLocalBlock)%Points(iBlockSize-1, j)%T
+          end do
+        else
+!           write(*,*), MyID, " West info is on other proc."
+        end if
       end if
 
       ! Corners
       ! North east corner
       if (b%NECorner%BC == -1) then
-        b%Points(iBlockSize+1,jBlockSize+1)%T = Blocks(b%NECorner%neighborBlock)%Points(2,2)%T
+        if (b%proc == b%NECorner%neighborProc) then
+          b%Points(iBlockSize+1,jBlockSize+1)%T = Blocks(b%NECorner%neighborLocalBlock)%Points(2,2)%T
+        else
+!           write(*,*), MyID, " NE info is on other proc."
+        end if
       end if
 
       ! South east corner
       if (b%SECorner%BC == -1) then
-        b%Points(iBlockSize+1,0)%T = Blocks(b%SECorner%neighborBlock)%Points(2,jBlockSize-1)%T
+        if (b%proc == b%SECorner%neighborProc) then
+          b%Points(iBlockSize+1,0)%T = Blocks(b%SECorner%neighborLocalBlock)%Points(2,jBlockSize-1)%T
+        else
+!           write(*,*), MyID, " SE info is on other proc."
+        end if
       end if
 
       ! South west corner
       if (b%SWCorner%BC == -1) then
-        b%Points(0,0)%T = Blocks(b%SWCorner%neighborBlock)%Points(iBlockSize-1,jBlockSize-1)%T
+        if (b%proc == b%SWCorner%neighborProc) then
+          b%Points(0,0)%T = Blocks(b%SWCorner%neighborLocalBlock)%Points(iBlockSize-1,jBlockSize-1)%T
+        else
+!           write(*,*), MyID, " SW info is on other proc."
+        end if
       end if
 
       ! North west corner
       if (b%NWCorner%BC == -1) then
-        b%Points(0,jBlockSize+1)%T = Blocks(b%NWCorner%neighborBlock)%Points(iBlockSize-1,2)%T
+        if (b%proc == b%NWCorner%neighborProc) then
+          b%Points(0,jBlockSize+1)%T = Blocks(b%NWCorner%neighborLocalBlock)%Points(iBlockSize-1,2)%T
+        else
+!           write(*,*), MyID, " NW info is on other proc."
+        end if
       end if
+
     end do
 
   end subroutine

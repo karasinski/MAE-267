@@ -275,7 +275,7 @@ contains
     type (BlockType), pointer :: MyBlock, ThisBlock
     integer :: b, p, b2, p2
 
-    do p = 1, nProcs
+    do p = 1, mpi_nprocs
       MyProc => Procs(p)
 
       ! Set proc ids. (Start at 0.)
@@ -298,7 +298,7 @@ contains
 
     ! Now we find which procs all our blocks neighbors live on.
     ! We loop through all procs...
-    do p = 1, nProcs
+    do p = 1, mpi_nprocs
       MyProc => Procs(p)
 
       ! ...we loop through each proc's blocks...
@@ -306,7 +306,7 @@ contains
         MyBlock => MyProc%Blocks(b)
 
         ! ...we check each proc...
-        do p2 = 1, nProcs
+        do p2 = 1, mpi_nprocs
           ThisProc => Procs(p2)
 
           if (MyProc%procID /= ThisProc%procID) then
@@ -316,15 +316,39 @@ contains
               ThisBlock => ThisProc%Blocks(b2)
 
               ! Check each face and corner for a match and assign.
-              if (MyBlock%northFace%neighborBlock == ThisBlock%id) MyBlock%northFace%neighborProc = ThisProc%procID
-              if (MyBlock%southFace%neighborBlock == ThisBlock%id) MyBlock%southFace%neighborProc = ThisProc%procID
-              if (MyBlock%eastFace%neighborBlock  == ThisBlock%id) MyBlock%eastFace%neighborProc  = ThisProc%procID
-              if (MyBlock%westFace%neighborBlock  == ThisBlock%id) MyBlock%westFace%neighborProc  = ThisProc%procID
+              if (MyBlock%northFace%neighborBlock == ThisBlock%id) then
+                MyBlock%northFace%neighborProc = ThisProc%procID
+                MyBlock%northFace%neighborLocalBlock = b2
+              end if
+              if (MyBlock%southFace%neighborBlock == ThisBlock%id) then 
+                MyBlock%southFace%neighborProc = ThisProc%procID
+                MyBlock%southFace%neighborLocalBlock = b2
+              end if
+              if (MyBlock%eastFace%neighborBlock  == ThisBlock%id) then 
+                MyBlock%eastFace%neighborProc  = ThisProc%procID
+                MyBlock%eastFace%neighborLocalBlock = b2
+              end if
+              if (MyBlock%westFace%neighborBlock  == ThisBlock%id) then 
+                MyBlock%westFace%neighborProc  = ThisProc%procID
+                MyBlock%westFace%neighborLocalBlock = b2
+              end if
 
-              if (MyBlock%NECorner%neighborBlock == ThisBlock%id)  MyBlock%NECorner%neighborProc  = ThisProc%procID
-              if (MyBlock%NWCorner%neighborBlock == ThisBlock%id)  MyBlock%NWCorner%neighborProc  = ThisProc%procID
-              if (MyBlock%SECorner%neighborBlock == ThisBlock%id)  MyBlock%SECorner%neighborProc  = ThisProc%procID
-              if (MyBlock%SWCorner%neighborBlock == ThisBlock%id)  MyBlock%SWCorner%neighborProc  = ThisProc%procID
+              if (MyBlock%NECorner%neighborBlock == ThisBlock%id)  then 
+                MyBlock%NECorner%neighborProc  = ThisProc%procID
+                MyBlock%NECorner%neighborLocalBlock = b2
+              end if
+              if (MyBlock%NWCorner%neighborBlock == ThisBlock%id)  then
+                MyBlock%NWCorner%neighborProc  = ThisProc%procID
+                MyBlock%NWCorner%neighborLocalBlock = b2
+              end if
+              if (MyBlock%SECorner%neighborBlock == ThisBlock%id)  then 
+                MyBlock%SECorner%neighborProc  = ThisProc%procID
+                MyBlock%SECorner%neighborLocalBlock = b2
+              end if
+              if (MyBlock%SWCorner%neighborBlock == ThisBlock%id)  then 
+                MyBlock%SWCorner%neighborProc  = ThisProc%procID
+                MyBlock%SWCorner%neighborLocalBlock = b2
+              end if
             end do
 
           end if
@@ -343,7 +367,7 @@ contains
     ! Check if this block has neighbors on the processor.
     ! If so we go ahead and add the communication cost.
     ! For each proc...
-    do p = 1, nProcs
+    do p = 1, mpi_nprocs
       MyProc => Procs(p)
       MyProc%comm = 0
       comm = 0
@@ -409,8 +433,8 @@ contains
     type (BlockType), target :: BlocksCollection(:)
     type (Proc), allocatable :: Procs(:)
     type (BlockType), pointer :: b
-    real(kind=8) :: fudge_factor = 1.1d0
-    integer :: optimal, method, p_, n_, sum = 0
+    real(kind=8) :: fudge_factor = 1.5d0
+    integer :: optimal, method = 666, p_, n_, sum = 0
     integer :: largest_block = 0, largest_block_number = 0
 
     ! Set starting weights on each proc equal to zero.
@@ -425,20 +449,20 @@ contains
     end do
 
     ! The optimal distribution is an equal weight on each block.
-    optimal = int(dfloat(sum)/dfloat(nProcs))
+    optimal = int(dfloat(sum)/dfloat(mpi_nprocs))
 
     ! Pick our method depending on our settings.
     ! Hard coded for all the decompositions we're interested in.
     if (M == 5  .and. N == 4) then
-      if (nProcs == 6) then
+      if (mpi_nprocs == 6) then
         method = 546
-      else if (nProcs == 4) then
+      else if (mpi_nprocs == 4) then
         method = 544
       end if
     else if (M == 10 .and. N == 10) then
-      if (nProcs == 6) then
+      if (mpi_nprocs == 6) then
         method = 10106
-      else if (nProcs == 4) then
+      else if (mpi_nprocs == 4) then
         method = 10104
       end if
     else
@@ -535,7 +559,7 @@ contains
     else if (method == 666) then
       ! This is our fallback method for unknown configurations.
 
-      do p_ = 1, nProcs
+      do p_ = 1, mpi_nprocs
         do n_ = 1, nBlocks
           b => BlocksCollection(n_)
 
@@ -598,18 +622,18 @@ contains
       end if
     end do
 
-    !     ! Write the total weight, number of procs, ideal weight per proc.
-    !     write(*,*)
-    !     write(*,*), '      Weight  ', 'Ideal Weight/proc'
-    !     write(*,*), sum, optimal
-    !     write(*,*)
+!     ! Write the total weight, number of procs, ideal weight per proc.
+!     write(*,*)
+!     write(*,*), '      Weight  ', 'Ideal Weight/proc'
+!     write(*,*), sum, optimal
+!     write(*,*)
 
-    !     ! Write out the weight on each proc.
-    !     write(*, *), '     proc #     ', "nBlocks   ", "   Weight        ", "Comm        ", "  Err"
-    !     do n_ = 1, nProcs
-    !       write(*, *), n_, Procs(n_)%nBlocks, Procs(n_)%weight, Procs(n_)%comm, &
-    !                   100*real(Procs(n_)%weight + Procs(n_)%comm - optimal)/real(optimal)
-    !     end do
+!     ! Write out the weight on each proc.
+!     write(*, *), '     proc #     ', "nBlocks   ", "   Weight        ", "Comm        ", "  Err"
+!     do n_ = 1, mpi_nprocs
+!       write(*, *), n_, Procs(n_)%nBlocks, Procs(n_)%weight, Procs(n_)%comm, &
+!                   100*real(Procs(n_)%weight + Procs(n_)%comm - optimal)/real(optimal)
+!     end do
 
   end subroutine
 end module

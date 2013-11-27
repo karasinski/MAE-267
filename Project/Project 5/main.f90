@@ -2,6 +2,7 @@ program heat
   use MainRoutines
   implicit none
   
+  ! We use MPI in many of our routines.
   include "mpif.h"
 
   ! Block array for grid creation.
@@ -9,9 +10,6 @@ program heat
 
   ! Proc array to contain blocks.
   type (Proc), allocatable :: Procs(:)
-
-  ! MPI related variables.
-  integer :: ierror, mpi_nprocs, barrier
 
   ! Start MPI, find my id and total number of procs.
   call MPI_Init(ierror)
@@ -64,11 +62,11 @@ program heat
   write(*,*), 'Processor ', MyID, ' starting solver.'
 
   ! Each processor starts the solver.
-  !  call solve(Blocks)
+  call solve(Blocks)
 
   write(*,*), 'Processor ', MyID, ' ending solver.'
-
   call MPI_Barrier(barrier, ierror)
+
   if (MyID == 0) then
     call end_clock()
   end if

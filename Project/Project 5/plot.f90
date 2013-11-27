@@ -20,7 +20,7 @@ contains
     10 format(3I5)
     20 format(33I5)
 
-    do p_ = 1, nProcs
+    do p_ = 1, mpi_nprocs
       BlocksCollection => Procs(p_)%Blocks
 
       write( name, '(i2)' )  Procs(p_)%procID
@@ -31,16 +31,16 @@ contains
       do n_ = 1, Procs(p_)%nBlocks
         b => BlocksCollection(n_)
         write(configUnit, 20) n_, b%proc, b%size, &
-                     b%lowI, b%lowJ, &
-                     b%localIMIN, b%localIMAX, b%localJMIN, b%localJMAX, &
-                     b%northFace%BC, b%northFace%neighborBlock, b%northFace%neighborProc, &
-                     b%eastFace%BC, b%eastFace%neighborBlock, b%eastFace%neighborProc, &
-                     b%southFace%BC, b%southFace%neighborBlock, b%southFace%neighborProc, &
-                     b%westFace%BC, b%westFace%neighborBlock, b%westFace%neighborProc, &
-                     b%NECorner%BC, b%NECorner%neighborBlock, b%NECorner%neighborProc, &
-                     b%NWCorner%BC, b%NWCorner%neighborBlock, b%NWCorner%neighborProc, &
-                     b%SWCorner%BC, b%SWCorner%neighborBlock, b%SWCorner%neighborProc, &
-                     b%SECorner%BC, b%SECorner%neighborBlock, b%SECorner%neighborProc
+          b%lowI, b%lowJ, &
+          b%localIMIN, b%localIMAX, b%localJMIN, b%localJMAX, &
+          b%northFace%BC, b%northFace%neighborBlock, b%northFace%neighborLocalBlock, b%northFace%neighborProc, &
+          b%southFace%BC, b%southFace%neighborBlock, b%southFace%neighborLocalBlock, b%southFace%neighborProc, &
+          b%eastFace%BC,  b%eastFace%neighborBlock,  b%eastFace%neighborLocalBlock,  b%eastFace%neighborProc,  &
+          b%westFace%BC,  b%westFace%neighborBlock,  b%westFace%neighborLocalBlock,  b%westFace%neighborProc, &
+          b%NECorner%BC, b%NECorner%neighborBlock, b%NECorner%neighborLocalBlock,  b%NECorner%neighborProc, &
+          b%NWCorner%BC, b%NWCorner%neighborBlock, b%NWCorner%neighborLocalBlock,  b%NWCorner%neighborProc, &
+          b%SWCorner%BC, b%SWCorner%neighborBlock, b%SWCorner%neighborLocalBlock,  b%SWCorner%neighborProc, &
+          b%SECorner%BC, b%SECorner%neighborBlock, b%SECorner%neighborLocalBlock,  b%SECorner%neighborProc
       end do
       close(configUnit)
     end do
@@ -72,16 +72,16 @@ contains
     do n_ = 1, readnBlocks
       b => Blocks(n_)
       read(1, 20) nFile, b%proc, b%size, &
-                  b%lowI, b%lowJ, &
-                  b%localIMIN, b%localIMAX, b%localJMIN, b%localJMAX, &
-                  b%northFace%BC, b%northFace%neighborBlock, b%northFace%neighborProc, &
-                  b%eastFace%BC, b%eastFace%neighborBlock, b%eastFace%neighborProc, &
-                  b%southFace%BC, b%southFace%neighborBlock, b%southFace%neighborProc, &
-                  b%westFace%BC, b%westFace%neighborBlock, b%westFace%neighborProc, &
-                  b%NECorner%BC, b%NECorner%neighborBlock, b%NECorner%neighborProc, &
-                  b%NWCorner%BC, b%NWCorner%neighborBlock, b%NWCorner%neighborProc, &
-                  b%SWCorner%BC, b%SWCorner%neighborBlock, b%SWCorner%neighborProc, &
-                  b%SECorner%BC, b%SECorner%neighborBlock, b%SECorner%neighborProc
+        b%lowI, b%lowJ, &
+        b%localIMIN, b%localIMAX, b%localJMIN, b%localJMAX, &
+        b%northFace%BC, b%northFace%neighborBlock, b%northFace%neighborLocalBlock, b%northFace%neighborProc, &
+        b%southFace%BC, b%southFace%neighborBlock, b%southFace%neighborLocalBlock, b%southFace%neighborProc, &
+        b%eastFace%BC,  b%eastFace%neighborBlock,  b%eastFace%neighborLocalBlock,  b%eastFace%neighborProc,  &
+        b%westFace%BC,  b%westFace%neighborBlock,  b%westFace%neighborLocalBlock,  b%westFace%neighborProc, &
+        b%NECorner%BC, b%NECorner%neighborBlock, b%NECorner%neighborLocalBlock,  b%NECorner%neighborProc, &
+        b%NWCorner%BC, b%NWCorner%neighborBlock, b%NWCorner%neighborLocalBlock,  b%NWCorner%neighborProc, &
+        b%SWCorner%BC, b%SWCorner%neighborBlock, b%SWCorner%neighborLocalBlock,  b%SWCorner%neighborProc, &
+        b%SECorner%BC, b%SECorner%neighborBlock, b%SECorner%neighborLocalBlock,  b%SECorner%neighborProc
     end do
 
     close(1)
@@ -165,7 +165,7 @@ contains
     30     format(10E20.8)
 
     globn = 1
-    do p_ = 1, nProcs
+    do p_ = 1, mpi_nprocs
       ! Convert integer to string for filename concat.
       write(name,'(i2)')  Procs(p_)%procID
       read (name,*) str
@@ -191,12 +191,10 @@ contains
 
       do n_ = globn, globn + Procs(p_)%nBlocks - 1
         write(tempUnit,30) tRef,dum,dum,dum
-        write(tempUnit,30) ((real(Blocks(n_)%proc),i=1,iBlockSize),j=1,jBlockSize), &
-                           ((real(Blocks(n_)%proc),i=1,iBlockSize),j=1,jBlockSize), &
-                           ((real(Blocks(n_)%proc),i=1,iBlockSize),j=1,jBlockSize), &
-                           ((real(Blocks(n_)%proc),i=1,iBlockSize),j=1,jBlockSize)
-                           ! Should be Blocks(n_)%Points(i,j)%T rather than real(Procs(n_)%procID), but this
-                           ! makes it easy to see which processors have which blocks.
+        write(tempUnit,30) ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
+                           ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
+                           ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
+                           ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize)
       end do
 
       ! Close files

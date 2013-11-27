@@ -7,7 +7,7 @@ module constants
   integer, parameter :: JMAX = 101
   integer, parameter :: M = 10
   integer, parameter :: N = 10
-  integer, parameter :: nProcs = 4
+!   integer, parameter :: nProcs = 4
   integer, parameter :: iBlockSize = 1 + (IMAX - 1) / N
   integer, parameter :: jBlockSize = 1 + (JMAX - 1) / M
   integer, parameter :: nBlocks = M * N
@@ -20,7 +20,9 @@ module constants
   integer :: Internal = -1
   integer :: step = 0
 
+  ! MPI related variables.
   integer :: MyID, MyNBlocks
+  integer :: ierror, mpi_nprocs, barrier
 end module
 
 ! Prof's clock module.
@@ -60,7 +62,7 @@ module BlockModule
   end type GridPoint
 
   type Neighbor
-    integer :: BC, neighborBlock, neighborProc
+    integer :: BC, neighborBlock, neighborLocalBlock, neighborProc
   end type
 
   type BlockType
@@ -75,7 +77,7 @@ module BlockModule
   type Proc
     integer :: procID, weight, comm, nBlocks
     ! Number of blocks on each proc should be roughly nBlocks/nProcs.
-    type (BlockType) :: Blocks(nBlocks/nProcs + 5)
+    type (BlockType) :: Blocks(nBlocks)
   end type Proc
 
 contains
