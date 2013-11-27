@@ -108,8 +108,8 @@ contains
     read(gridUnit,10) readnBlocks
     read(gridUnit,20) (readiBlockSize, readjBlockSize, i=1, readnBlocks)
     do n_ = 1, readnBlocks
-      read(gridUnit,30) ((Blocks(n_)%Points(i,j)%x,i=1,iBlockSize),j=1,jBlockSize), &
-                        ((Blocks(n_)%Points(i,j)%y,i=1,iBlockSize),j=1,jBlockSize)
+      read(gridUnit,30) ((Blocks(n_)%Points(i,j)%x,i=0,iBlockSize+1),j=0,jBlockSize+1), &
+                        ((Blocks(n_)%Points(i,j)%y,i=0,iBlockSize+1),j=0,jBlockSize+1)
     end do
 
     ! Close file
@@ -139,10 +139,10 @@ contains
 
     do n_ = 1, readnBlocks
       read(tempUnit,30) tRef,dum,dum,dum
-      read(tempUnit,30) ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
-                        ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
-                        ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
-                        ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize)
+      read(tempUnit,30) ((Blocks(n_)%Points(i,j)%T,i=0,iBlockSize+1),j=0,jBlockSize+1), &
+                        ((Blocks(n_)%Points(i,j)%T,i=0,iBlockSize+1),j=0,jBlockSize+1), &
+                        ((Blocks(n_)%Points(i,j)%T,i=0,iBlockSize+1),j=0,jBlockSize+1), &
+                        ((Blocks(n_)%Points(i,j)%T,i=0,iBlockSize+1),j=0,jBlockSize+1)
     end do
 
     ! Close file
@@ -181,8 +181,8 @@ contains
       Blocks => Procs(p_)%Blocks
       do n_ = globn, globn + Procs(p_)%nBlocks - 1
 !        write(*,*), Blocks(n_)%id
-        write(gridUnit,30) ((Blocks(n_)%Points(i,j)%x,i=1,iBlockSize),j=1,jBlockSize), &
-                           ((Blocks(n_)%Points(i,j)%y,i=1,iBlockSize),j=1,jBlockSize)
+        write(gridUnit,30) ((Blocks(n_)%Points(i,j)%x,i=0,iBlockSize+1),j=0,jBlockSize+1), &
+                           ((Blocks(n_)%Points(i,j)%y,i=0,iBlockSize+1),j=0,jBlockSize+1)
       end do
 
       ! Write to temperature file
@@ -191,10 +191,10 @@ contains
 
       do n_ = globn, globn + Procs(p_)%nBlocks - 1
         write(tempUnit,30) tRef,dum,dum,dum
-        write(tempUnit,30) ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
-                           ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
-                           ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
-                           ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize)
+        write(tempUnit,30) ((Blocks(n_)%Points(i,j)%T,i=0,iBlockSize+1),j=0,jBlockSize+1), &
+                           ((Blocks(n_)%Points(i,j)%T,i=0,iBlockSize+1),j=0,jBlockSize+1), &
+                           ((Blocks(n_)%Points(i,j)%T,i=0,iBlockSize+1),j=0,jBlockSize+1), &
+                           ((Blocks(n_)%Points(i,j)%T,i=0,iBlockSize+1),j=0,jBlockSize+1)
       end do
 
       ! Close files

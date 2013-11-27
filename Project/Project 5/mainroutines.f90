@@ -178,7 +178,7 @@ contains
       if (b%northFace%BC == -1) then
         ! Internal boundary
 
-        if (b%proc == b%northFace%neighborProc) then
+        if (MyID == b%northFace%neighborProc) then
           ! Our neighbor block is on same proc, we can grab directly.
           do i = 1, iBlockSize
             b%Points(i, jBlockSize+1)%T = Blocks(b%northFace%neighborLocalBlock)%Points(i, 2)%T
@@ -193,80 +193,80 @@ contains
           ! Our neighbor block is on different proc, we must receive with MPI.
           ! Blocking receive.
           ! MPI CALL HERE
-!           write(*,*), MyID, " North info is on other proc."
+          write(*,*), MyID, " North info is on other proc."
         end if
       end if
 
       ! South face ghost nodes
       if (b%southFace%BC == -1) then
-        if (b%proc == b%southFace%neighborProc) then
+        if (MyID == b%southFace%neighborProc) then
           ! Internal boundary
           do i = 1, iBlockSize
             b%Points(i, 0)%T = Blocks(b%southFace%neighborLocalBlock)%Points(i, jBlockSize-1)%T
           end do
         else
-!           write(*,*), MyID, " South info is on other proc."
+          write(*,*), MyID, " South info is on other proc."
         end if
       end if
 
       ! East face ghost nodes
       if (b%eastFace%BC == -1) then
-        if (b%proc == b%eastFace%neighborProc) then
+        if (MyID == b%eastFace%neighborProc) then
           ! Internal boundary
           do j = 1, jBlockSize
             b%Points(iBlockSize+1, j)%T = Blocks(b%eastFace%neighborLocalBlock)%Points(2, j)%T
           end do
         else
-!           write(*,*), MyID, " East info is on other proc."
+          write(*,*), MyID, " East info is on other proc."
         end if
       end if
 
       ! West face ghost nodes
       if (b%westFace%BC == -1) then
-        if (b%proc == b%westFace%neighborProc) then
+        if (MyID == b%westFace%neighborProc) then
           ! Internal boundary
           do j = 1, jBlockSize
             b%Points(0, j)%T = Blocks(b%westFace%neighborLocalBlock)%Points(iBlockSize-1, j)%T
           end do
         else
-!           write(*,*), MyID, " West info is on other proc."
+          write(*,*), MyID, " West info is on other proc."
         end if
       end if
 
       ! Corners
       ! North east corner
       if (b%NECorner%BC == -1) then
-        if (b%proc == b%NECorner%neighborProc) then
+        if (MyID == b%NECorner%neighborProc) then
           b%Points(iBlockSize+1,jBlockSize+1)%T = Blocks(b%NECorner%neighborLocalBlock)%Points(2,2)%T
         else
-!           write(*,*), MyID, " NE info is on other proc."
+          write(*,*), MyID, " NE info is on other proc."
         end if
       end if
 
       ! South east corner
       if (b%SECorner%BC == -1) then
-        if (b%proc == b%SECorner%neighborProc) then
+        if (MyID == b%SECorner%neighborProc) then
           b%Points(iBlockSize+1,0)%T = Blocks(b%SECorner%neighborLocalBlock)%Points(2,jBlockSize-1)%T
         else
-!           write(*,*), MyID, " SE info is on other proc."
+          write(*,*), MyID, " SE info is on other proc."
         end if
       end if
 
       ! South west corner
       if (b%SWCorner%BC == -1) then
-        if (b%proc == b%SWCorner%neighborProc) then
+        if (MyID == b%SWCorner%neighborProc) then
           b%Points(0,0)%T = Blocks(b%SWCorner%neighborLocalBlock)%Points(iBlockSize-1,jBlockSize-1)%T
         else
-!           write(*,*), MyID, " SW info is on other proc."
+          write(*,*), MyID, " SW info is on other proc."
         end if
       end if
 
       ! North west corner
       if (b%NWCorner%BC == -1) then
-        if (b%proc == b%NWCorner%neighborProc) then
+        if (MyID == b%NWCorner%neighborProc) then
           b%Points(0,jBlockSize+1)%T = Blocks(b%NWCorner%neighborLocalBlock)%Points(iBlockSize-1,2)%T
         else
-!           write(*,*), MyID, " NW info is on other proc."
+          write(*,*), MyID, " NW info is on other proc."
         end if
       end if
 

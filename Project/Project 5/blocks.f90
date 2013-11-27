@@ -47,15 +47,13 @@ contains
         b%lowJ = highJ - (jBlockSize - 1)
 
         ! Assume all faces are internal and find out who
-        ! their neighbor is. Set the neighbor block and set
-        ! their processor to 1 for now.
+        ! their neighbor is. Set the neighbor block.
         b%northFace%neighborBlock = n_ + N
         b%southFace%neighborBlock = n_ - N
         b%eastFace%neighborBlock = n_ + 1
         b%westFace%neighborBlock = n_ - 1
 
         ! Assume all corners are internal (BC=-1) and set their neighbor.
-        ! Set their processor to 1 for now.
         b%NECorner%BC = -1
         b%NECorner%neighborBlock = n_ + N + 1
         b%SECorner%BC = -1
@@ -64,6 +62,17 @@ contains
         b%SWCorner%neighborBlock = n_ - N - 1
         b%NWCorner%BC = -1
         b%NWCorner%neighborBlock = n_ + N - 1
+
+        ! Set local block numbers to -1 for now.
+        b%northFace%neighborLocalBlock = -1
+        b%southFace%neighborLocalBlock = -1
+        b%eastFace%neighborLocalBlock = -1
+        b%westFace%neighborLocalBlock = - 1
+
+        b%NECorner%neighborLocalBlock = - 1
+        b%SECorner%neighborLocalBlock = - 1
+        b%SWCorner%neighborLocalBlock = - 1
+        b%NWCorner%neighborLocalBlock = - 1
 
         ! Determine whether block is on boundary or
         ! if they is internal for each face.
@@ -309,7 +318,7 @@ contains
         do p2 = 1, mpi_nprocs
           ThisProc => Procs(p2)
 
-          if (MyProc%procID /= ThisProc%procID) then
+!           if (MyProc%procID /= ThisProc%procID) then
             ! ...and compare this blocks id to our faces id.
             ! When we find a match we set our faces proc to the proc this block is on.
             do b2 = 1, Procs(p2)%nBlocks
@@ -351,7 +360,7 @@ contains
               end if
             end do
 
-          end if
+!           end if
         end do
       end do
     end do
