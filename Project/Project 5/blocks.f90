@@ -594,22 +594,22 @@ contains
         write(*,*), n_
         write(*,*), "Sorry, something went terribly wrong."
         write(*,*), "Program exiting."
-!        STOP
+        STOP
       end if
     end do
 
-    ! Write the total weight, number of procs, ideal weight per proc.
-    write(*,*)
-    write(*,*), '      Weight  ', 'Ideal Weight/proc'
-    write(*,*), sum, optimal
-    write(*,*)
+    !     ! Write the total weight, number of procs, ideal weight per proc.
+    !     write(*,*)
+    !     write(*,*), '      Weight  ', 'Ideal Weight/proc'
+    !     write(*,*), sum, optimal
+    !     write(*,*)
 
-    ! Write out the weight on each proc.
-    write(*, *), '     proc #     ', "nBlocks   ", "   Weight        ", "Comm        ", "  Err"
-    do n_ = 1, nProcs
-      write(*, *), n_, Procs(n_)%nBlocks, Procs(n_)%weight, Procs(n_)%comm, &
-                  100*real(Procs(n_)%weight + Procs(n_)%comm - optimal)/real(optimal)
-    end do
+    !     ! Write out the weight on each proc.
+    !     write(*, *), '     proc #     ', "nBlocks   ", "   Weight        ", "Comm        ", "  Err"
+    !     do n_ = 1, nProcs
+    !       write(*, *), n_, Procs(n_)%nBlocks, Procs(n_)%weight, Procs(n_)%comm, &
+    !                   100*real(Procs(n_)%weight + Procs(n_)%comm - optimal)/real(optimal)
+    !     end do
 
   end subroutine
 end module

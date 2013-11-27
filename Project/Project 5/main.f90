@@ -61,10 +61,12 @@ program heat
     call start_clock()
   end if
 
-  write(*,*), MyID, "looping commencing"
+  write(*,*), 'Processor ', MyID, ' starting solver.'
 
   ! Each processor starts the solver.
   !  call solve(Blocks)
+
+  write(*,*), 'Processor ', MyID, ' ending solver.'
 
   call MPI_Barrier(barrier, ierror)
   if (MyID == 0) then
@@ -73,13 +75,13 @@ program heat
   ! End solver.
 
   ! Write some results to file/screen.
-  !  call output(Blocks)
+  !   call output(Blocks)
 
   ! Write final temperature distribution.
-  !  call plot3D(Blocks, "f")
+  call plot3D(Blocks)
   !
   ! Might as well be proper and cleanup before we leave.
-  !  deallocate(Blocks)
+  deallocate(Blocks)
 
   call MPI_Finalize(ierror)
 end program heat

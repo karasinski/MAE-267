@@ -65,7 +65,7 @@ contains
 
     ! Set my nblocks.
     MyNBlocks = readnBlocks
-    
+
     ! Allocate our blocks array.
     allocate(Blocks(1:readnBlocks))
 
@@ -114,7 +114,7 @@ contains
 
     ! Close file
     close(gridUnit)
-    write(*,*), 'Read grid file'
+    write(*,*), 'Processor ', MyID, ' read grid file.'
   end subroutine
 
   subroutine read_temp_file(Blocks)
@@ -148,7 +148,7 @@ contains
     ! Close file
     close(tempUnit)
 
-    write(*,*), 'Read initial temperature file'
+    write(*,*), 'Processor ', MyID, ' read temperature file.'
   end subroutine
 
   ! Plot3D routine to output grid and temperature files in a
@@ -209,9 +209,9 @@ contains
 
   ! Plot3D routine to output grid and temperature files in a
   ! machine readable format.
-  subroutine plot3D(Blocks, name)
+  subroutine plot3D(Blocks)
     type (BlockType) :: Blocks(:)
-    character :: name
+    character(2) :: name, str
     integer :: n_, i, j
 
     ! Format statements
@@ -219,24 +219,28 @@ contains
     20     format(10I10)
     30     format(10E20.8)
 
+    write( name, '(i2)' )  MyID
+    read( name, * ) str
+    open(unit=gridUnit,file='grid.dat.p'//str, status='old')
+
     ! Open files
-    open(unit=gridUnit,file=name//'_grid.dat',form='formatted')
-    open(unit=tempUnit,file=name//'_temp.dat',form='formatted')
+    open(unit=gridUnit,file='final_grid.dat.p'//str, form='formatted')
+    open(unit=tempUnit,file='final_temp.dat.p'//str, form='formatted')
 
     ! Write to grid file
-    write(gridUnit,10) nBlocks
-    write(gridUnit,20) (iBlockSize, jBlockSize, n_=1, nBlocks)
+    write(gridUnit,10) MyNBlocks
+    write(gridUnit,20) (iBlockSize, jBlockSize, n_=1, MyNBlocks)
 
-    do n_ = 1, nBlocks
+    do n_ = 1, MyNBlocks
       write(gridUnit,30) ((Blocks(n_)%Points(i,j)%x,i=1,iBlockSize),j=1,jBlockSize), &
                          ((Blocks(n_)%Points(i,j)%y,i=1,iBlockSize),j=1,jBlockSize)
     end do
 
     ! Write to temperature file
-    write(tempUnit,10) nBlocks
-    write(tempUnit,20) (iBlockSize, jBlockSize, n_=1, nBlocks)
+    write(tempUnit,10) MyNBlocks
+    write(tempUnit,20) (iBlockSize, jBlockSize, n_=1, MyNBlocks)
 
-    do n_ = 1, nBlocks
+    do n_ = 1, MyNBlocks
       write(tempUnit,30) tRef,dum,dum,dum
       write(tempUnit,30) ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
                          ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
@@ -249,6 +253,12 @@ contains
     close(tempUnit)
   end subroutine plot3D
 
+
+  !
+  ! *** May scratch this subroutine entirely and just start over. ***
+  ! *** Need to have all blocks reduce information to find our    ***
+  ! *** minimums and maximums.                                    ***
+  !
   ! Some output so we know something happened.
   subroutine output(Blocks)
     type (BlockType) :: Blocks(:)
