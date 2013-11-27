@@ -47,7 +47,7 @@ contains
 
   end subroutine
 
-  subroutine read_configuration_file
+  subroutine read_configuration_file(Blocks)
     type (BlockType), allocatable, target :: Blocks(:)
     type (BlockType), pointer :: b
     integer :: n_, nFile
@@ -63,6 +63,9 @@ contains
 
     read(1, 10) readnBlocks, readiBlockSize, readjBlockSize
 
+    ! Set my nblocks.
+    MyNBlocks = readnBlocks
+    
     ! Allocate our blocks array.
     allocate(Blocks(1:readnBlocks))
 
@@ -89,6 +92,7 @@ contains
     type (BlockType) :: Blocks(:)
     integer :: n_, i, j
     integer :: readnBlocks, readiBlockSize, readjBlockSize
+    character(2) :: name, str
 
     ! Format statements
     10     format(I10)
@@ -96,12 +100,14 @@ contains
     30     format(10E20.8)
 
     ! Open files
-    open(unit=gridUnit,file='i_grid.dat', status='old')
+    write( name, '(i2)' )  MyID
+    read( name, * ) str
+    open(unit=gridUnit,file='grid.dat.p'//str, status='old')
 
     ! Read grid file
     read(gridUnit,10) readnBlocks
-    read(gridUnit,20) (readiBlockSize, readjBlockSize, i=1, nBlocks)
-    do n_ = 1, nBlocks
+    read(gridUnit,20) (readiBlockSize, readjBlockSize, i=1, readnBlocks)
+    do n_ = 1, readnBlocks
       read(gridUnit,30) ((Blocks(n_)%Points(i,j)%x,i=1,iBlockSize),j=1,jBlockSize), &
                         ((Blocks(n_)%Points(i,j)%y,i=1,iBlockSize),j=1,jBlockSize)
     end do
@@ -115,6 +121,7 @@ contains
     type (BlockType) :: Blocks(:)
     integer :: n_, i, j
     integer :: readnBlocks, readiBlockSize, readjBlockSize
+    character(2) :: name, str
 
     ! Format statements
     10     format(I10)
@@ -122,13 +129,15 @@ contains
     30     format(10E20.8)
 
     ! Open files
-    open(unit=tempUnit,file='i_temp.dat', status='old')
+    write( name, '(i2)' )  MyID
+    read( name, * ) str
+    open(unit=tempUnit,file='temp.dat.p'//str, status='old')
 
     ! Read temperature file
     read(tempUnit,10) readnBlocks
-    read(tempUnit,20) (readiBlockSize, readjBlockSize, n_=1, nBlocks)
+    read(tempUnit,20) (readiBlockSize, readjBlockSize, n_=1, readnBlocks)
 
-    do n_ = 1, nBlocks
+    do n_ = 1, readnBlocks
       read(tempUnit,30) tRef,dum,dum,dum
       read(tempUnit,30) ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &
                         ((Blocks(n_)%Points(i,j)%T,i=1,iBlockSize),j=1,jBlockSize), &

@@ -19,8 +19,8 @@ module constants
   integer :: nB = 1, eB = 2, sB = 3, wB = 4
   integer :: Internal = -1
   integer :: step = 0
-  
-  integer :: MyID
+
+  integer :: MyID, MyNBlocks
 end module
 
 ! Prof's clock module.
@@ -187,7 +187,17 @@ contains
         p1%y = p2%y
         p1%T = p2%T
       end if
+    end do
+  end subroutine
 
+  ! Set the prime locations of each grid point.
+  subroutine initialize_points(Blocks)
+    type (BlockType), target :: Blocks(:)
+    type (BlockType), pointer :: b
+    type (GridPoint), pointer :: p
+    integer :: i, j, n_
+
+    do n_ = 1, MyNBlocks
       ! Set our lower bound for updating the temperature so
       ! we don't update along the edge.
       Blocks(n_)%lowITemp = Blocks(n_)%localIMIN
@@ -202,16 +212,8 @@ contains
         Blocks(n_)%lowJTemp = Blocks(n_)%localJMIN+1
       end if
     end do
-  end subroutine
 
-  ! Set the prime locations of each grid point.
-  subroutine initialize_points(Blocks)
-    type (BlockType), target :: Blocks(:)
-    type (BlockType), pointer :: b
-    type (GridPoint), pointer :: p
-    integer :: i, j, n_
-
-    do n_ = 1, nBlocks
+    do n_ = 1, MyNBlocks
       b=> Blocks(n_)
       do j = 0, jBlockSize+1
         do i = 0, iBlockSize+1
@@ -230,7 +232,7 @@ contains
     type (GridPoint), pointer :: p(:,:)
     integer :: i, j, n_
 
-    do n_=1, nBlocks
+    do n_=1, MyNBlocks
       p => Blocks(n_)%Points
 
       ! Calculate fluxes.
@@ -284,7 +286,7 @@ contains
     Axj_half(i,j) = ( Points(i,j+1)%Axj + Points(i,j)%Axj ) * 0.25d0
 
     ! Constants used during iteration.
-    do n_=1, nBlocks
+    do n_=1, MyNBlocks
       Points => Blocks(n_)%Points
       do j = 0, jBlockSize
         do i = 0, iBlockSize
@@ -305,7 +307,7 @@ contains
     end do
 
     ! Calculate timesteps and assign secondary volumes.
-    do n_ = 1, nBlocks
+    do n_ = 1, MyNBlocks
       do j = 1, jBlockSize
         do i = 1, iBlockSize
           Points => Blocks(n_)%Points

@@ -48,10 +48,10 @@ program heat
 
   ! Begin solver.
   ! We first read in the connectivity file.
-  call read_configuration_file
+  call read_configuration_file(Blocks)
 
   ! We then initialize the solver.
-  !call initialization(Blocks)
+  call initialization
 
   ! Hold until we're all ready to start.
   call MPI_Barrier(barrier, ierror)
@@ -60,6 +60,8 @@ program heat
   if (MyID == 0) then
     call start_clock()
   end if
+
+  write(*,*), MyID, "looping commencing"
 
   ! Each processor starts the solver.
   !  call solve(Blocks)

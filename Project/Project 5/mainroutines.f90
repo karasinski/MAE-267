@@ -23,28 +23,30 @@ contains
     ! Set initial temperatures.
     call initialize_block_temp(b)
 
+    ! Calculate proper bounds for each block.
+    call set_bounds(b)
+
     write(*,*),'Initialized Grid'
   end subroutine
 
   ! This subroutine reads the block files and initializes the simulation.
-  subroutine initialization(Blocks)
-    type (BlockType) :: Blocks(:)
+  subroutine initialization
     ! We then read in the grid file.
     call read_grid_file(Blocks)
 
     ! We then read in the initial temperature file.
     call read_temp_file(Blocks)
 
-    ! Calculate proper bounds for each block.
-    call set_bounds(Blocks)
-
     !  Initialize the points.
+    write(*,*), MyID, "init points"
     call initialize_points(Blocks)
 
     !  Initialize the primary face areas and volumes.
+    write(*,*), MyID, "init faces and volumes"
     call initialize_faces_and_volumes(Blocks)
 
     ! Calculate constants for integration.
+    write(*,*), MyID, "set constants"
     call set_constants(Blocks)
   end subroutine
 
