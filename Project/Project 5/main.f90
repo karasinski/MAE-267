@@ -56,6 +56,8 @@ program heat
     call start_clock()
   end if
 
+  write(*,*), 'Processor ', MyID, ' starting solver.'
+
   ! Each processor starts the solver.
   call solve(Blocks)
   call MPI_Barrier(barrier, ierror)
