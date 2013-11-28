@@ -52,7 +52,7 @@ contains
   subroutine solve(Blocks)
     type (BlockType), target :: Blocks(:)
     integer, parameter :: max_steps = 10000
-    real(kind=8) :: temp_residual = 1.d0, residual = 1.d0 ! Arbitrary initial residuals.
+    real(kind=8) :: temp_residual = 1.d0, residual = 1.d0, local_residual = 1.d0
     real(kind=8) :: residuals(max_steps) = 0.d0
     integer :: n_
     character(2) :: name, str
@@ -75,35 +75,40 @@ contains
       call MPI_Barrier(barrier, ierror)
 
       ! Find block with largest residual.
-      residual = 0.d0
+      local_residual = 0.d0
       do n_ = 1, MyNBlocks
         temp_residual = maxval(abs(Blocks(n_)%Points(2:iBlockSize-1, 2:jBlockSize-1)%tempT))
 
-        if (temp_residual > residual) then
-          residual = temp_residual
+        if (temp_residual > local_residual) then
+          local_residual = temp_residual
         end if
       end do
 
       call MPI_Barrier(barrier, ierror)
-      write(*,*), MyID, step, residual
+      call mpi_allreduce(local_residual, residual, 1, MPI_REAL8, MPI_MAX, mpi_comm_world, ierror)
+
+      write(*,*), MyID, step, residual, local_residual
 
       residuals(step) = residual
     end do
 
-    ! Write the residual information to output file.
-!     write( name, '(i2)' )  MyID
-!     read( name, * ) str
-
-!     open(unit = 666, file = 'convergence.dat.p'//str, form='formatted')
-!     write(666,*), residuals
-!     close(666)
-
-    ! Check for convergence.
     call MPI_Barrier(barrier, ierror)
-    if (step < max_steps) then
-      write(*,*) "Converged."
-    else
-      write(*,*) "Failed to converge."
+
+    if (MyID == 0) then
+      ! Write the residual information to output file.
+      write( name, '(i2)' )  mpi_nprocs
+      read( name, * ) str
+
+      open(unit = 666, file = str//'_convergence.dat', form='formatted')
+      write(666,*), residuals
+      close(666)
+
+      ! Check for convergence.
+      if (step < max_steps) then
+        write(*,*) "Converged."
+      else
+        write(*,*) "Failed to converge."
+      end if
     end if
   end subroutine
 
@@ -193,7 +198,7 @@ contains
           ! Our neighbor block is on different proc, we must receive with MPI.
           ! Blocking receive.
           ! MPI CALL HERE
-          write(*,*), MyID, " North info is on other proc."
+!           write(*,*), MyID, " North info is on other proc."
         end if
       end if
 
@@ -205,7 +210,7 @@ contains
             b%Points(i, 0)%T = Blocks(b%southFace%neighborLocalBlock)%Points(i, jBlockSize-1)%T
           end do
         else
-          write(*,*), MyID, " South info is on other proc."
+!           write(*,*), MyID, " South info is on other proc."
         end if
       end if
 
@@ -217,7 +222,7 @@ contains
             b%Points(iBlockSize+1, j)%T = Blocks(b%eastFace%neighborLocalBlock)%Points(2, j)%T
           end do
         else
-          write(*,*), MyID, " East info is on other proc."
+!           write(*,*), MyID, " East info is on other proc."
         end if
       end if
 
@@ -229,7 +234,7 @@ contains
             b%Points(0, j)%T = Blocks(b%westFace%neighborLocalBlock)%Points(iBlockSize-1, j)%T
           end do
         else
-          write(*,*), MyID, " West info is on other proc."
+!           write(*,*), MyID, " West info is on other proc."
         end if
       end if
 
@@ -239,7 +244,7 @@ contains
         if (MyID == b%NECorner%neighborProc) then
           b%Points(iBlockSize+1,jBlockSize+1)%T = Blocks(b%NECorner%neighborLocalBlock)%Points(2,2)%T
         else
-          write(*,*), MyID, " NE info is on other proc."
+!           write(*,*), MyID, " NE info is on other proc."
         end if
       end if
 
@@ -248,7 +253,7 @@ contains
         if (MyID == b%SECorner%neighborProc) then
           b%Points(iBlockSize+1,0)%T = Blocks(b%SECorner%neighborLocalBlock)%Points(2,jBlockSize-1)%T
         else
-          write(*,*), MyID, " SE info is on other proc."
+!           write(*,*), MyID, " SE info is on other proc."
         end if
       end if
 
@@ -257,7 +262,7 @@ contains
         if (MyID == b%SWCorner%neighborProc) then
           b%Points(0,0)%T = Blocks(b%SWCorner%neighborLocalBlock)%Points(iBlockSize-1,jBlockSize-1)%T
         else
-          write(*,*), MyID, " SW info is on other proc."
+!           write(*,*), MyID, " SW info is on other proc."
         end if
       end if
 
@@ -266,7 +271,7 @@ contains
         if (MyID == b%NWCorner%neighborProc) then
           b%Points(0,jBlockSize+1)%T = Blocks(b%NWCorner%neighborLocalBlock)%Points(iBlockSize-1,2)%T
         else
-          write(*,*), MyID, " NW info is on other proc."
+!           write(*,*), MyID, " NW info is on other proc."
         end if
       end if
 

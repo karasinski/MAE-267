@@ -2,9 +2,6 @@ program heat
   use MainRoutines
   implicit none
   
-  ! We use MPI in many of our routines.
-  include "mpif.h"
-
   ! Block array for grid creation.
   type (BlockType), allocatable :: BlocksCollection(:)
 
@@ -59,12 +56,8 @@ program heat
     call start_clock()
   end if
 
-  write(*,*), 'Processor ', MyID, ' starting solver.'
-
   ! Each processor starts the solver.
   call solve(Blocks)
-
-  write(*,*), 'Processor ', MyID, ' ending solver.'
   call MPI_Barrier(barrier, ierror)
 
   if (MyID == 0) then

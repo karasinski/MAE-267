@@ -3,6 +3,9 @@
 module constants
   implicit none
 
+  ! We use MPI in many of our routines.
+  include "mpif.h"
+
   integer, parameter :: IMAX = 101
   integer, parameter :: JMAX = 101
   integer, parameter :: N = 10
