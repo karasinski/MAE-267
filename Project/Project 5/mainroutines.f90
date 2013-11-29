@@ -201,7 +201,7 @@ contains
           destination = b%northFace%neighborProc
           do i = 1, iBlockSize
             buffer = Blocks(b%southFace%neighborLocalBlock)%Points(i, jBlockSize-1)%T
-            tag = nB * 1000 + i
+            tag = nB * 100 + i + b%northFace%neighborBlock * 1000
             call MPI_Isend(buffer, 1, MPI_REAL8, destination, tag, mpi_comm_world, request, ierror)
           end do
         end if
@@ -218,7 +218,7 @@ contains
           destination = b%southFace%neighborProc
           do i = 1, iBlockSize
             buffer = Blocks(b%northFace%neighborLocalBlock)%Points(i, 2)%T
-            tag = sB * 1000 + i
+            tag = sB * 100 + i + b%southFace%neighborBlock * 1000
             call MPI_Isend(buffer, 1, MPI_REAL8, destination, tag, mpi_comm_world, request, ierror)
           end do
         end if
@@ -235,7 +235,7 @@ contains
           destination = b%eastFace%neighborProc
           do j = 1, jBlockSize
             buffer = Blocks(b%westFace%neighborLocalBlock)%Points(iBlockSize-1, j)%T
-            tag = eB * 1000 + j
+            tag = eB * 100 + j + b%eastFace%neighborBlock * 1000
             call MPI_Isend(buffer, 1, MPI_REAL8, destination, tag, mpi_comm_world, request, ierror)
           end do
         end if
@@ -252,7 +252,7 @@ contains
           destination = b%westFace%neighborProc
           do j = 1, jBlockSize
             buffer = Blocks(b%eastFace%neighborLocalBlock)%Points(2, j)%T
-            tag = wB * 1000 + j
+            tag = wB * 100 + j + b%westFace%neighborBlock * 1000
             call MPI_Isend(buffer, 1, MPI_REAL8, destination, tag, mpi_comm_world, request, ierror)
           end do
         end if
@@ -263,10 +263,10 @@ contains
       if (b%NECorner%BC == -1) then
         if (MyID == b%NECorner%neighborProc) then
           b%Points(iBlockSize+1,jBlockSize+1)%T = Blocks(b%NECorner%neighborLocalBlock)%Points(2,2)%T
-        else
+        else! if (b%SWCorner%neighborBlock /= -1) then
           destination = b%NECorner%neighborProc
           buffer = Blocks(b%SWCorner%neighborLocalBlock)%Points(iBlockSize-1,jBlockSize-1)%T
-          tag = nB + eB
+          tag = nB + eB + b%NECorner%neighborBlock * 1000
           call MPI_Isend(buffer, 1, MPI_REAL8, destination, tag, mpi_comm_world, request, ierror)
         end if
       end if
@@ -275,10 +275,10 @@ contains
       if (b%SECorner%BC == -1) then
         if (MyID == b%SECorner%neighborProc) then
           b%Points(iBlockSize+1,0)%T = Blocks(b%SECorner%neighborLocalBlock)%Points(2,jBlockSize-1)%T
-        else
+        else! if (b%NWCorner%neighborBlock /= -1) then
           destination = b%SECorner%neighborProc
           buffer = Blocks(b%NWCorner%neighborLocalBlock)%Points(iBlockSize-1,2)%T
-          tag = sB + eB
+          tag = sB + eB + b%SECorner%neighborBlock * 1000
           call MPI_Isend(buffer, 1, MPI_REAL8, destination, tag, mpi_comm_world, request, ierror)
         end if
       end if
@@ -287,10 +287,10 @@ contains
       if (b%SWCorner%BC == -1) then
         if (MyID == b%SWCorner%neighborProc) then
           b%Points(0,0)%T = Blocks(b%SWCorner%neighborLocalBlock)%Points(iBlockSize-1,jBlockSize-1)%T
-        else
+        else! if (b%NECorner%neighborBlock /= -1) then
           destination = b%SWCorner%neighborProc
           buffer = Blocks(b%NECorner%neighborLocalBlock)%Points(2,2)%T
-          tag = sB + wB
+          tag = sB + wB + b%SWCorner%neighborBlock * 1000
           call MPI_Isend(buffer, 1, MPI_REAL8, destination, tag, mpi_comm_world, request, ierror)
         end if
       end if
@@ -299,10 +299,10 @@ contains
       if (b%NWCorner%BC == -1) then
         if (MyID == b%NWCorner%neighborProc) then
           b%Points(0,jBlockSize+1)%T = Blocks(b%NWCorner%neighborLocalBlock)%Points(iBlockSize-1,2)%T
-        else
+        else! if (b%SECorner%neighborBlock /= -1) then
           destination = b%NWCorner%neighborProc
           buffer = Blocks(b%SECorner%neighborLocalBlock)%Points(2,jBlockSize-1)%T
-          tag = nB + wB
+          tag = nB + wB + b%NWCorner%neighborBlock * 1000
           call MPI_Isend(buffer, 1, MPI_REAL8, destination, tag, mpi_comm_world, request, ierror)
         end if
       end if
@@ -330,7 +330,7 @@ contains
 
           source = b%southFace%neighborProc
           do i = 1, iBlockSize
-            tag = nB * 1000 + i
+            tag = nB * 100 + i + b%id * 1000
             call MPI_RECV(buffer, 1, MPI_REAL8, source, tag, mpi_comm_world, status, ierror)
             b%Points(i, 0)%T = buffer
           end do
@@ -342,7 +342,7 @@ contains
         if (MyID /= b%northFace%neighborProc) then
           source = b%northFace%neighborProc
           do i = 1, iBlockSize
-            tag = sB * 1000 + i
+            tag = sB * 100 + i + b%id * 1000
             call MPI_RECV(buffer, 1, MPI_REAL8, source, tag, mpi_comm_world, status, ierror)
             b%Points(i, jBlockSize+1)%T = buffer
           end do
@@ -354,7 +354,7 @@ contains
         if (MyID /= b%westFace%neighborProc) then
           source = b%westFace%neighborProc
           do j = 1, jBlockSize
-            tag = eB * 1000 + j
+            tag = eB * 100 + j + b%id * 1000
             call MPI_RECV(buffer, 1, MPI_REAL8, source, tag, mpi_comm_world, status, ierror)
             b%Points(0, j)%T = buffer
           end do
@@ -366,7 +366,7 @@ contains
         if (MyID /= b%eastFace%neighborProc) then
           source = b%eastFace%neighborProc
           do j = 1, jBlockSize
-            tag = wB * 1000 + j
+            tag = wB * 100 + j + b%id * 1000
             call MPI_RECV(buffer, 1, MPI_REAL8, source, tag, mpi_comm_world, status, ierror)
             b%Points(iBlockSize+1, j)%T = buffer
           end do
@@ -378,9 +378,9 @@ contains
       if (b%SWCorner%BC == -1) then
         if (MyID /= b%SWCorner%neighborProc) then
           source = b%SWCorner%neighborProc
-          tag = nB + eB
+          tag = nB + eB + b%id * 1000
           call MPI_RECV(buffer, 1, MPI_REAL8, source, tag, mpi_comm_world, status, ierror)
-          b%Points(0,0)%T = buffer
+          if (buffer /= 0.d0) b%Points(0,0)%T = buffer
         end if
       end if
 
@@ -388,9 +388,9 @@ contains
       if (b%NWCorner%BC == -1) then
         if (MyID /= b%NWCorner%neighborProc) then
           source = b%NWCorner%neighborProc
-          tag = sB + eB
+          tag = sB + eB + b%id * 1000
           call MPI_RECV(buffer, 1, MPI_REAL8, source, tag, mpi_comm_world, status, ierror)
-          b%Points(0,jBlockSize+1)%T = buffer
+          if (buffer /= 0.d0) b%Points(0,jBlockSize+1)%T = buffer
         end if
       end if
 
@@ -398,9 +398,9 @@ contains
       if (b%NECorner%BC == -1) then
         if (MyID /= b%NECorner%neighborProc) then
           source = b%NECorner%neighborProc
-          tag = sB + wB
+          tag = sB + wB + b%id * 1000
           call MPI_RECV(buffer, 1, MPI_REAL8, source, tag, mpi_comm_world, status, ierror)
-          b%Points(iBlockSize+1,jBlockSize+1)%T = buffer
+          if (buffer /= 0.d0) b%Points(iBlockSize+1,jBlockSize+1)%T = buffer
         end if
       end if
 
@@ -408,9 +408,9 @@ contains
       if (b%SECorner%BC == -1) then
         if (MyID /= b%SECorner%neighborProc) then
           source = b%SECorner%neighborProc
-          tag = nB + wB
+          tag = nB + wB + b%id * 1000
           call MPI_RECV(buffer, 1, MPI_REAL8, source, tag, mpi_comm_world, status, ierror)
-          b%Points(iBlockSize+1,0)%T = buffer
+          if (buffer /= 0.d0) b%Points(iBlockSize+1,0)%T = buffer
         end if
       end if
 

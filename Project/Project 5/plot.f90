@@ -30,7 +30,7 @@ contains
       write(configUnit, 10) Procs(p_)%nBlocks, iBlockSize, jBlockSize
       do n_ = 1, Procs(p_)%nBlocks
         b => BlocksCollection(n_)
-        write(configUnit, 20) n_, b%proc, b%size, &
+        write(configUnit, 20) b%id, b%proc, b%size, &
           b%lowI, b%lowJ, &
           b%localIMIN, b%localIMAX, b%localJMIN, b%localJMAX, &
           b%northFace%BC, b%northFace%neighborBlock, b%northFace%neighborLocalBlock, b%northFace%neighborProc, &
@@ -71,7 +71,7 @@ contains
 
     do n_ = 1, readnBlocks
       b => Blocks(n_)
-      read(1, 20) nFile, b%proc, b%size, &
+      read(1, 20) b%id, b%proc, b%size, &
         b%lowI, b%lowJ, &
         b%localIMIN, b%localIMAX, b%localJMIN, b%localJMAX, &
         b%northFace%BC, b%northFace%neighborBlock, b%northFace%neighborLocalBlock, b%northFace%neighborProc, &
