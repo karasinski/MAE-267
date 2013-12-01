@@ -65,16 +65,8 @@ contains
       ! Calculate our first and second derivatives for all our points, and
       ! calculate the new temperature for all of our interior points.
       call derivatives
-
-      call MPI_Barrier(barrier, ierror)
-
       call update_ghosts
-
       call cross_proc_talk
-
-      ! Hold after we send information. This requires that all Procs have
-      ! send and received their info for this loop before we continue.
-      call MPI_Barrier(barrier, ierror)
 
       ! Find block with largest residual.
       local_residual = 0.d0
@@ -192,10 +184,10 @@ contains
       else if (b%northFace%BC == PROC_BOUNDARY) then
         ! Our neighbor block is on different proc, so it will also need information from
         ! this block. We do a nonblocking send now and a blocking receive later.
-        ! Need to send our North Face to our North Neighbor as its South Face.
+        ! Need to send our North row to our North Neighbor as its South row.
         destination = b%northFace%neighborProc
         do i = 1, iBlockSize
-          buffer = Blocks(b%southFace%neighborLocalBlock)%Points(i, jBlockSize-1)%T
+          buffer = b%Points(i, jBlockSize-1)%T
           tag = nB * 100 + i + b%northFace%neighborBlock * 1000
           call MPI_Isend(buffer, 1, MPI_REAL8, destination, tag, mpi_comm_world, request, ierror)
         end do
@@ -203,14 +195,13 @@ contains
 
       ! South face ghost nodes
       if (b%southFace%BC == INTERNAL_BOUNDARY) then
-        ! Internal boundary
         do i = 1, iBlockSize
           b%Points(i, 0)%T = Blocks(b%southFace%neighborLocalBlock)%Points(i, jBlockSize-1)%T
         end do
       else if (b%southFace%BC == PROC_BOUNDARY) then
         destination = b%southFace%neighborProc
         do i = 1, iBlockSize
-          buffer = Blocks(b%northFace%neighborLocalBlock)%Points(i, 2)%T
+          buffer = b%Points(i, 2)%T
           tag = sB * 100 + i + b%southFace%neighborBlock * 1000
           call MPI_Isend(buffer, 1, MPI_REAL8, destination, tag, mpi_comm_world, request, ierror)
         end do
@@ -218,14 +209,13 @@ contains
 
       ! East face ghost nodes
       if (b%eastFace%BC == INTERNAL_BOUNDARY) then
-        ! Internal boundary
         do j = 1, jBlockSize
           b%Points(iBlockSize+1, j)%T = Blocks(b%eastFace%neighborLocalBlock)%Points(2, j)%T
         end do
       else if (b%eastFace%BC == PROC_BOUNDARY) then
         destination = b%eastFace%neighborProc
         do j = 1, jBlockSize
-          buffer = Blocks(b%westFace%neighborLocalBlock)%Points(iBlockSize-1, j)%T
+          buffer = b%Points(iBlockSize-1, j)%T
           tag = eB * 100 + j + b%eastFace%neighborBlock * 1000
           call MPI_Isend(buffer, 1, MPI_REAL8, destination, tag, mpi_comm_world, request, ierror)
         end do
@@ -233,14 +223,13 @@ contains
 
       ! West face ghost nodes
       if (b%westFace%BC == INTERNAL_BOUNDARY) then
-        ! Internal boundary
         do j = 1, jBlockSize
           b%Points(0, j)%T = Blocks(b%westFace%neighborLocalBlock)%Points(iBlockSize-1, j)%T
         end do
       else if (b%westFace%BC == PROC_BOUNDARY) then
         destination = b%westFace%neighborProc
         do j = 1, jBlockSize
-          buffer = Blocks(b%eastFace%neighborLocalBlock)%Points(2, j)%T
+          buffer = b%Points(2, j)%T
           tag = wB * 100 + j + b%westFace%neighborBlock * 1000
           call MPI_Isend(buffer, 1, MPI_REAL8, destination, tag, mpi_comm_world, request, ierror)
         end do
@@ -252,7 +241,7 @@ contains
         b%Points(iBlockSize+1,jBlockSize+1)%T = Blocks(b%NECorner%neighborLocalBlock)%Points(2,2)%T
       else if (b%NECorner%BC == PROC_BOUNDARY) then
         destination = b%NECorner%neighborProc
-        buffer = Blocks(b%SWCorner%neighborLocalBlock)%Points(iBlockSize-1,jBlockSize-1)%T
+        buffer = b%Points(iBlockSize-1,jBlockSize-1)%T
         tag = nB + eB + b%NECorner%neighborBlock * 1000
         call MPI_Isend(buffer, 1, MPI_REAL8, destination, tag, mpi_comm_world, request, ierror)
       end if
@@ -262,7 +251,7 @@ contains
           b%Points(iBlockSize+1,0)%T = Blocks(b%SECorner%neighborLocalBlock)%Points(2,jBlockSize-1)%T
       else if (b%SECorner%BC == PROC_BOUNDARY) then
           destination = b%SECorner%neighborProc
-          buffer = Blocks(b%NWCorner%neighborLocalBlock)%Points(iBlockSize-1,2)%T
+          buffer = b%Points(iBlockSize-1,2)%T
           tag = sB + eB + b%SECorner%neighborBlock * 1000
           call MPI_Isend(buffer, 1, MPI_REAL8, destination, tag, mpi_comm_world, request, ierror)
       end if
@@ -272,7 +261,7 @@ contains
           b%Points(0,0)%T = Blocks(b%SWCorner%neighborLocalBlock)%Points(iBlockSize-1,jBlockSize-1)%T
       else if (b%SWCorner%BC == PROC_BOUNDARY) then
           destination = b%SWCorner%neighborProc
-          buffer = Blocks(b%NECorner%neighborLocalBlock)%Points(2,2)%T
+          buffer = b%Points(2,2)%T
           tag = sB + wB + b%SWCorner%neighborBlock * 1000
           call MPI_Isend(buffer, 1, MPI_REAL8, destination, tag, mpi_comm_world, request, ierror)
       end if
@@ -282,13 +271,12 @@ contains
           b%Points(0,jBlockSize+1)%T = Blocks(b%NWCorner%neighborLocalBlock)%Points(iBlockSize-1,2)%T
       else if (b%NWCorner%BC == PROC_BOUNDARY) then
           destination = b%NWCorner%neighborProc
-          buffer = Blocks(b%SECorner%neighborLocalBlock)%Points(2,jBlockSize-1)%T
+          buffer = b%Points(2,jBlockSize-1)%T
           tag = nB + wB + b%NWCorner%neighborBlock * 1000
           call MPI_Isend(buffer, 1, MPI_REAL8, destination, tag, mpi_comm_world, request, ierror)
       end if
 
     end do
-
   end subroutine
 
   subroutine cross_proc_talk
@@ -300,7 +288,6 @@ contains
     ! For each block...
     do n_ = 1, MyNBlocks
       b => Blocks(n_)
-
       ! Our neighbor block is on different proc, we must receive with MPI.
 
       ! Faces
@@ -310,7 +297,7 @@ contains
         do i = 1, iBlockSize
           tag = nB * 100 + i + b%id * 1000
           call MPI_RECV(buffer, 1, MPI_REAL8, source, tag, mpi_comm_world, status, ierror)
-          if (buffer > 0.d0) b%Points(i, 0)%T = buffer
+          b%Points(i, 0)%T = buffer
         end do
       end if
 
@@ -320,7 +307,7 @@ contains
         do i = 1, iBlockSize
           tag = sB * 100 + i + b%id * 1000
           call MPI_RECV(buffer, 1, MPI_REAL8, source, tag, mpi_comm_world, status, ierror)
-          if (buffer > 0.d0) b%Points(i, jBlockSize+1)%T = buffer
+          b%Points(i, jBlockSize+1)%T = buffer
         end do
       end if
 
@@ -330,7 +317,7 @@ contains
         do j = 1, jBlockSize
           tag = eB * 100 + j + b%id * 1000
           call MPI_RECV(buffer, 1, MPI_REAL8, source, tag, mpi_comm_world, status, ierror)
-          if (buffer > 0.d0) b%Points(0, j)%T = buffer
+          b%Points(0, j)%T = buffer
         end do
       end if
 
@@ -340,7 +327,7 @@ contains
         do j = 1, jBlockSize
           tag = wB * 100 + j + b%id * 1000
           call MPI_RECV(buffer, 1, MPI_REAL8, source, tag, mpi_comm_world, status, ierror)
-          if (buffer > 0.d0) b%Points(iBlockSize+1, j)%T = buffer
+          b%Points(iBlockSize+1, j)%T = buffer
         end do
       end if
 
@@ -350,7 +337,7 @@ contains
         source = b%SWCorner%neighborProc
         tag = nB + eB + b%id * 1000
         call MPI_RECV(buffer, 1, MPI_REAL8, source, tag, mpi_comm_world, status, ierror)
-        if (buffer > 0.d0) b%Points(0,0)%T = buffer
+        b%Points(0,0)%T = buffer
       end if
 
       ! North West corner
@@ -358,7 +345,7 @@ contains
         source = b%NWCorner%neighborProc
         tag = sB + eB + b%id * 1000
         call MPI_RECV(buffer, 1, MPI_REAL8, source, tag, mpi_comm_world, status, ierror)
-        if (buffer > 0.d0) b%Points(0,jBlockSize+1)%T = buffer
+        b%Points(0,jBlockSize+1)%T = buffer
       end if
 
       ! North East corner
@@ -366,7 +353,7 @@ contains
         source = b%NECorner%neighborProc
         tag = sB + wB + b%id * 1000
         call MPI_RECV(buffer, 1, MPI_REAL8, source, tag, mpi_comm_world, status, ierror)
-        if (buffer > 0.d0) b%Points(iBlockSize+1,jBlockSize+1)%T = buffer
+        b%Points(iBlockSize+1,jBlockSize+1)%T = buffer
       end if
 
       ! South East corner
@@ -374,7 +361,7 @@ contains
         source = b%SECorner%neighborProc
         tag = nB + wB + b%id * 1000
         call MPI_RECV(buffer, 1, MPI_REAL8, source, tag, mpi_comm_world, status, ierror)
-        if (buffer > 0.d0) b%Points(iBlockSize+1,0)%T = buffer
+        b%Points(iBlockSize+1,0)%T = buffer
       end if
 
     end do
