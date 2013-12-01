@@ -10,7 +10,6 @@ module constants
   integer, parameter :: JMAX = 101
   integer, parameter :: N = 10
   integer, parameter :: M = 10
-!   integer, parameter :: nProcs = 4
   integer, parameter :: iBlockSize = 1 + (IMAX - 1) / N
   integer, parameter :: jBlockSize = 1 + (JMAX - 1) / M
   integer, parameter :: nBlocks = M * N
@@ -20,7 +19,7 @@ module constants
   real(kind=8), parameter :: pi = 3.141592654d0, rot = 30.d0*pi/180.d0
   real(kind=8), parameter :: alpha = k / (c_p * rho)
   integer :: nB = 1, eB = 2, sB = 3, wB = 4
-  integer :: Internal = -1
+  integer :: INTERNAL_BOUNDARY = -1, EXTERNAL_BOUNDARY = -2, PROC_BOUNDARY = -3
   integer :: step = 0
 
   ! MPI related variables.
@@ -97,7 +96,7 @@ contains
       ! Initialize ghost nodes. If block face is internal
       ! also set different bounds for the solver loop.
       ! North face.
-      if (b%northFace%BC == -1) then
+      if (b%northFace%BC == INTERNAL_BOUNDARY) then
         do i = 1, iBlockSize
           neighbor = b%northFace%neighborBlock
           p1 => b%Points(i, jBlockSize+1)
@@ -110,7 +109,7 @@ contains
       end if
 
       ! East face.
-      if (b%eastFace%BC == -1) then
+      if (b%eastFace%BC == INTERNAL_BOUNDARY) then
         do j = 1, jBlockSize
           neighbor = b%eastFace%neighborBlock
           p1 => b%Points(iBlockSize+1, j)
@@ -123,7 +122,7 @@ contains
       end if
 
       ! South face.
-      if (b%southFace%BC == -1) then
+      if (b%southFace%BC == INTERNAL_BOUNDARY) then
         do i = 1, iBlockSize
           neighbor = b%southFace%neighborBlock
           p1 => b%Points(i, 0)
@@ -136,7 +135,7 @@ contains
       end if
 
       ! West face.
-      if (b%westFace%BC == -1) then
+      if (b%westFace%BC == INTERNAL_BOUNDARY) then
         do j = 1, jBlockSize
           neighbor = b%westFace%neighborBlock
           p1 => b%Points(0, j)
@@ -150,7 +149,7 @@ contains
 
       ! Set corner points.
       ! North east corner
-      if (b%NECorner%BC == -1) then
+      if (b%NECorner%BC == INTERNAL_BOUNDARY) then
         neighbor = b%NECorner%neighborBlock
         p1 => b%Points(iBlockSize+1, jBlockSize+1)
         p2 => Blocks(neighbor)%Points(2, 2)
@@ -161,7 +160,7 @@ contains
       end if
 
       ! South east corner
-      if (b%SECorner%BC == -1) then
+      if (b%SECorner%BC == INTERNAL_BOUNDARY) then
         neighbor = b%SECorner%neighborBlock
         p1 => b%Points(iBlockSize+1, 0)
         p2 => Blocks(neighbor)%Points(2, jBlockSize-1)
@@ -172,7 +171,7 @@ contains
       end if
 
       ! South west corner
-      if (b%SWCorner%BC == -1) then
+      if (b%SWCorner%BC == INTERNAL_BOUNDARY) then
         neighbor = b%SWCorner%neighborBlock
         p1 => b%Points(0, 0)
         p2 => Blocks(neighbor)%Points(iBlockSize-1, jBlockSize-1)
@@ -183,7 +182,7 @@ contains
       end if
 
       ! North west corner
-      if (b%NWCorner%BC == -1) then
+      if (b%NWCorner%BC == INTERNAL_BOUNDARY) then
         neighbor = b%NWCorner%neighborBlock
         p1 => b%Points(0, jBlockSize+1)
         p2 => Blocks(neighbor)%Points(iBlockSize-1, 2)

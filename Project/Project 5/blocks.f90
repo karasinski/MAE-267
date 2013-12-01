@@ -54,13 +54,13 @@ contains
         b%westFace%neighborBlock = n_ - 1
 
         ! Assume all corners are internal (BC=-1) and set their neighbor.
-        b%NECorner%BC = -1
+        b%NECorner%BC = INTERNAL_BOUNDARY
         b%NECorner%neighborBlock = n_ + N + 1
-        b%SECorner%BC = -1
+        b%SECorner%BC = INTERNAL_BOUNDARY
         b%SECorner%neighborBlock = n_ - N + 1
-        b%SWCorner%BC = -1
+        b%SWCorner%BC = INTERNAL_BOUNDARY
         b%SWCorner%neighborBlock = n_ - N - 1
-        b%NWCorner%BC = -1
+        b%NWCorner%BC = INTERNAL_BOUNDARY
         b%NWCorner%neighborBlock = n_ + N - 1
 
         ! Set local block numbers to -1 for now.
@@ -79,22 +79,22 @@ contains
         if (highJ == JMAX) then
           nBound = nB
         else
-          nBound = -1
+          nBound = INTERNAL_BOUNDARY
         end if
         if (highI == IMAX) then
           eBound = eB
         else
-          eBound = -1
+          eBound = INTERNAL_BOUNDARY
         end if
         if (b%lowJ == 1) then
           sBound = sB
         else
-          sBound = -1
+          sBound = INTERNAL_BOUNDARY
         end if
         if (b%lowI == 1) then
           wBound = wB
         else
-          wBound = -1
+          wBound = INTERNAL_BOUNDARY
         end if
 
         ! Bounds and Faces
@@ -106,24 +106,24 @@ contains
 
         ! Check if faces are on the boundary and
         ! if so, set them to point to nothing.
-        if (b%northFace%BC /= -1) then
-          b%northFace%neighborBlock = -1
-          b%northFace%neighborProc = -1
+        if (b%northFace%BC /= INTERNAL_BOUNDARY) then
+          b%northFace%neighborBlock = EXTERNAL_BOUNDARY
+          b%northFace%neighborProc = EXTERNAL_BOUNDARY
         end if
 
-        if (b%southFace%BC /= -1) then
-          b%southFace%neighborBlock = -1
-          b%southFace%neighborProc = -1
+        if (b%southFace%BC /= INTERNAL_BOUNDARY) then
+          b%southFace%neighborBlock = EXTERNAL_BOUNDARY
+          b%southFace%neighborProc = EXTERNAL_BOUNDARY
         end if
 
-        if (b%eastFace%BC /= -1) then
-          b%eastFace%neighborBlock = -1
-          b%eastFace%neighborProc = -1
+        if (b%eastFace%BC /= INTERNAL_BOUNDARY) then
+          b%eastFace%neighborBlock = EXTERNAL_BOUNDARY
+          b%eastFace%neighborProc = EXTERNAL_BOUNDARY
         end if
 
-        if (b%westFace%BC /= -1) then
-          b%westFace%neighborBlock = -1
-          b%westFace%neighborProc = -1
+        if (b%westFace%BC /= INTERNAL_BOUNDARY) then
+          b%westFace%neighborBlock = EXTERNAL_BOUNDARY
+          b%westFace%neighborProc = EXTERNAL_BOUNDARY
         end if
 
         ! If corners are on boundary then they don't
@@ -132,71 +132,71 @@ contains
         ! North East Corner
         if (b%northFace%BC == nB) then
           b%NECorner%BC = nBound
-          b%NECorner%neighborBlock = -1
-          b%NECorner%neighborProc = -1
+          b%NECorner%neighborBlock = EXTERNAL_BOUNDARY
+          b%NECorner%neighborProc = EXTERNAL_BOUNDARY
         else if (b%eastFace%BC == eB) then
           b%NECorner%BC = eBound
-          b%NECorner%neighborBlock = -1
-          b%NECorner%neighborProc = -1
+          b%NECorner%neighborBlock = EXTERNAL_BOUNDARY
+          b%NECorner%neighborProc = EXTERNAL_BOUNDARY
         end if
 
         ! South East Corner
         if (b%southFace%BC == sB) then
           b%SECorner%BC = sBound
-          b%SECorner%neighborBlock = -1
-          b%SECorner%neighborProc = -1
+          b%SECorner%neighborBlock = EXTERNAL_BOUNDARY
+          b%SECorner%neighborProc = EXTERNAL_BOUNDARY
         else if (b%eastFace%BC == eB) then
           b%SECorner%BC = eBound
-          b%SECorner%neighborBlock = -1
-          b%SECorner%neighborProc = -1
+          b%SECorner%neighborBlock = EXTERNAL_BOUNDARY
+          b%SECorner%neighborProc = EXTERNAL_BOUNDARY
         end if
 
         ! South West Corner
         if (b%southFace%BC == sB) then
           b%SWCorner%BC = sBound
-          b%SWCorner%neighborBlock = -1
-          b%SWCorner%neighborProc = -1
+          b%SWCorner%neighborBlock = EXTERNAL_BOUNDARY
+          b%SWCorner%neighborProc = EXTERNAL_BOUNDARY
         else if (b%westFace%BC == wB) then
           b%SWCorner%BC = wBound
-          b%SWCorner%neighborBlock = -1
-          b%SWCorner%neighborProc = -1
+          b%SWCorner%neighborBlock = EXTERNAL_BOUNDARY
+          b%SWCorner%neighborProc = EXTERNAL_BOUNDARY
         end if
 
         ! North West Corner
         if (b%northFace%BC == nB) then
           b%NWCorner%BC = nBound
-          b%NWCorner%neighborBlock = -1
-          b%NWCorner%neighborProc = -1
+          b%NWCorner%neighborBlock = EXTERNAL_BOUNDARY
+          b%NWCorner%neighborProc = EXTERNAL_BOUNDARY
         else if (b%westFace%BC == wB) then
           b%NWCorner%BC = wBound
-          b%NWCorner%neighborBlock = -1
-          b%NWCorner%neighborProc = -1
+          b%NWCorner%neighborBlock = EXTERNAL_BOUNDARY
+          b%NWCorner%neighborProc = EXTERNAL_BOUNDARY
         end if
 
         ! Calculate 'true' bounds of blocks.
         ! North face.
-        if (b%northFace%BC == -1) then
+        if (b%northFace%BC == INTERNAL_BOUNDARY) then
           b%localJMAX = jBlockSize
         else
           b%localJMAX = jBlockSize - 1
         end if
 
         ! South face.
-        if (b%southFace%BC == -1) then
+        if (b%southFace%BC == INTERNAL_BOUNDARY) then
           b%localJMIN = 0
         else
           b%localJMIN = 1
         end if
 
         ! East face.
-        if (b%eastFace%BC == -1) then
+        if (b%eastFace%BC == INTERNAL_BOUNDARY) then
           b%localIMAX = iBlockSize
         else
           b%localIMAX = iBlockSize - 1
         end if
 
         ! West face.
-        if (b%westFace%BC == -1) then
+        if (b%westFace%BC == INTERNAL_BOUNDARY) then
           b%localIMIN = 0
         else
           b%localIMIN = 1
@@ -318,7 +318,6 @@ contains
         do p2 = 1, mpi_nprocs
           ThisProc => Procs(p2)
 
-!           if (MyProc%procID /= ThisProc%procID) then
             ! ...and compare this blocks id to our faces id.
             ! When we find a match we set our faces proc to the proc this block is on.
             do b2 = 1, Procs(p2)%nBlocks
@@ -328,35 +327,60 @@ contains
               if (MyBlock%northFace%neighborBlock == ThisBlock%id) then
                 MyBlock%northFace%neighborProc = ThisProc%procID
                 MyBlock%northFace%neighborLocalBlock = b2
+                
+                if (MyProc%procID /= ThisProc%procID) then
+                  MyBlock%northFace%BC = PROC_BOUNDARY
+                end if
               end if
               if (MyBlock%southFace%neighborBlock == ThisBlock%id) then 
                 MyBlock%southFace%neighborProc = ThisProc%procID
                 MyBlock%southFace%neighborLocalBlock = b2
+                if (MyProc%procID /= ThisProc%procID) then
+                  MyBlock%southFace%BC = PROC_BOUNDARY
+                end if
               end if
               if (MyBlock%eastFace%neighborBlock  == ThisBlock%id) then 
                 MyBlock%eastFace%neighborProc  = ThisProc%procID
                 MyBlock%eastFace%neighborLocalBlock = b2
+                if (MyProc%procID /= ThisProc%procID) then
+                  MyBlock%eastFace%BC = PROC_BOUNDARY
+                end if
               end if
               if (MyBlock%westFace%neighborBlock  == ThisBlock%id) then 
                 MyBlock%westFace%neighborProc  = ThisProc%procID
                 MyBlock%westFace%neighborLocalBlock = b2
+                if (MyProc%procID /= ThisProc%procID) then
+                  MyBlock%westFace%BC = PROC_BOUNDARY
+                end if
               end if
 
               if (MyBlock%NECorner%neighborBlock == ThisBlock%id)  then 
                 MyBlock%NECorner%neighborProc  = ThisProc%procID
                 MyBlock%NECorner%neighborLocalBlock = b2
+                if (MyProc%procID /= ThisProc%procID) then
+                  MyBlock%NECorner%BC = PROC_BOUNDARY
+                end if
               end if
               if (MyBlock%NWCorner%neighborBlock == ThisBlock%id)  then
                 MyBlock%NWCorner%neighborProc  = ThisProc%procID
                 MyBlock%NWCorner%neighborLocalBlock = b2
+                if (MyProc%procID /= ThisProc%procID) then
+                  MyBlock%NWCorner%BC = PROC_BOUNDARY
+                end if
               end if
               if (MyBlock%SECorner%neighborBlock == ThisBlock%id)  then 
                 MyBlock%SECorner%neighborProc  = ThisProc%procID
                 MyBlock%SECorner%neighborLocalBlock = b2
+                if (MyProc%procID /= ThisProc%procID) then
+                  MyBlock%SECorner%BC = PROC_BOUNDARY
+                end if
               end if
               if (MyBlock%SWCorner%neighborBlock == ThisBlock%id)  then 
                 MyBlock%SWCorner%neighborProc  = ThisProc%procID
                 MyBlock%SWCorner%neighborLocalBlock = b2
+                if (MyProc%procID /= ThisProc%procID) then
+                  MyBlock%SWCorner%BC = PROC_BOUNDARY
+                end if
               end if
             end do
 
