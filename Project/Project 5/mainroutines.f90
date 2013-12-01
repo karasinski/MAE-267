@@ -6,7 +6,7 @@ module MainRoutines
   implicit none
 
   ! Block array for solver.
-  type (BlockType), allocatable, target :: Blocks(:)
+  type (BlockType), pointer :: Blocks(:)
 
 contains
 
@@ -51,17 +51,19 @@ contains
   ! This is the main solver.
   subroutine solve(Blocks)
     type (BlockType), target :: Blocks(:)
-    integer, parameter :: max_steps = 10000
+    integer, parameter :: max_steps = 100000
     real(kind=8) :: temp_residual = 1.d0, residual = 1.d0, local_residual = 1.d0
     real(kind=8) :: residuals(max_steps) = 0.d0
     integer :: n_
     character(2) :: name, str
 
-    !  Begin main loop, stop if we hit our mark or after max_steps iterations.
-    do while (residual >= .00001d0 .and. step < max_steps)
-      ! Another day...
-      step = step + 1
+    ! Processor 0 times our iterations until convergence.
+    if (MyID == 0) then
+      call start_clock
+    end if
 
+    !  Begin main loop, stop if we hit our mark or after max_steps iterations.
+    do step = 1, max_steps
       ! Calculate our first and second derivatives for all our points, and
       ! calculate the new temperature for all of our interior points.
       call derivatives
@@ -80,13 +82,17 @@ contains
 
       call MPI_Barrier(barrier, ierror)
       call mpi_allreduce(local_residual, residual, 1, MPI_REAL8, MPI_MAX, mpi_comm_world, ierror)
-
-      write(*,*), MyID, step, residual, local_residual
-
       residuals(step) = residual
+!       write(*,*), MyID, step, residual, local_residual
+
+      if (residual < .00001d0) exit
     end do
 
+    ! We have converged and all procs have stopped, end clock.
     call MPI_Barrier(barrier, ierror)
+    if (MyID == 0) then
+      call end_clock
+    end if
 
     if (MyID == 0) then
       ! Write the residual information to output file.
@@ -104,6 +110,9 @@ contains
         write(*,*) "Failed to converge."
       end if
     end if
+
+    ! Write some results to file/screen.
+    call output(Blocks, residuals)
   end subroutine
 
   subroutine derivatives
@@ -176,7 +185,6 @@ contains
     do n_ = 1, MyNBlocks
       b => Blocks(n_)
 
-      ! Faces
       ! North face ghost nodes
       if (b%northFace%BC == INTERNAL_BOUNDARY) then
         ! Our neighbor block is on same proc, we can grab directly.
@@ -186,12 +194,19 @@ contains
       else if (b%northFace%BC == PROC_BOUNDARY) then
         ! Our neighbor block is on different proc, so it will also need information from
         ! this block. We do a nonblocking send now and a blocking receive later.
-        ! Need to send our North row to our North Neighbor as its South row.
+
+        ! Pack our values to send into a buffer.
         do i = 1, iBlockSize
           i_buffer(i) = b%Points(i, jBlockSize-1)%T
         end do
+
+        ! Find the destination.
         destination = b%northFace%neighborProc
-        tag = nB + b%northFace%neighborBlock * 10
+
+        ! Generate a tag unique within the iteration.
+        tag = nB
+
+        ! Send everything to the proc and continue without immediate confirmation.
         call MPI_Isend(i_buffer, i_count, MPI_REAL8, destination, tag, mpi_comm_world, request, ierror)
       end if
 
@@ -205,7 +220,7 @@ contains
           i_buffer(i) = b%Points(i, 2)%T
         end do
         destination = b%southFace%neighborProc
-        tag = sB + b%southFace%neighborBlock * 10
+        tag = sB
         call MPI_Isend(i_buffer, i_count, MPI_REAL8, destination, tag, mpi_comm_world, request, ierror)
       end if
 
@@ -219,7 +234,7 @@ contains
           j_buffer(j) = b%Points(iBlockSize-1, j)%T
         end do
         destination = b%eastFace%neighborProc
-        tag = eB + b%eastFace%neighborBlock * 10
+        tag = eB
         call MPI_Isend(j_buffer, j_count, MPI_REAL8, destination, tag, mpi_comm_world, request, ierror)
       end if
 
@@ -233,48 +248,47 @@ contains
           j_buffer(j) = b%Points(2, j)%T
         end do
         destination = b%westFace%neighborProc
-        tag = wB + b%westFace%neighborBlock * 10
+        tag = wB
         call MPI_Isend(j_buffer, j_count, MPI_REAL8, destination, tag, mpi_comm_world, request, ierror)
       end if
 
-      ! Corners
-      ! North east corner
+      ! North east corner ghost node
       if (b%NECorner%BC == INTERNAL_BOUNDARY) then
         b%Points(iBlockSize+1,jBlockSize+1)%T = Blocks(b%NECorner%neighborLocalBlock)%Points(2,2)%T
       else if (b%NECorner%BC == PROC_BOUNDARY) then
         destination = b%NECorner%neighborProc
         buffer = b%Points(iBlockSize-1,jBlockSize-1)%T
-        tag = nB + eB + b%NECorner%neighborBlock * 1000
+        tag = nB + eB
         call MPI_Isend(buffer, 1, MPI_REAL8, destination, tag, mpi_comm_world, request, ierror)
       end if
 
-      ! South east corner
+      ! South east corner ghost node
       if (b%SECorner%BC == INTERNAL_BOUNDARY) then
           b%Points(iBlockSize+1,0)%T = Blocks(b%SECorner%neighborLocalBlock)%Points(2,jBlockSize-1)%T
       else if (b%SECorner%BC == PROC_BOUNDARY) then
           destination = b%SECorner%neighborProc
           buffer = b%Points(iBlockSize-1,2)%T
-          tag = sB + eB + b%SECorner%neighborBlock * 1000
+          tag = sB + eB
           call MPI_Isend(buffer, 1, MPI_REAL8, destination, tag, mpi_comm_world, request, ierror)
       end if
 
-      ! South west corner
+      ! South west corner ghost node
       if (b%SWCorner%BC == INTERNAL_BOUNDARY) then
           b%Points(0,0)%T = Blocks(b%SWCorner%neighborLocalBlock)%Points(iBlockSize-1,jBlockSize-1)%T
       else if (b%SWCorner%BC == PROC_BOUNDARY) then
           destination = b%SWCorner%neighborProc
           buffer = b%Points(2,2)%T
-          tag = sB + wB + b%SWCorner%neighborBlock * 1000
+          tag = sB + wB
           call MPI_Isend(buffer, 1, MPI_REAL8, destination, tag, mpi_comm_world, request, ierror)
       end if
 
-      ! North west corner
+      ! North west corner ghost node
       if (b%NWCorner%BC == INTERNAL_BOUNDARY) then
           b%Points(0,jBlockSize+1)%T = Blocks(b%NWCorner%neighborLocalBlock)%Points(iBlockSize-1,2)%T
       else if (b%NWCorner%BC == PROC_BOUNDARY) then
           destination = b%NWCorner%neighborProc
           buffer = b%Points(2,jBlockSize-1)%T
-          tag = nB + wB + b%NWCorner%neighborBlock * 1000
+          tag = nB + wB
           call MPI_Isend(buffer, 1, MPI_REAL8, destination, tag, mpi_comm_world, request, ierror)
       end if
 
@@ -294,11 +308,10 @@ contains
       b => Blocks(n_)
       ! Our neighbor block is on different proc, we must receive with MPI.
 
-      ! Faces
       ! South Face Blocking Receive
       if (b%southFace%BC == PROC_BOUNDARY) then
         source = b%southFace%neighborProc
-        tag = nB + b%id * 10
+        tag = nB
         call MPI_RECV(i_buffer, i_count, MPI_REAL8, source, tag, mpi_comm_world, status, ierror)
         do i = 1, iBlockSize
           b%Points(i, 0)%T = i_buffer(i)
@@ -308,7 +321,7 @@ contains
       ! North Face Blocking Receive
       if (b%northFace%BC == PROC_BOUNDARY) then
         source = b%northFace%neighborProc
-        tag = sB + b%id * 10
+        tag = sB
         call MPI_RECV(i_buffer, i_count, MPI_REAL8, source, tag, mpi_comm_world, status, ierror)
         do i = 1, iBlockSize
           b%Points(i, jBlockSize+1)%T = i_buffer(i)
@@ -318,7 +331,7 @@ contains
       ! West Face Blocking Receive
       if (b%westFace%BC == PROC_BOUNDARY) then
         source = b%westFace%neighborProc
-        tag = eB + b%id * 10
+        tag = eB
         call MPI_RECV(j_buffer, j_count, MPI_REAL8, source, tag, mpi_comm_world, status, ierror)
         do j = 1, jBlockSize
           b%Points(0, j)%T = j_buffer(j)
@@ -328,42 +341,41 @@ contains
       ! East Face Blocking Receive
       if (b%eastFace%BC == PROC_BOUNDARY) then
         source = b%eastFace%neighborProc
-        tag = wB + b%id * 10
+        tag = wB
         call MPI_RECV(j_buffer, j_count, MPI_REAL8, source, tag, mpi_comm_world, status, ierror)
         do j = 1, jBlockSize
           b%Points(iBlockSize+1, j)%T = j_buffer(j)
         end do
       end if
 
-      ! Corners
-      ! South West corner
+      ! South West Corner Blocking Receive
       if (b%SWCorner%BC == PROC_BOUNDARY) then
         source = b%SWCorner%neighborProc
-        tag = nB + eB + b%id * 1000
+        tag = nB + eB
         call MPI_RECV(buffer, 1, MPI_REAL8, source, tag, mpi_comm_world, status, ierror)
         b%Points(0,0)%T = buffer
       end if
 
-      ! North West corner
+      ! North West Corner Blocking Receive
       if (b%NWCorner%BC == PROC_BOUNDARY) then
         source = b%NWCorner%neighborProc
-        tag = sB + eB + b%id * 1000
+        tag = sB + eB
         call MPI_RECV(buffer, 1, MPI_REAL8, source, tag, mpi_comm_world, status, ierror)
         b%Points(0,jBlockSize+1)%T = buffer
       end if
 
-      ! North East corner
+      ! North East Corner Blocking Receive
       if (b%NECorner%BC == PROC_BOUNDARY) then
         source = b%NECorner%neighborProc
-        tag = sB + wB + b%id * 1000
+        tag = sB + wB
         call MPI_RECV(buffer, 1, MPI_REAL8, source, tag, mpi_comm_world, status, ierror)
         b%Points(iBlockSize+1,jBlockSize+1)%T = buffer
       end if
 
-      ! South East corner
+      ! South East Corner Blocking Receive
       if (b%SECorner%BC == PROC_BOUNDARY) then
         source = b%SECorner%neighborProc
-        tag = nB + wB + b%id * 1000
+        tag = nB + wB
         call MPI_RECV(buffer, 1, MPI_REAL8, source, tag, mpi_comm_world, status, ierror)
         b%Points(iBlockSize+1,0)%T = buffer
       end if

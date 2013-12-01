@@ -48,7 +48,7 @@ contains
   end subroutine
 
   subroutine read_configuration_file(Blocks)
-    type (BlockType), allocatable, target :: Blocks(:)
+    type (BlockType), pointer :: Blocks(:)
     type (BlockType), pointer :: b
     integer :: n_, nFile
     integer :: readnBlocks, readiBlockSize, readjBlockSize
@@ -201,12 +201,9 @@ contains
       close(gridUnit)
       close(tempUnit)
     end do
-
   end subroutine plotProcs
 
-
-  ! Plot3D routine to output grid and temperature files in a
-  ! machine readable format.
+  ! Plot3D routine to output grid and temperature files.
   subroutine plot3D(Blocks)
     type (BlockType) :: Blocks(:)
     character(2) :: name, str
@@ -258,21 +255,18 @@ contains
   ! *** minimums and maximums.                                    ***
   !
   ! Some output so we know something happened.
-  subroutine output(Blocks)
+  subroutine output(Blocks, residuals)
     type (BlockType) :: Blocks(:)
+    real(kind=8) :: residuals(:)
     integer :: n_, max_n = 1
     integer :: i, j, max_i, max_j
     real(kind=8) :: temp_residual, residual = 0.d0
+    character(2) :: name, str
 
     ! Write down misc. info asked for by Prof.
     if ( step > 0) then
-      open (unit = 2, file = "info.dat")
-      write (2,*), wall_time, " seconds"
-      write (*,*), "steps ", step
-      write (2,*), "steps ", step
-
       ! Loop over blocks, find largest residual.
-      do n_ = 1, nBlocks
+      do n_ = 1, MyNBlocks
         temp_residual = maxval(abs(Blocks(n_)%Points(2:iBlockSize-1, 2:jBlockSize-1)%tempT))
 
         if (temp_residual > residual) then
@@ -281,32 +275,43 @@ contains
         end if
       end do
 
-      write (*,*), "residual ", residual
-      write (2,*), "residual ", residual
-      residual = 0.d0
+      call MPI_Bcast(wall_time, 1, MPI_REAL8, 0, mpi_comm_world, ierror)
 
-      ! Loop over points in block, find largest residual.
-      do j = Blocks(max_n)%localJMIN, Blocks(max_n)%localJMAX
-        do i =  Blocks(max_n)%localIMIN, Blocks(max_n)%localIMAX
-          temp_residual = abs(Blocks(max_n)%Points(i, j)%tempT)
+      if (residual == minval(residuals, dim=1, mask=(residuals>0))) then
+        write( name, '(i2)' )  mpi_nprocs
+        read( name, * ) str
+        open (unit = 2, file = str//"_info.dat")
+        write (2,*), wall_time, " seconds"
+        
+        write (*,*), "steps ", step
+        write (2,*), "steps ", step
 
-          if (temp_residual > residual) then
-            residual = temp_residual
-            max_i = i
-            max_j = j
-          end if
+        write (*,*), "residual ", residual
+        write (2,*), "residual ", residual
+        residual = 0.d0
+
+        ! Loop over points in block, find largest residual.
+        do j = Blocks(max_n)%localJMIN, Blocks(max_n)%localJMAX
+          do i =  Blocks(max_n)%localIMIN, Blocks(max_n)%localIMAX
+            temp_residual = abs(Blocks(max_n)%Points(i, j)%tempT)
+
+            if (temp_residual > residual) then
+              residual = temp_residual
+              max_i = i
+              max_j = j
+            end if
+          end do
         end do
-      end do
 
-      ! Readjust to global i, j
-      max_i = Blocks(max_n)%lowI + max_i - 2
-      max_j = Blocks(max_n)%lowJ + max_j - 2
+        ! Readjust to global i, j
+        max_i = Blocks(max_n)%lowI + max_i - 2
+        max_j = Blocks(max_n)%lowJ + max_j - 2
 
-      write (*,*), "ij ", max_i, max_j
-      write (2,*), "ij ", max_i, max_j
+        write (*,*), "proc ", MyID, " has ij ", max_i, max_j
+        write (2,*), "proc ", MyID, " has ij ", max_i, max_j
 
-      close(2)
+        close(2)
+      end if
     end if
-
   end subroutine
 end module plot3D_module

@@ -464,7 +464,7 @@ contains
 
   subroutine distribute_blocks(BlocksCollection, Procs)
     type (BlockType), target :: BlocksCollection(:)
-    type (Proc), allocatable :: Procs(:)
+    type (Proc) :: Procs(:)
     type (BlockType), pointer :: b
     real(kind=8) :: fudge_factor = 1.5d0
     integer :: optimal, method = 666, p_, n_, sum = 0

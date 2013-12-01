@@ -50,25 +50,10 @@ program heat
 
   ! Hold until we're all ready to start.
   call MPI_Barrier(barrier, ierror)
-
-  ! Processor 0 times our iterations until convergence.
-  if (MyID == 0) then
-    call start_clock()
-  end if
-
   write(*,*), 'Processor ', MyID, ' starting solver.'
 
   ! Each processor starts the solver.
   call solve(Blocks)
-  call MPI_Barrier(barrier, ierror)
-
-  if (MyID == 0) then
-    call end_clock()
-  end if
-  ! End solver.
-
-  ! Write some results to file/screen.
-  !   call output(Blocks)
 
   ! Write final temperature distribution.
   call plot3D(Blocks)
