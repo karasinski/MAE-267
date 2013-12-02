@@ -6,7 +6,7 @@ program heat
   type (BlockType), allocatable :: BlocksCollection(:)
 
   ! Proc array to contain blocks.
-  type (Proc), allocatable :: Procs(:)
+  type (Proc), pointer :: Procs(:)
 
   ! Start MPI, find my id and total number of procs.
   call MPI_Init(ierror)

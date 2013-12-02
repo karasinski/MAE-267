@@ -233,45 +233,55 @@ contains
 
   subroutine initialize_faces_and_volumes(Blocks)
     type (BlockType), target :: Blocks(:)
+    type (GridPoint), pointer :: p1, p2, p3, p4
     type (GridPoint), pointer :: p(:,:)
     integer :: i, j, n_
 
     do n_=1, MyNBlocks
-      p => Blocks(n_)%Points
 
       ! Calculate fluxes.
       do j = 0, jBlockSize
         do i = 0, iBlockSize + 1
-          p(i,j)%Ayi = p(i,j+1)%y - p(i,j)%y
-          p(i,j)%Axi = p(i,j+1)%x - p(i,j)%x
+          p1 => Blocks(n_)%Points(i,j)
+          p2 => Blocks(n_)%Points(i,j+1)
+          p1%Ayi = p2%y - p1%y
+          p1%Axi = p2%x - p1%x
         end do
       end do
 
       do j = 0, jBlockSize+1
         do i = 0, iBlockSize
-          p(i,j)%Ayj = p(i+1,j)%y - p(i,j)%y
-          p(i,j)%Axj = p(i+1,j)%x - p(i,j)%x
+          p1 => Blocks(n_)%Points(i,j)
+          p2 => Blocks(n_)%Points(i+1,j)
+          p1%Ayj = p2%y - p1%y
+          p1%Axj = p2%x - p1%x
         end do
       end do
 
       ! Calculate the volumes.
       do j = 0, jBlockSize
         do i = 0, iBlockSize
-          p(i, j)%V = abs(( p(i+1, j)%xp - p(i, j)%xp) * &
-                          ( p(i, j+1)%yp - p(i, j)%yp))
+          p1 => Blocks(n_)%Points(i,j)
+          p2 => Blocks(n_)%Points(i+1,j)
+          p3 => Blocks(n_)%Points(i,j+1)
+          p1%V = abs(( p2%xp - p1%xp) * &
+                     ( p3%yp - p1%yp))
         end do
       end do
 
       ! Calculate secondary volumes.
       do j = 0, jBlockSize
         do i = 0, iBlockSize
-          p(i,    j)%Vol2 = p(i,    j)%Vol2 + p(i,    j)%V * 0.25d0
-          p(i+1,  j)%Vol2 = p(i+1,  j)%Vol2 + p(i+1,  j)%V * 0.25d0
-          p(i,  j+1)%Vol2 = p(i,  j+1)%Vol2 + p(i,  j+1)%V * 0.25d0
-          p(i+1,j+1)%Vol2 = p(i+1,j+1)%Vol2 + p(i+1,j+1)%V * 0.25d0
+          p1 => Blocks(n_)%Points(i,    j)
+          p2 => Blocks(n_)%Points(i+1,  j)
+          p3 => Blocks(n_)%Points(i,  j+1)
+          p4 => Blocks(n_)%Points(i+1,j+1)
+          p1%Vol2 = p1%Vol2 + p1%V * 0.25d0
+          p2%Vol2 = p2%Vol2 + p2%V * 0.25d0
+          p3%Vol2 = p3%Vol2 + p3%V * 0.25d0
+          p4%Vol2 = p4%Vol2 + p4%V * 0.25d0
         end do
       end do
-
     end do
   end subroutine
 
@@ -279,51 +289,49 @@ contains
     type (BlockType), target :: Blocks(:)
     type (GridPoint), pointer :: Points(:,:)
     type (GridPoint), pointer :: p
+    type (GridPoint), pointer :: p0, p1, p2, p3, p4
     integer :: i, j, n_
     real(kind=8) :: timestep
     real(kind=8) :: Ayi_half, Axi_half, Ayj_half, Axj_half
 
-    ! Calculate fluxes.
-    Ayi_half(i,j) = ( Points(i+1,j)%Ayi + Points(i,j)%Ayi ) * 0.25d0
-    Axi_half(i,j) = ( Points(i+1,j)%Axi + Points(i,j)%Axi ) * 0.25d0
-    Ayj_half(i,j) = ( Points(i,j+1)%Ayj + Points(i,j)%Ayj ) * 0.25d0
-    Axj_half(i,j) = ( Points(i,j+1)%Axj + Points(i,j)%Axj ) * 0.25d0
-
     ! Constants used during iteration.
     do n_=1, MyNBlocks
-      Points => Blocks(n_)%Points
       do j = 0, jBlockSize
         do i = 0, iBlockSize
-          p => Points(i,j)
+          p1 => Blocks(n_)%Points(i,j)
+          p2 => Blocks(n_)%Points(i+1,j)
+          p3 => Blocks(n_)%Points(i,j+1)
           ! These are the numbers that actually appear in the equations,
           ! saved here to save a moment or two during iteration.
-          p%yPP = (  Ayi_half(i,j) + Ayj_half(i,j) )
-          p%yNP = ( -Ayi_half(i,j) + Ayj_half(i,j) )
-          p%yNN = ( -Ayi_half(i,j) - Ayj_half(i,j) )
-          p%yPN = (  Ayi_half(i,j) - Ayj_half(i,j) )
+          p1%yPP = (  ( p2%Ayi + p1%Ayi ) + ( p3%Ayj + p1%Ayj ) ) * 0.25d0
+          p1%yNP = ( -( p2%Ayi + p1%Ayi ) + ( p3%Ayj + p1%Ayj ) ) * 0.25d0
+          p1%yNN = ( -( p2%Ayi + p1%Ayi ) - ( p3%Ayj + p1%Ayj ) ) * 0.25d0
+          p1%yPN = (  ( p2%Ayi + p1%Ayi ) - ( p3%Ayj + p1%Ayj ) ) * 0.25d0
 
-          p%xNN = ( -Axi_half(i,j) - Axj_half(i,j) )
-          p%xPN = (  Axi_half(i,j) - Axj_half(i,j) )
-          p%xPP = (  Axi_half(i,j) + Axj_half(i,j) )
-          p%xNP = ( -Axi_half(i,j) + Axj_half(i,j) )
+          p1%xNN = ( -( p2%Axi + p1%Axi ) - ( p3%Axj + p1%Axj ) ) * 0.25d0
+          p1%xPN = (  ( p2%Axi + p1%Axi ) - ( p3%Axj + p1%Axj ) ) * 0.25d0
+          p1%xPP = (  ( p2%Axi + p1%Axi ) + ( p3%Axj + p1%Axj ) ) * 0.25d0
+          p1%xNP = ( -( p2%Axi + p1%Axi ) + ( p3%Axj + p1%Axj ) ) * 0.25d0
         end do
       end do
     end do
-
     ! Calculate timesteps and assign secondary volumes.
     do n_ = 1, MyNBlocks
       do j = 1, jBlockSize
         do i = 1, iBlockSize
           Points => Blocks(n_)%Points
           ! Calculate the timestep using the CFL method described in class.
-
-          timestep = ( ( CFL * 2.d0 ) / alpha ) * Points(i,j)%Vol2 ** 2 / &
-                       ( ( Points(i+1, j)%xp - Points(i-1, j)%xp )**2 + &
-                         ( Points(i, j+1)%yp - Points(i, j-1)%yp )**2 )
-
+          p0 => Blocks(n_)%Points(i,   j)
+          p1 => Blocks(n_)%Points(i+1, j)
+          p2 => Blocks(n_)%Points(i-1, j)
+          p3 => Blocks(n_)%Points(i, j+1)
+          p4 => Blocks(n_)%Points(i, j-1)
+          timestep = ( ( CFL * 2.d0 ) / alpha ) * p0%Vol2 ** 2 / &
+                       ( ( p1%xp - p2%xp )**2 + &
+                         ( p3%yp - p4%yp )**2 )
 
           ! Calculate this constant now so we don't recalculate in the solver loop.
-          Points(i, j)%const = ( timestep * alpha / Points(i, j)%Vol2 )
+          p0%const = ( timestep * alpha / p0%Vol2 )
         end do
       end do
     end do

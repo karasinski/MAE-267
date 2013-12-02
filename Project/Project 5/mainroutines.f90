@@ -40,7 +40,7 @@ contains
 
     !  Initialize the points.
     call initialize_points(Blocks)
-
+    
     !  Initialize the primary face areas and volumes.
     call initialize_faces_and_volumes(Blocks)
 
@@ -83,7 +83,7 @@ contains
       call MPI_Barrier(barrier, ierror)
       call mpi_allreduce(local_residual, residual, 1, MPI_REAL8, MPI_MAX, mpi_comm_world, ierror)
       residuals(step) = residual
-!       write(*,*), MyID, step, residual, local_residual
+      ! write(*,*), MyID, step, residual, local_residual
 
       if (residual < .00001d0) exit
     end do
@@ -118,9 +118,9 @@ contains
   subroutine derivatives
     type (BlockType), pointer :: MyBlock
     type (GridPoint), pointer :: p(:,:)
+    type (GridPoint), pointer :: p0, p1, p2, p3
     real(kind=8) :: dTdx, dTdy
     integer :: i, j, n_
-
     ! Loop over each block.
     do n_ = 1, MyNBlocks
       MyBlock => Blocks(n_)
@@ -131,42 +131,47 @@ contains
 
       do j = MyBlock%localJMIN, MyBlock%localJMAX
         do i =  MyBlock%localIMIN, MyBlock%localIMAX
-
+          p0 => Blocks(n_)%Points(i, j)
+          p1 => Blocks(n_)%Points(i+1, j)
+          p2 => Blocks(n_)%Points(i, j+1)
+          p3 => Blocks(n_)%Points(i+1, j+1)
+          
           ! Trapezoidal counter-clockwise integration to get the first
           ! derivatives in the x/y directions at the cell-center using
           ! Gauss's theorem.
           dTdx = + 0.5d0 * &
-            ( ( p(i+1, j)%T + p(i+1,j+1)%T ) * p(i+1, j)%Ayi - &
-              ( p(i,   j)%T + p(i,  j+1)%T ) * p(i,   j)%Ayi - &
-              ( p(i, j+1)%T + p(i+1,j+1)%T ) * p(i, j+1)%Ayj + &
-              ( p(i,   j)%T + p(i+1,  j)%T ) * p(i,   j)%Ayj   &
-            ) / p(i, j)%V
+            ( ( p1%T + p3%T ) * p1%Ayi - &
+              ( p0%T + p2%T ) * p0%Ayi - &
+              ( p2%T + p3%T ) * p2%Ayj + &
+              ( p0%T + p1%T ) * p0%Ayj   &
+            ) / p0%V
 
           dTdy = - 0.5d0 * &
-            ( ( p(i+1, j)%T + p(i+1,j+1)%T ) * p(i+1, j)%Axi - &
-              ( p(i,   j)%T + p(i,  j+1)%T ) * p(i,   j)%Axi - &
-              ( p(i, j+1)%T + p(i+1,j+1)%T ) * p(i, j+1)%Axj + &
-              ( p(i,   j)%T + p(i+1,  j)%T ) * p(i,   j)%Axj   &
-            ) / p(i ,j)%V
+            ( ( p1%T + p3%T ) * p1%Axi - &
+              ( p0%T + p2%T ) * p0%Axi - &
+              ( p2%T + p3%T ) * p2%Axj + &
+              ( p0%T + p1%T ) * p0%Axj   &
+            ) / p0%V
 
           ! Alternate distributive scheme second-derivative operator. Updates the
           ! second derivative by adding the first times a constant during each time
           ! step. Pass out x and y second derivatives contributions.
-          p(i+1,  j)%tempT = p(i+1,  j)%tempT + p(i+1,  j)%const * &
-                           ( p(i, j)%yNN * dTdx + p(i, j)%xPP * dTdy )
-          p(i,    j)%tempT = p(i,    j)%tempT + p(i,    j)%const * &
-                           ( p(i, j)%yPN * dTdx + p(i, j)%xNP * dTdy )
-          p(i,  j+1)%tempT = p(i,  j+1)%tempT + p(i,  j+1)%const * &
-                           ( p(i, j)%yPP * dTdx + p(i, j)%xNN * dTdy )
-          p(i+1,j+1)%tempT = p(i+1,j+1)%tempT + p(i+1,j+1)%const * &
-                           ( p(i, j)%yNP * dTdx + p(i, j)%xPN * dTdy )
+          p1%tempT = p1%tempT + p1%const * &
+                           ( p0%yNN * dTdx + p0%xPP * dTdy )
+          p0%tempT = p0%tempT + p0%const * &
+                           ( p0%yPN * dTdx + p0%xNP * dTdy )
+          p2%tempT = p2%tempT + p2%const * &
+                           ( p0%yPP * dTdx + p0%xNN * dTdy )
+          p3%tempT = p3%tempT + p3%const * &
+                           ( p0%yNP * dTdx + p0%xPN * dTdy )
         end do
       end do
 
       ! Update temperatures in the block.
       do j = MyBlock%lowJTemp, MyBlock%localJMAX
         do i =  MyBlock%lowITemp, MyBlock%localIMAX
-          p(i,j)%T = p(i,j)%T + p(i,j)%tempT
+          p0 => Blocks(n_)%Points(i,j)
+          p0%T = p0%T + p0%tempT
         end do
       end do
     end do
@@ -180,7 +185,6 @@ contains
     integer :: i_count = iBlockSize, j_count = jBlockSize
     real(kind = 8) :: i_buffer(iBlockSize), j_buffer(jBlockSize)
     real(kind = 8) :: buffer
-
     ! For each block...
     do n_ = 1, MyNBlocks
       b => Blocks(n_)
@@ -302,7 +306,6 @@ contains
     integer :: i_count = iBlockSize, j_count = jBlockSize
     real(kind = 8) :: i_buffer(iBlockSize), j_buffer(jBlockSize)
     real(kind = 8) :: buffer
-
     ! For each block...
     do n_ = 1, MyNBlocks
       b => Blocks(n_)

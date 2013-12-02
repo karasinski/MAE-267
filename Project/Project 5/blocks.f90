@@ -240,6 +240,7 @@ contains
     type (BlockType), target :: BlocksCollection(:)
     type (BlockType), pointer :: b
     type (GridPoint), pointer :: p(:,:)
+    type (GridPoint), pointer :: p1
     integer :: i, j, n_
     real(kind=8) :: T_0 = 3.5d0
 
@@ -253,25 +254,29 @@ contains
       ! Set the boundary conditions if our blocks are on the boundary.
       if (b%northFace%BC == nB) then
         do i = 1, iBlockSize
-          p(i, jBlockSize)%T = 5.d0 * (sin(pi * p(i, jBlockSize)%xp) + 1.d0)
+          p1 => BlocksCollection(n_)%Points(i, jBlockSize)
+          p1%T = 5.d0 * (sin(pi * p(i, jBlockSize)%xp) + 1.d0)
         end do
       end if
 
       if (b%southFace%BC == sB) then
         do i = 1, iBlockSize
-          p(i, 1)%T = abs(cos(pi * p(i,1)%xp)) + 1.d0
+          p1 => BlocksCollection(n_)%Points(i, 1)
+          p1%T = abs(cos(pi * p(i,1)%xp)) + 1.d0
         end do
       end if
 
       if (b%eastFace%BC == eB) then
         do j = 1, jBlockSize
-          p(iBlockSize, j)%T = (3.d0 * p(iBlockSize, j)%yp) + 2.d0
+          p1 => BlocksCollection(n_)%Points(iBlockSize, j)
+          p1%T = (3.d0 * p(iBlockSize, j)%yp) + 2.d0
         end do
       end if
 
       if (b%westFace%BC == wB) then
         do j = 1, jBlockSize
-          p(1, j)%T = (3.d0 * p(1, j)%yp) + 2.d0
+          p1 => BlocksCollection(n_)%Points(1, j)
+          p1%T = (3.d0 * p(1, j)%yp) + 2.d0
         end do
       end if
 
@@ -391,7 +396,7 @@ contains
   end subroutine
 
   subroutine check_communication_cost(Procs)
-    type (Proc), target :: Procs(:)
+    type (Proc), pointer :: Procs(:)
     type (Proc), pointer :: MyProc
     type (BlockType), pointer :: MyBlock
     integer :: comm, b, p
@@ -464,7 +469,7 @@ contains
 
   subroutine distribute_blocks(BlocksCollection, Procs)
     type (BlockType), target :: BlocksCollection(:)
-    type (Proc) :: Procs(:)
+    type (Proc), pointer :: Procs(:)
     type (BlockType), pointer :: b
     real(kind=8) :: fudge_factor = 1.5d0
     integer :: optimal, method = 666, p_, n_, sum = 0
