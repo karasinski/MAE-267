@@ -6,15 +6,15 @@ module constants
   ! We use MPI in many of our routines.
   include "mpif.h"
 
-  integer, parameter :: IMAX = 101
-  integer, parameter :: JMAX = 101
+  integer, parameter :: IMAX = 501
+  integer, parameter :: JMAX = 501
   integer, parameter :: N = 10
   integer, parameter :: M = 10
   integer, parameter :: iBlockSize = 1 + (IMAX - 1) / N
   integer, parameter :: jBlockSize = 1 + (JMAX - 1) / M
   integer, parameter :: nBlocks = M * N
 
-  real(kind=8), parameter :: CFL = 1.09d0
+  real(kind=8), parameter :: CFL = .9d0
   real(kind=8), parameter :: k = 18.8d0, rho = 8000.d0, c_p = 500.d0
   real(kind=8), parameter :: pi = 3.141592654d0, rot = 30.d0*pi/180.d0
   real(kind=8), parameter :: alpha = k / (c_p * rho)
@@ -29,21 +29,78 @@ end module
 
 ! Prof's clock module.
 module clock
-  integer clock_start,clock_end,clock_max,clock_rate
-  real(kind=8) wall_time
+!   use constants
+  real(kind=8) :: time, wall_time
 
 contains
+  subroutine timestamp ( )
+    character ( len = 8 ) ampm
+    integer ( kind = 4 ) d
+    character ( len = 8 ) date
+    integer ( kind = 4 ) h
+    integer ( kind = 4 ) m
+    integer ( kind = 4 ) mm
+    character ( len = 9 ), parameter, dimension(12) :: month = (/ &
+      'January  ', 'February ', 'March    ', 'April    ', &
+      'May      ', 'June     ', 'July     ', 'August   ', &
+      'September', 'October  ', 'November ', 'December ' /)
+    integer ( kind = 4 ) n
+    integer ( kind = 4 ) s
+    character ( len = 10 ) time
+    integer ( kind = 4 ) values(8)
+    integer ( kind = 4 ) y
+    character ( len = 5 ) zone
+
+    call date_and_time ( date, time, zone, values )
+
+    y = values(1)
+    m = values(2)
+    d = values(3)
+    h = values(5)
+    n = values(6)
+    s = values(7)
+    mm = values(8)
+
+    if ( h < 12 ) then
+      ampm = 'AM'
+    else if ( h == 12 ) then
+      if ( n == 0 .and. s == 0 ) then
+        ampm = 'Noon'
+      else
+        ampm = 'PM'
+      end if
+    else
+      h = h - 12
+      if ( h < 12 ) then
+        ampm = 'PM'
+      else if ( h == 12 ) then
+        if ( n == 0 .and. s == 0 ) then
+          ampm = 'Midnight'
+        else
+          ampm = 'AM'
+        end if
+      end if
+    end if
+
+    write ( *, '(a,1x,i2,1x,i4,2x,i2,a1,i2.2,a1,i2.2,a1,i3.3,1x,a)' ) &
+      trim ( month(m) ), d, y, h, ':', n, ':', s, '.', mm, trim ( ampm )
+    return
+  end
+
   subroutine start_clock()
     ! call system time to determine flow solver wall time
-    call system_clock(count_max=clock_max,count_rate=clock_rate)
-    call system_clock(clock_start)
+    time = MPI_Wtime()
+    write(*,*) "Start time: "
+    call timestamp()
   end subroutine start_clock
 
   subroutine end_clock()
     ! determine total wall time for solver
-    call system_clock(clock_end)
-    wall_time=dfloat(clock_end-clock_start)/dfloat(clock_rate)
-    print*,'solver wall clock time (seconds)',wall_time
+    wall_time = MPI_Wtime()
+    write(*,*) "End time: "
+    call timestamp()
+    wall_time = (wall_time - time)
+    write(*,*) "Wall time: ", wall_time
   end subroutine end_clock
 end module
 
