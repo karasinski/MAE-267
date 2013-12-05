@@ -471,7 +471,7 @@ contains
     type (BlockType), target :: BlocksCollection(:)
     type (Proc), pointer :: Procs(:)
     type (BlockType), pointer :: b
-    real(kind=8) :: fudge_factor = 1.5d0
+    real(kind=8) :: fudge_factor = 1.05d0
     integer :: optimal, method = 666, p_, n_, sum = 0
     integer :: largest_block = 0, largest_block_number = 0
 
@@ -502,6 +502,10 @@ contains
         method = 10106
       else if (mpi_nprocs == 4) then
         method = 10104
+      else if (mpi_nprocs == 2) then
+       fudge_factor = 1.01d0
+      else if (mpi_nprocs == 8) then
+        fudge_factor = 1.07
       end if
     else
       ! Otherwise we'll do our best and use an automated method.
@@ -628,37 +632,15 @@ contains
             exit
           end if
 
-          ! Add this block to this proc.
-          ! Increase number of blocks on this proc by 1.
-          Procs(p_)%nBlocks = Procs(p_)%nBlocks + 1
-
-          ! Increase weight on the proc by the added block's weight.
-          Procs(p_)%weight = Procs(p_)%weight + largest_block
-
-          ! Copy block over to proc.
-          Procs(p_)%Blocks(Procs(p_)%nBlocks) = &
-            BlocksCollection(largest_block_number)
-
-          ! Reduce the size of the block in the blockscollection to zero so it is
-          ! not assigned to any other procs.
-          BlocksCollection(largest_block_number)%size = 0
+          call add_block_to_proc(Procs(p_), BlocksCollection(largest_block_number))
         end do
       end do
+
     end if
 
     ! Update each proc's communication cost.
     call update_neighbor_procs(Procs)
     call check_communication_cost(Procs)
-
-    ! If we screwed this up we need to terminated execution.
-    do n_ = 1, nBlocks
-      if (BlocksCollection(n_)%size > 0) then
-        write(*,*), n_
-        write(*,*), "Sorry, something went terribly wrong."
-        write(*,*), "Program exiting."
-        STOP
-      end if
-    end do
 
 !     ! Write the total weight, number of procs, ideal weight per proc.
 !     write(*,*)
@@ -672,6 +654,16 @@ contains
 !       write(*, *), n_, Procs(n_)%nBlocks, Procs(n_)%weight, Procs(n_)%comm, &
 !                   100*real(Procs(n_)%weight + Procs(n_)%comm - optimal)/real(optimal)
 !     end do
+
+    ! If we screwed this up we need to terminated execution.
+    do n_ = 1, nBlocks
+      if (BlocksCollection(n_)%size > 0) then
+        write(*,*), n_
+        write(*,*), "Sorry, something went terribly wrong."
+        write(*,*), "Program exiting."
+        STOP
+      end if
+    end do
 
   end subroutine
 end module

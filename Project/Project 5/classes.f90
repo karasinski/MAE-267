@@ -6,18 +6,21 @@ module constants
   ! We use MPI in many of our routines.
   include "mpif.h"
 
-  integer, parameter :: IMAX = 501
-  integer, parameter :: JMAX = 501
+  integer, parameter :: IMAX = 101
+  integer, parameter :: JMAX = 101
   integer, parameter :: N = 10
   integer, parameter :: M = 10
   integer, parameter :: iBlockSize = 1 + (IMAX - 1) / N
   integer, parameter :: jBlockSize = 1 + (JMAX - 1) / M
   integer, parameter :: nBlocks = M * N
 
-  real(kind=8), parameter :: CFL = .9d0
+  real(kind=8), parameter :: CFL = 1.09d0
+  integer, parameter :: max_steps = 100000
+  
   real(kind=8), parameter :: k = 18.8d0, rho = 8000.d0, c_p = 500.d0
   real(kind=8), parameter :: pi = 3.141592654d0, rot = 30.d0*pi/180.d0
   real(kind=8), parameter :: alpha = k / (c_p * rho)
+  
   integer :: nB = 1, eB = 2, sB = 3, wB = 4
   integer :: INTERNAL_BOUNDARY = -1, EXTERNAL_BOUNDARY = -2, PROC_BOUNDARY = -3
   integer :: step = 0
