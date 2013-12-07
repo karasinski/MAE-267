@@ -27,13 +27,14 @@ module constants
 
   ! MPI related variables.
   integer :: MyID, MyNBlocks
-  integer :: ierror, mpi_nprocs, barrier
+  integer :: ierror, mpi_nprocs, request
+  integer :: status(MPI_STATUS_SIZE)
 end module
 
 ! Prof's clock module.
 module clock
 !   use constants
-  real(kind=8) :: time, wall_time
+  real(kind=8) :: start_time, end_time, wall_time
 
 contains
   subroutine timestamp ( )
@@ -92,17 +93,17 @@ contains
 
   subroutine start_clock()
     ! call system time to determine flow solver wall time
-    time = MPI_Wtime()
+    start_time = MPI_Wtime()
     write(*,*) "Start time: "
     call timestamp()
   end subroutine start_clock
 
   subroutine end_clock()
     ! determine total wall time for solver
-    wall_time = MPI_Wtime()
+    end_time = MPI_Wtime()
     write(*,*) "End time: "
     call timestamp()
-    wall_time = (wall_time - time)
+    wall_time = end_time - start_time
     write(*,*) "Wall time: ", wall_time
   end subroutine end_clock
 end module
@@ -294,7 +295,6 @@ contains
   subroutine initialize_faces_and_volumes(Blocks)
     type (BlockType), target :: Blocks(:)
     type (GridPoint), pointer :: p1, p2, p3, p4
-    type (GridPoint), pointer :: p(:,:)
     integer :: i, j, n_
 
     do n_=1, MyNBlocks
@@ -348,11 +348,10 @@ contains
   subroutine set_constants(Blocks)
     type (BlockType), target :: Blocks(:)
     type (GridPoint), pointer :: Points(:,:)
-    type (GridPoint), pointer :: p
     type (GridPoint), pointer :: p0, p1, p2, p3, p4
     integer :: i, j, n_
     real(kind=8) :: timestep
-    real(kind=8) :: Ayi_half, Axi_half, Ayj_half, Axj_half
+    real(kind=8) :: temp
 
     ! Constants used during iteration.
     do n_=1, MyNBlocks
@@ -375,6 +374,7 @@ contains
         end do
       end do
     end do
+
     ! Calculate timesteps and assign secondary volumes.
     do n_ = 1, MyNBlocks
       do j = 1, jBlockSize
@@ -386,12 +386,15 @@ contains
           p2 => Blocks(n_)%Points(i-1, j)
           p3 => Blocks(n_)%Points(i, j+1)
           p4 => Blocks(n_)%Points(i, j-1)
-          timestep = ( ( CFL * 2.d0 ) / alpha ) * p0%Vol2 ** 2 / &
-                       ( ( p1%xp - p2%xp )**2 + &
-                         ( p3%yp - p4%yp )**2 )
 
-          ! Calculate this constant now so we don't recalculate in the solver loop.
-          p0%const = ( timestep * alpha / p0%Vol2 )
+          temp = ( ( p1%xp - p2%xp )**2 + ( p3%yp - p4%yp )**2 )
+          if (temp > 0) then 
+            timestep = ( ( CFL * 2.d0 ) / alpha ) * p0%Vol2 ** 2 / temp
+
+            ! Calculate this constant now so we don't recalculate in the solver loop.
+            p0%const = ( timestep * alpha / p0%Vol2 )
+          end if
+
         end do
       end do
     end do

@@ -38,7 +38,7 @@ program heat
   end if
 
   ! Hold all processors until we're done writing our initialization files.
-  call MPI_Barrier(barrier, ierror)
+  call MPI_Barrier(mpi_comm_world, ierror)
   ! End preprocessing.
 
   ! Begin solver.
@@ -49,7 +49,7 @@ program heat
   call initialization
 
   ! Hold until we're all ready to start.
-  call MPI_Barrier(barrier, ierror)
+  call MPI_Barrier(mpi_comm_world, ierror)
   write(*,*), 'Processor ', MyID, ' starting solver.'
 
   ! Each processor starts the solver.
