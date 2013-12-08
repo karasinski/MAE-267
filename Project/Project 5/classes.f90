@@ -1,92 +1,91 @@
-! Various constants we need in a lot of places, a routine to set
-! the size of the grid, and and a routine to set number of blocks.
-module constants
-  implicit none
+MODULE constants
+  IMPLICIT NONE
 
   ! We use MPI in many of our routines.
-  include "mpif.h"
+  INCLUDE "mpif.h"
 
-  integer, parameter :: IMAX = 501
-  integer, parameter :: JMAX = 501
-  integer, parameter :: N = 10
-  integer, parameter :: M = 10
-  integer, parameter :: iBlockSize = 1 + (IMAX - 1) / N
-  integer, parameter :: jBlockSize = 1 + (JMAX - 1) / M
-  integer, parameter :: nBlocks = M * N
+  ! Various constants we need in a lot of places.
+  INTEGER, PARAMETER :: IMAX = 501
+  INTEGER, PARAMETER :: JMAX = 501
+  INTEGER, PARAMETER :: N = 10
+  INTEGER, PARAMETER :: M = 10
+  INTEGER, PARAMETER :: iBlockSize = 1 + (IMAX - 1) / N
+  INTEGER, PARAMETER :: jBlockSize = 1 + (JMAX - 1) / M
+  INTEGER, PARAMETER :: nBlocks = M * N
 
-  real(kind=8), parameter :: CFL = 1.0d0
-  integer, parameter :: max_steps = 100000
-  
-  real(kind=8), parameter :: k = 18.8d0, rho = 8000.d0, c_p = 500.d0
-  real(kind=8), parameter :: pi = 3.141592654d0, rot = 30.d0*pi/180.d0
-  real(kind=8), parameter :: alpha = k / (c_p * rho)
-  
-  integer :: nB = 1, eB = 2, sB = 3, wB = 4
-  integer :: INTERNAL_BOUNDARY = -1, EXTERNAL_BOUNDARY = -2, PROC_BOUNDARY = -3
-  integer :: step = 0
+  REAL(KIND=8), PARAMETER :: CFL = 1.0d0
+  INTEGER, PARAMETER :: max_steps = 100000
+
+  REAL(KIND=8), PARAMETER :: k = 18.8d0, rho = 8000.d0, c_p = 500.d0
+  REAL(KIND=8), PARAMETER :: pi = 3.141592654d0, rot = 30.d0*pi/180.d0
+  REAL(KIND=8), PARAMETER :: alpha = k / (c_p * rho)
+
+  INTEGER, PARAMETER :: nB = 1, eB = 2, sB = 3, wB = 4
+  INTEGER, PARAMETER :: INTERNAL_BOUNDARY = -1, EXTERNAL_BOUNDARY = -2, PROC_BOUNDARY = -3
+  INTEGER :: step = 0
 
   ! MPI related variables.
-  integer :: MyID, MyNBlocks
-  integer :: ierror, mpi_nprocs, request
-  integer :: status(MPI_STATUS_SIZE)
-end module
+  INTEGER :: MyID, MyNBlocks
+  INTEGER :: ierror, mpi_nprocs, request
+  INTEGER :: STATUS(MPI_STATUS_SIZE)
+END MODULE
 
 ! Contains derived data types and initialization routines.
-module BlockModule
-  use constants
-  implicit none
-  public
+MODULE BlockModule
+  USE constants
+  IMPLICIT NONE
+  PUBLIC
 
-  type GridPoint
-    real(kind=8) :: x, xp, y, yp
-    real(kind=8) :: T, tempT
-    real(kind=8) :: const
-    real(kind=8) :: Ayi, Axi, Ayj, Axj
-    real(kind=8) :: V, Vol2
-    real(kind=8) :: yPP, yNP, yNN, yPN
-    real(kind=8) :: xNN, xPN, xPP, xNP
-  end type GridPoint
+  TYPE GridPoint
+    REAL(KIND=8) :: x, xp, y, yp
+    REAL(KIND=8) :: T, tempT
+    REAL(KIND=8) :: const
+    REAL(KIND=8) :: Ayi, Axi, Ayj, Axj
+    REAL(KIND=8) :: V, Vol2
+    REAL(KIND=8) :: yPP, yNP, yNN, yPN
+    REAL(KIND=8) :: xNN, xPN, xPP, xNP
+  END TYPE GridPoint
 
-  type Neighbor
-    integer :: BC, neighborBlock, neighborLocalBlock, neighborProc
-  end type
+  TYPE Neighbor
+    INTEGER :: BC, neighborBlock, neighborLocalBlock, neighborProc
+  END TYPE
 
-  type BlockType
-    type (GridPoint) :: Points(0:iBlockSize + 1,0:jBlockSize + 1)
-    integer :: id, proc, size
-    integer :: lowJ, lowI, lowITemp, lowJTemp
-    integer :: localJMIN, localIMIN, localJMAX, localIMAX
-    type (Neighbor) :: northFace, southFace, eastFace, westFace
-    type (Neighbor) :: NECorner, SECorner, SWCorner, NWCorner
-  end type BlockType
+  TYPE BlockType
+    TYPE (GridPoint) :: Points(0:iBlockSize + 1,0:jBlockSize + 1)
+    INTEGER :: ID, proc, SIZE
+    INTEGER :: lowJ, lowI, lowITemp, lowJTemp
+    INTEGER :: localJMIN, localIMIN, localJMAX, localIMAX
+    TYPE (Neighbor) :: northFace, southFace, eastFace, westFace
+    TYPE (Neighbor) :: NECorner, SECorner, SWCorner, NWCorner
+  END TYPE BlockType
 
-  type Proc
-    integer :: procID, weight, comm, nBlocks
+  TYPE Proc
+    INTEGER :: procID, weight, comm, nBlocks
     ! Number of blocks on each proc should be roughly nBlocks/nProcs.
-    type (BlockType) :: Blocks(nBlocks)
-  end type Proc
+    TYPE (BlockType) :: Blocks(nBlocks)
+  END TYPE Proc
 
-  type LinkedList
-      type (LinkedList), pointer :: next
-      integer :: id
-  end type LinkedList
+  TYPE LinkedList
+    TYPE (LinkedList), POINTER :: next
+    INTEGER :: ID
+  END TYPE LinkedList
 
-contains
+CONTAINS
   ! Set the true bounds and ghost nodes for each block.
-  subroutine set_bounds(Blocks)
-    type (BlockType), target :: Blocks(:)
-    type (BlockType), pointer :: b
-    type (GridPoint), pointer :: p1, p2
-    integer :: i, j, n_, neighbor
+  SUBROUTINE set_bounds(Blocks)
+    TYPE (BlockType), TARGET :: Blocks(:)
+    TYPE (BlockType), POINTER :: b
+    TYPE (GridPoint), POINTER :: p1, p2
+    INTEGER :: i, j, n_, neighbor
 
-    do n_= 1, nBlocks
+    DO n_= 1, nBlocks
       b => Blocks(n_)
 
       ! Initialize ghost nodes. If block face is internal
       ! also set different bounds for the solver loop.
       ! North face.
-      if (b%northFace%BC == INTERNAL_BOUNDARY) then
-        do i = 1, iBlockSize
+      IF (b%northFace%BC == INTERNAL_BOUNDARY) THEN
+        DO i = 1, iBlockSize
           neighbor = b%northFace%neighborBlock
           p1 => b%Points(i, jBlockSize+1)
           p2 => Blocks(neighbor)%Points(i, 2)
@@ -94,25 +93,12 @@ contains
           p1%x = p2%x
           p1%y = p2%y
           p1%T = p2%T
-        end do
-      end if
-
-      ! East face.
-      if (b%eastFace%BC == INTERNAL_BOUNDARY) then
-        do j = 1, jBlockSize
-          neighbor = b%eastFace%neighborBlock
-          p1 => b%Points(iBlockSize+1, j)
-          p2 => Blocks(neighbor)%Points(2, j)
-
-          p1%x = p2%x
-          p1%y = p2%y
-          p1%T = p2%T
-        end do
-      end if
+        END DO
+      END IF
 
       ! South face.
-      if (b%southFace%BC == INTERNAL_BOUNDARY) then
-        do i = 1, iBlockSize
+      IF (b%southFace%BC == INTERNAL_BOUNDARY) THEN
+        DO i = 1, iBlockSize
           neighbor = b%southFace%neighborBlock
           p1 => b%Points(i, 0)
           p2 => Blocks(neighbor)%Points(i, jBlockSize - 1)
@@ -120,12 +106,25 @@ contains
           p1%x = p2%x
           p1%y = p2%y
           p1%T = p2%T
-        end do
-      end if
+        END DO
+      END IF
+
+      ! East face.
+      IF (b%eastFace%BC == INTERNAL_BOUNDARY) THEN
+        DO j = 1, jBlockSize
+          neighbor = b%eastFace%neighborBlock
+          p1 => b%Points(iBlockSize+1, j)
+          p2 => Blocks(neighbor)%Points(2, j)
+
+          p1%x = p2%x
+          p1%y = p2%y
+          p1%T = p2%T
+        END DO
+      END IF
 
       ! West face.
-      if (b%westFace%BC == INTERNAL_BOUNDARY) then
-        do j = 1, jBlockSize
+      IF (b%westFace%BC == INTERNAL_BOUNDARY) THEN
+        DO j = 1, jBlockSize
           neighbor = b%westFace%neighborBlock
           p1 => b%Points(0, j)
           p2 => Blocks(neighbor)%Points(iBlockSize - 1, j)
@@ -133,12 +132,12 @@ contains
           p1%x = p2%x
           p1%y = p2%y
           p1%T = p2%T
-        end do
-      end if
+        END DO
+      END IF
 
       ! Set corner points.
       ! North east corner
-      if (b%NECorner%BC == INTERNAL_BOUNDARY) then
+      IF (b%NECorner%BC == INTERNAL_BOUNDARY) THEN
         neighbor = b%NECorner%neighborBlock
         p1 => b%Points(iBlockSize+1, jBlockSize+1)
         p2 => Blocks(neighbor)%Points(2, 2)
@@ -146,10 +145,10 @@ contains
         p1%x = p2%x
         p1%y = p2%y
         p1%T = p2%T
-      end if
+      END IF
 
       ! South east corner
-      if (b%SECorner%BC == INTERNAL_BOUNDARY) then
+      IF (b%SECorner%BC == INTERNAL_BOUNDARY) THEN
         neighbor = b%SECorner%neighborBlock
         p1 => b%Points(iBlockSize+1, 0)
         p2 => Blocks(neighbor)%Points(2, jBlockSize-1)
@@ -157,10 +156,10 @@ contains
         p1%x = p2%x
         p1%y = p2%y
         p1%T = p2%T
-      end if
+      END IF
 
       ! South west corner
-      if (b%SWCorner%BC == INTERNAL_BOUNDARY) then
+      IF (b%SWCorner%BC == INTERNAL_BOUNDARY) THEN
         neighbor = b%SWCorner%neighborBlock
         p1 => b%Points(0, 0)
         p2 => Blocks(neighbor)%Points(iBlockSize-1, jBlockSize-1)
@@ -168,10 +167,10 @@ contains
         p1%x = p2%x
         p1%y = p2%y
         p1%T = p2%T
-      end if
+      END IF
 
       ! North west corner
-      if (b%NWCorner%BC == INTERNAL_BOUNDARY) then
+      IF (b%NWCorner%BC == INTERNAL_BOUNDARY) THEN
         neighbor = b%NWCorner%neighborBlock
         p1 => b%Points(0, jBlockSize+1)
         p2 => Blocks(neighbor)%Points(iBlockSize-1, 2)
@@ -179,87 +178,89 @@ contains
         p1%x = p2%x
         p1%y = p2%y
         p1%T = p2%T
-      end if
-    end do
-  end subroutine
+      END IF
+    END DO
+  END SUBROUTINE
 
   ! Set the prime locations of each grid point.
-  subroutine initialize_points(Blocks)
-    type (BlockType), target :: Blocks(:)
-    type (BlockType), pointer :: b
-    type (GridPoint), pointer :: p
-    integer :: i, j, n_
+  SUBROUTINE initialize_points(Blocks)
+    TYPE (BlockType), TARGET :: Blocks(:)
+    TYPE (BlockType), POINTER :: b
+    TYPE (GridPoint), POINTER :: p
+    INTEGER :: i, j, n_
 
-    do n_ = 1, MyNBlocks
+    DO n_ = 1, MyNBlocks
       ! Set our lower bound for updating the temperature so
       ! we don't update along the edge.
       Blocks(n_)%lowITemp = Blocks(n_)%localIMIN
       Blocks(n_)%lowJTemp = Blocks(n_)%localJMIN
 
-      if (Blocks(n_)%localIMIN == 1 .and. Blocks(n_)%localJMIN == 1) then
+      IF (Blocks(n_)%localIMIN == 1 .and. Blocks(n_)%localJMIN == 1) THEN
         Blocks(n_)%lowITemp = Blocks(n_)%localIMIN+1
         Blocks(n_)%lowJTemp = Blocks(n_)%localJMIN+1
-      else if (Blocks(n_)%localIMIN == 1) then
+      ELSE IF (Blocks(n_)%localIMIN == 1) THEN
         Blocks(n_)%lowITemp = Blocks(n_)%localIMIN+1
-      else if (Blocks(n_)%localJMIN == 1) then
+      ELSE IF (Blocks(n_)%localJMIN == 1) THEN
         Blocks(n_)%lowJTemp = Blocks(n_)%localJMIN+1
-      end if
-    end do
+      END IF
+    END DO
 
-    do n_ = 1, MyNBlocks
+    DO n_ = 1, MyNBlocks
       b=> Blocks(n_)
-      do j = 0, jBlockSize+1
-        do i = 0, iBlockSize+1
+      DO j = 0, jBlockSize+1
+        DO i = 0, iBlockSize+1
           p => Blocks(n_)%Points(i, j)
 
           ! Have to convert from i, j to global i, j.
-          p%xp = cos( 0.5d0 * pi * dfloat(IMAX - (i + b%lowI - 1)) / dfloat(IMAX-1))
-          p%yp = cos( 0.5d0 * pi * dfloat(JMAX - (j + b%lowJ - 1)) / dfloat(JMAX-1))
-        end do
-      end do
-    end do
-  end subroutine initialize_points
+          p%xp = COS( 0.5d0 * pi * DFLOAT(IMAX - (i + b%lowI - 1)) / DFLOAT(IMAX-1))
+          p%yp = COS( 0.5d0 * pi * DFLOAT(JMAX - (j + b%lowJ - 1)) / DFLOAT(JMAX-1))
+        END DO
+      END DO
+    END DO
+  END SUBROUTINE initialize_points
 
-  subroutine initialize_faces_and_volumes(Blocks)
-    type (BlockType), target :: Blocks(:)
-    type (GridPoint), pointer :: p1, p2, p3, p4
-    integer :: i, j, n_
+  SUBROUTINE initialize_faces_and_volumes(Blocks)
+    TYPE (BlockType), TARGET :: Blocks(:)
+    TYPE (GridPoint), POINTER :: p1, p2, p3, p4
+    INTEGER :: i, j, n_
 
-    do n_=1, MyNBlocks
+    DO n_= 1, MyNBlocks
 
       ! Calculate fluxes.
-      do j = 0, jBlockSize
-        do i = 0, iBlockSize + 1
+      ! i Direction
+      DO j = 0, jBlockSize
+        DO i = 0, iBlockSize + 1
           p1 => Blocks(n_)%Points(i,j)
           p2 => Blocks(n_)%Points(i,j+1)
           p1%Ayi = p2%y - p1%y
           p1%Axi = p2%x - p1%x
-        end do
-      end do
+        END DO
+      END DO
 
-      do j = 0, jBlockSize+1
-        do i = 0, iBlockSize
+      ! j Direction
+      DO j = 0, jBlockSize+1
+        DO i = 0, iBlockSize
           p1 => Blocks(n_)%Points(i,j)
           p2 => Blocks(n_)%Points(i+1,j)
           p1%Ayj = p2%y - p1%y
           p1%Axj = p2%x - p1%x
-        end do
-      end do
+        END DO
+      END DO
 
       ! Calculate the volumes.
-      do j = 0, jBlockSize
-        do i = 0, iBlockSize
+      DO j = 0, jBlockSize
+        DO i = 0, iBlockSize
           p1 => Blocks(n_)%Points(i,j)
           p2 => Blocks(n_)%Points(i+1,j)
           p3 => Blocks(n_)%Points(i,j+1)
-          p1%V = abs(( p2%xp - p1%xp) * &
-                     ( p3%yp - p1%yp))
-        end do
-      end do
+          p1%V = ABS(( p2%xp - p1%xp) * &
+            ( p3%yp - p1%yp))
+        END DO
+      END DO
 
       ! Calculate secondary volumes.
-      do j = 0, jBlockSize
-        do i = 0, iBlockSize
+      DO j = 0, jBlockSize
+        DO i = 0, iBlockSize
           p1 => Blocks(n_)%Points(i,    j)
           p2 => Blocks(n_)%Points(i+1,  j)
           p3 => Blocks(n_)%Points(i,  j+1)
@@ -268,26 +269,27 @@ contains
           p2%Vol2 = p2%Vol2 + p2%V * 0.25d0
           p3%Vol2 = p3%Vol2 + p3%V * 0.25d0
           p4%Vol2 = p4%Vol2 + p4%V * 0.25d0
-        end do
-      end do
-    end do
-  end subroutine
+        END DO
+      END DO
+    END DO
+  END SUBROUTINE
 
-  subroutine set_constants(Blocks)
-    type (BlockType), target :: Blocks(:)
-    type (GridPoint), pointer :: Points(:,:)
-    type (GridPoint), pointer :: p0, p1, p2, p3, p4
-    integer :: i, j, n_
-    real(kind=8) :: timestep
-    real(kind=8) :: temp
+  SUBROUTINE set_constants(Blocks)
+    TYPE (BlockType), TARGET :: Blocks(:)
+    TYPE (GridPoint), POINTER :: Points(:,:)
+    TYPE (GridPoint), POINTER :: p0, p1, p2, p3, p4
+    INTEGER :: i, j, n_
+    REAL(KIND=8) :: timestep
+    REAL(KIND=8) :: temp
 
     ! Constants used during iteration.
-    do n_=1, MyNBlocks
-      do j = 0, jBlockSize
-        do i = 0, iBlockSize
+    DO n_=1, MyNBlocks
+      DO j = 0, jBlockSize
+        DO i = 0, iBlockSize
           p1 => Blocks(n_)%Points(i,j)
           p2 => Blocks(n_)%Points(i+1,j)
           p3 => Blocks(n_)%Points(i,j+1)
+
           ! These are the numbers that actually appear in the equations,
           ! saved here to save a moment or two during iteration.
           p1%yPP = (  ( p2%Ayi + p1%Ayi ) + ( p3%Ayj + p1%Ayj ) ) * 0.25d0
@@ -299,15 +301,16 @@ contains
           p1%xPN = (  ( p2%Axi + p1%Axi ) - ( p3%Axj + p1%Axj ) ) * 0.25d0
           p1%xPP = (  ( p2%Axi + p1%Axi ) + ( p3%Axj + p1%Axj ) ) * 0.25d0
           p1%xNP = ( -( p2%Axi + p1%Axi ) + ( p3%Axj + p1%Axj ) ) * 0.25d0
-        end do
-      end do
-    end do
+        END DO
+      END DO
+    END DO
 
     ! Calculate timesteps and assign secondary volumes.
-    do n_ = 1, MyNBlocks
-      do j = 1, jBlockSize
-        do i = 1, iBlockSize
+    DO n_ = 1, MyNBlocks
+      DO j = 1, jBlockSize
+        DO i = 1, iBlockSize
           Points => Blocks(n_)%Points
+
           ! Calculate the timestep using the CFL method described in class.
           p0 => Blocks(n_)%Points(i,   j)
           p1 => Blocks(n_)%Points(i+1, j)
@@ -316,42 +319,36 @@ contains
           p4 => Blocks(n_)%Points(i, j-1)
 
           temp = ( ( p1%xp - p2%xp )**2 + ( p3%yp - p4%yp )**2 )
-          if (temp > 0) then 
+          IF (temp > 0) THEN
             timestep = ( ( CFL * 2.d0 ) / alpha ) * p0%Vol2 ** 2 / temp
 
             ! Calculate this constant now so we don't recalculate in the solver loop.
             p0%const = ( timestep * alpha / p0%Vol2 )
-          end if
+          END IF
 
-        end do
-      end do
-    end do
-  end subroutine
-end module BlockModule
+        END DO
+      END DO
+    END DO
+  END SUBROUTINE
+END MODULE BlockModule
 
-module clock
-  real(kind=8) :: start_time, end_time, wall_time
+MODULE clock
+  REAL(KIND=8) :: start_time, end_time, wall_time
 
-contains
-  subroutine timestamp()
-    character ( len = 8 ) ampm
-    integer ( kind = 4 ) d
-    character ( len = 8 ) date
-    integer ( kind = 4 ) h
-    integer ( kind = 4 ) m
-    integer ( kind = 4 ) mm
-    character ( len = 9 ), parameter, dimension(12) :: month = (/ &
+CONTAINS
+  SUBROUTINE timestamp()
+    CHARACTER (LEN = 9), PARAMETER, DIMENSION(12) :: month = (/ &
       'January  ', 'February ', 'March    ', 'April    ', &
       'May      ', 'June     ', 'July     ', 'August   ', &
       'September', 'October  ', 'November ', 'December ' /)
-    integer ( kind = 4 ) n
-    integer ( kind = 4 ) s
-    character ( len = 10 ) time
-    integer ( kind = 4 ) values(8)
-    integer ( kind = 4 ) y
-    character ( len = 5 ) zone
 
-    call date_and_time ( date, time, zone, values )
+    CHARACTER (LEN = 10) :: time
+    CHARACTER (LEN = 8) :: ampm, DATE
+    CHARACTER (LEN = 5) :: zone
+    INTEGER :: d, h, m, mm, n, s, y
+    INTEGER :: values(8)
+
+    CALL DATE_AND_TIME(DATE, time, zone, values)
 
     y = values(1)
     m = values(2)
@@ -361,45 +358,45 @@ contains
     s = values(7)
     mm = values(8)
 
-    if ( h < 12 ) then
+    IF (h < 12) THEN
       ampm = 'AM'
-    else if ( h == 12 ) then
-      if ( n == 0 .and. s == 0 ) then
+    ELSE IF ( h == 12 ) THEN
+      IF (n == 0 .and. s == 0) THEN
         ampm = 'Noon'
-      else
+      ELSE
         ampm = 'PM'
-      end if
-    else
+      END IF
+    ELSE
       h = h - 12
-      if ( h < 12 ) then
+      IF ( h < 12 ) THEN
         ampm = 'PM'
-      else if ( h == 12 ) then
-        if ( n == 0 .and. s == 0 ) then
+      ELSE IF ( h == 12 ) THEN
+        IF (n == 0 .and. s == 0) THEN
           ampm = 'Midnight'
-        else
+        ELSE
           ampm = 'AM'
-        end if
-      end if
-    end if
+        END IF
+      END IF
+    END IF
 
-    write ( *, '(a,1x,i2,1x,i4,2x,i2,a1,i2.2,a1,i2.2,a1,i3.3,1x,a)' ) &
-      trim ( month(m) ), d, y, h, ':', n, ':', s, '.', mm, trim ( ampm )
-    return
-  end
+    WRITE ( *, '(a,1x,i2,1x,i4,2x,i2,a1,i2.2,a1,i2.2,a1,i3.3,1x,a)' ) &
+      TRIM ( month(m) ), d, y, h, ':', n, ':', s, '.', mm, TRIM ( ampm )
+    RETURN
+  END
 
-  subroutine start_clock()
+  SUBROUTINE start_clock()
     ! call system time to determine flow solver wall time
     start_time = MPI_Wtime()
-    write(*,*) "Start time: ", start_time
-    call timestamp()
-  end subroutine start_clock
+    WRITE(*,*) "Start time: ", start_time
+    CALL timestamp()
+  END SUBROUTINE start_clock
 
-  subroutine end_clock()
+  SUBROUTINE end_clock()
     ! determine total wall time for solver
     end_time = MPI_Wtime()
-    write(*,*) "End time: ", end_time
-    call timestamp()
+    WRITE(*,*) "End time: ", end_time
+    CALL timestamp()
     wall_time = (end_time - start_time) / MPI_Wtick()
-    write(*,*) "Wall time: ", wall_time
-  end subroutine end_clock
-end module
+    WRITE(*,*) "Wall time: ", wall_time
+  END SUBROUTINE end_clock
+END MODULE
