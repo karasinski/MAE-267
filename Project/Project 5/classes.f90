@@ -144,7 +144,7 @@ module BlockModule
   end type Proc
 
   type LinkedList
-      type(LinkedList),pointer :: next
+      type (LinkedList), pointer :: next
       integer :: id
   end type LinkedList
 

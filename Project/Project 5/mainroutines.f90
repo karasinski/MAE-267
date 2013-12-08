@@ -422,97 +422,121 @@ subroutine mpi_sends
 
 
   subroutine mpi_receives
-    type (BlockType), pointer :: b
+    type (BlockType), pointer :: b1
     real(kind=8), pointer :: p1
-    integer :: n_, i, j, tag, source
+    integer :: i, j, tag, source
     real(kind = 8) :: i_buffer(iBlockSize), j_buffer(jBlockSize)
     real(kind = 8) :: buffer
-    ! For each block...
-    do n_ = 1, MyNBlocks
-      b => Blocks(n_)
+
       ! Our neighbor block is on different proc, we must receive with MPI.
-
-      ! South Face Blocking Receive
-      if (b%southFace%BC == PROC_BOUNDARY) then
-        source = b%southFace%neighborProc
-        tag = nB + b%id * 1000
-        call MPI_RECV(i_buffer, iBlockSize, MPI_DOUBLE_PRECISION, source, tag, mpi_comm_world, status, ierror)
+      southMPI => southMPIList
+      do
+        if (.NOT. associated(southMPI)) exit
+        b1 => Blocks(southMPI%id)
+        source = b1%southFace%neighborProc
+        tag = nB + b1%id * 1000
+        call MPI_RECV(i_buffer, iBlockSize, MPI_DOUBLE_PRECISION, source, tag, mpi_comm_world, &
+                      status, ierror)
         do i = 1, iBlockSize
-          p1 => Blocks(n_)%Points(i, 0)%T
+          p1 => b1%Points(i, 0)%T
           p1 = i_buffer(i)
         end do
-      end if
+        southMPI => southMPI%next
+      end do
 
-      ! North Face Blocking Receive
-      if (b%northFace%BC == PROC_BOUNDARY) then
-        source = b%northFace%neighborProc
-        tag = sB + b%id * 1000
-        call MPI_RECV(i_buffer, iBlockSize, MPI_DOUBLE_PRECISION, source, tag, mpi_comm_world, status, ierror)
+      northMPI => northMPIList
+      do
+        if (.NOT. associated(northMPI)) exit
+        b1 => Blocks(northMPI%id)
+        source = b1%northFace%neighborProc
+        tag = sB + b1%id * 1000
+        call MPI_RECV(i_buffer, iBlockSize, MPI_DOUBLE_PRECISION, source, tag, mpi_comm_world, &
+                      status, ierror)
         do i = 1, iBlockSize
-          p1 => Blocks(n_)%Points(i, jBlockSize+1)%T
+          p1 => b1%Points(i, jBlockSize+1)%T
           p1 = i_buffer(i)
         end do
-      end if
+        northMPI => northMPI%next
+      end do
 
-      ! West Face Blocking Receive
-      if (b%westFace%BC == PROC_BOUNDARY) then
-        source = b%westFace%neighborProc
-        tag = eB + b%id * 1000
-        call MPI_RECV(j_buffer, jBlockSize, MPI_DOUBLE_PRECISION, source, tag, mpi_comm_world, status, ierror)
+      westMPI => westMPIList
+      do
+        if (.NOT. associated(westMPI)) exit
+        b1 => Blocks(westMPI%id)
+        source = b1%westFace%neighborProc
+        tag = eB + b1%id * 1000
+        call MPI_RECV(j_buffer, jBlockSize, MPI_DOUBLE_PRECISION, source, tag, mpi_comm_world, &
+                      status, ierror)
         do j = 1, jBlockSize
-          p1 => Blocks(n_)%Points(0, j)%T
+          p1 => b1%Points(0, j)%T
           p1 = j_buffer(j)
         end do
-      end if
+        westMPI => westMPI%next
+      end do
 
-      ! East Face Blocking Receive
-      if (b%eastFace%BC == PROC_BOUNDARY) then
-        source = b%eastFace%neighborProc
-        tag = wB + b%id * 1000
-        call MPI_RECV(j_buffer, jBlockSize, MPI_DOUBLE_PRECISION, source, tag, mpi_comm_world, status, ierror)
+      eastMPI => eastMPIList
+      do
+        if (.NOT. associated(eastMPI)) exit
+        b1 => Blocks(eastMPI%id)
+        source = b1%eastFace%neighborProc
+        tag = wB + b1%id * 1000
+        call MPI_RECV(j_buffer, jBlockSize, MPI_DOUBLE_PRECISION, source, tag, mpi_comm_world, &
+                      status, ierror)
         do j = 1, jBlockSize
-          p1 => Blocks(n_)%Points(iBlockSize+1, j)%T
+          p1 => b1%Points(iBlockSize+1, j)%T
           p1 = j_buffer(j)
         end do
-      end if
+        eastMPI => eastMPI%next
+      end do
 
-      ! South West Corner Blocking Receive
-      if (b%SWCorner%BC == PROC_BOUNDARY) then
-        source = b%SWCorner%neighborProc
-        tag = nB + eB * 10 + b%id * 1000
+      swMPI => swMPIList
+      do
+        if (.NOT. associated(swMPI)) exit
+        b1 => Blocks(swMPI%id)
+        source = b1%SWCorner%neighborProc
+        tag = nB + eB * 10 + b1%id * 1000
         call MPI_RECV(buffer, 1, MPI_DOUBLE_PRECISION, source, tag, mpi_comm_world, status, ierror)
-        p1 => Blocks(n_)%Points(0,0)%T
+        p1 => b1%Points(0,0)%T
         p1 = buffer
-      end if
+        swMPI => swMPI%next
+      end do
 
-      ! North West Corner Blocking Receive
-      if (b%NWCorner%BC == PROC_BOUNDARY) then
-        source = b%NWCorner%neighborProc
-        tag = sB + eB * 10 + b%id * 1000
+      nwMPI => nwMPIList
+      do
+        if (.NOT. associated(nwMPI)) exit
+        b1 => Blocks(nwMPI%id)
+        source = b1%NWCorner%neighborProc
+        tag = sB + eB * 10 + b1%id * 1000
         call MPI_RECV(buffer, 1, MPI_DOUBLE_PRECISION, source, tag, mpi_comm_world, status, ierror)
-        p1 => Blocks(n_)%Points(0,jBlockSize+1)%T
+        p1 => b1%Points(0,jBlockSize+1)%T
         p1 = buffer
-      end if
+        nwMPI => nwMPI%next
+      end do
 
-      ! North East Corner Blocking Receive
-      if (b%NECorner%BC == PROC_BOUNDARY) then
-        source = b%NECorner%neighborProc
-        tag = sB + wB * 10 + b%id * 1000
+      neMPI => neMPIList
+      do
+        if (.NOT. associated(neMPI)) exit
+        b1 => Blocks(neMPI%id)
+        source = b1%NECorner%neighborProc
+        tag = sB + wB * 10 + b1%id * 1000
         call MPI_RECV(buffer, 1, MPI_DOUBLE_PRECISION, source, tag, mpi_comm_world, status, ierror)
-        p1 => Blocks(n_)%Points(iBlockSize+1,jBlockSize+1)%T
+        p1 => b1%Points(iBlockSize+1,jBlockSize+1)%T
         p1 = buffer
-      end if
+        neMPI => neMPI%next
+      end do
 
-      ! South East Corner Blocking Receive
-      if (b%SECorner%BC == PROC_BOUNDARY) then
-        source = b%SECorner%neighborProc
-        tag = nB + wB * 10 + b%id * 1000
+      seMPI => seMPIList
+      do
+        if (.NOT. associated(seMPI)) exit
+        b1 => Blocks(seMPI%id)
+        source = b1%SECorner%neighborProc
+        tag = nB + wB * 10 + b1%id * 1000
         call MPI_RECV(buffer, 1, MPI_DOUBLE_PRECISION, source, tag, mpi_comm_world, status, ierror)
-        p1 => Blocks(n_)%Points(iBlockSize+1,0)%T
+        p1 => b1%Points(iBlockSize+1,0)%T
         p1 = buffer
-      end if
+        seMPI => seMPI%next
+      end do
 
-    end do
   end subroutine
 
   subroutine initialize_linked_lists
