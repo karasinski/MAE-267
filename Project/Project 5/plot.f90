@@ -74,7 +74,7 @@ contains
     MyNBlocks = readnBlocks
 
     ! Allocate our blocks array.
-    allocate(Blocks(1:readnBlocks))
+    allocate(Blocks(1:MyNBlocks))
 
     do n_ = 1, readnBlocks
       b => Blocks(n_)
@@ -92,7 +92,7 @@ contains
     end do
 
     close(1)
-    write(*,*), 'Processor ', MyID, ' read configuration file.'
+!     write(*,*), 'Processor ', MyID, ' read configuration file.'
   end subroutine
 
   subroutine read_grid_file(Blocks)
@@ -123,7 +123,7 @@ contains
 
     ! Close file
     close(gridUnit)
-    write(*,*), 'Processor ', MyID, ' read grid file.'
+!     write(*,*), 'Processor ', MyID, ' read grid file.'
   end subroutine
 
   subroutine read_temp_file(Blocks)
@@ -159,7 +159,7 @@ contains
     ! Close file
     close(tempUnit)
 
-    write(*,*), 'Processor ', MyID, ' read temperature file.'
+!     write(*,*), 'Processor ', MyID, ' read temperature file.'
   end subroutine
 
   ! Plot3D routine to output grid and temperature files in a

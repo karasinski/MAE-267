@@ -490,48 +490,54 @@ contains
 
     ! Pick our method depending on our settings.
     ! Hard coded for all the decompositions we're interested in.
-    if (M == 5  .and. N == 4) then
-      if (mpi_nprocs == 6) then
-        method = 546
-      else if (mpi_nprocs == 4) then
-        method = 544
-      end if
-    else if (M == 10 .and. N == 10) then
-      if (mpi_nprocs == 6) then
+    if (M == 10 .and. N == 10) then
+      if (mpi_nprocs == 10) then
+        method = 101010
+      else if (mpi_nprocs == 8) then
+        fudge_factor = 10108
+      else if (mpi_nprocs == 6) then
         method = 10106
       else if (mpi_nprocs == 4) then
         method = 10104
       else if (mpi_nprocs == 2) then
-       fudge_factor = 1.01d0
-      else if (mpi_nprocs == 8) then
-        fudge_factor = 1.07
+        method = 10102
       end if
     else
       ! Otherwise we'll do our best and use an automated method.
       method = 666
     end if
 
-    if (method == 546) then
-      ! 5x4 blocks on 6 processors.
-      ! Hard coding is hard work.
-      call add_blocks_to_proc(Procs(1), BlocksCollection, [1, 2, 3, 4])
-      call add_blocks_to_proc(Procs(2), BlocksCollection, [5, 6, 7])
-      call add_blocks_to_proc(Procs(3), BlocksCollection, [9, 10, 11])
-      call add_blocks_to_proc(Procs(4), BlocksCollection, [13, 14, 15])
-      call add_blocks_to_proc(Procs(5), BlocksCollection, [8, 12, 16])
-      call add_blocks_to_proc(Procs(6), BlocksCollection, [17, 18, 19, 20])
+    if (method == 101010) then
+      ! 10x10 blocks on 10 processors.
 
-    else if (method == 544) then
-      ! 5x4 blocks on 4 processors. Break the domain into columns.
-      ! Hard coding is still hard work.
-      call add_blocks_to_proc(Procs(1), BlocksCollection, [1, 2, 5, 6, 9])
-      call add_blocks_to_proc(Procs(2), BlocksCollection, [3, 4, 7, 8, 12])
-      call add_blocks_to_proc(Procs(3), BlocksCollection, [10, 13, 14, 17, 18])
-      call add_blocks_to_proc(Procs(4), BlocksCollection, [11, 15, 16, 19, 20])
+      do n_ = 0, 9 
+        call add_blocks_to_proc(Procs(n_+1), BlocksCollection, &
+          [1 + n_*10, 2 + n_*10, 3 + n_*10, 4 + n_*10, 5 + n_*10, &
+           6 + n_*10, 7 + n_*10, 8 + n_*10, 9 + n_*10, 10 + n_*10])
+      end do
+
+    else if (method == 10108) then
+      ! 10x10 blocks on 8 processors.
+
+      call add_blocks_to_proc(Procs(1), BlocksCollection, &
+        [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13])
+      call add_blocks_to_proc(Procs(2), BlocksCollection, &
+        [14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25])
+      call add_blocks_to_proc(Procs(3), BlocksCollection, &
+        [26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38])
+      call add_blocks_to_proc(Procs(4), BlocksCollection, &
+        [39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50])
+      call add_blocks_to_proc(Procs(5), BlocksCollection, &
+        [51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63])
+      call add_blocks_to_proc(Procs(6), BlocksCollection, &
+        [64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75])
+      call add_blocks_to_proc(Procs(7), BlocksCollection, &
+        [76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88])
+      call add_blocks_to_proc(Procs(8), BlocksCollection, &
+        [89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100])
 
     else if (method == 10106) then
       ! 10x10 blocks on 6 processors.
-      ! Hard coding is okay.
       do n_ = 0, 2
         call add_blocks_to_proc(Procs(1), BlocksCollection, &
           [1 + n_*10, 2 + n_*10, 3 + n_*10, 4 + n_*10, 5 + n_*10])
@@ -582,7 +588,6 @@ contains
 
     else if (method == 10104) then
       ! 10x10 blocks on 4 processors. Break the domain into quadrants.
-      ! Hard coding isn't that bad.
       do n_ = 0, 4
         call add_blocks_to_proc(Procs(1), BlocksCollection, &
           [1 + n_*10, 2 + n_*10, 3 + n_*10, 4 + n_*10, 5 + n_*10])
@@ -595,6 +600,18 @@ contains
 
         call add_blocks_to_proc(Procs(4), BlocksCollection, &
           [56 + n_*10, 57 + n_*10, 58 + n_*10, 59 + n_*10, 60 + n_*10])
+      end do
+
+    else if (method == 10102) then
+      ! 10x10 blocks on 4 processors. Break the domain into quadrants.
+      do n_ = 0, 4
+        call add_blocks_to_proc(Procs(1), BlocksCollection, &
+          [1 + n_*10, 2 + n_*10, 3 + n_*10, 4 + n_*10, 5 + n_*10, &
+           6 + n_*10, 7 + n_*10, 8 + n_*10, 9 + n_*10, 10 + n_*10])
+
+        call add_blocks_to_proc(Procs(2), BlocksCollection, &
+          [51 + n_*10, 52 + n_*10, 53 + n_*10, 54 + n_*10, 55 + n_*10, &
+           56 + n_*10, 57 + n_*10, 58 + n_*10, 59 + n_*10, 60 + n_*10])
       end do
 
     else if (method == 666) then
@@ -641,18 +658,18 @@ contains
     call update_neighbor_procs(Procs)
     call check_communication_cost(Procs)
 
-!     ! Write the total weight, number of procs, ideal weight per proc.
-!     write(*,*)
-!     write(*,*), '      Weight  ', 'Ideal Weight/proc'
-!     write(*,*), sum, optimal
-!     write(*,*)
+    ! Write the total weight, number of procs, ideal weight per proc.
+    write(*,*)
+    write(*,*), '      Weight  ', 'Ideal Weight/proc'
+    write(*,*), sum, optimal
+    write(*,*)
 
-!     ! Write out the weight on each proc.
-!     write(*, *), '     proc #     ', "nBlocks   ", "   Weight        ", "Comm        ", "  Err"
-!     do n_ = 1, mpi_nprocs
-!       write(*, *), n_, Procs(n_)%nBlocks, Procs(n_)%weight, Procs(n_)%comm, &
-!                   100*real(Procs(n_)%weight + Procs(n_)%comm - optimal)/real(optimal)
-!     end do
+    ! Write out the weight on each proc.
+    write(*, *), '     proc #     ', "nBlocks   ", "   Weight        ", "Comm        ", "  Err"
+    do n_ = 1, mpi_nprocs
+      write(*, *), n_, Procs(n_)%nBlocks, Procs(n_)%weight, Procs(n_)%comm, &
+                  100*real(Procs(n_)%weight + Procs(n_)%comm - optimal)/real(optimal)
+    end do
 
     ! If we screwed this up we need to terminated execution.
     do n_ = 1, nBlocks

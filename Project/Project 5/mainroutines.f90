@@ -104,7 +104,6 @@ contains
         end if
       end do
 
-      call MPI_Barrier(mpi_comm_world, ierror)
       call mpi_allreduce(local_residual, residual, 1, MPI_DOUBLE_PRECISION, MPI_MAX, mpi_comm_world, ierror)
       residuals(step) = residual
       ! write(*,*), MyID, step, residual, local_residual
@@ -128,6 +127,7 @@ contains
     type (GridPoint), pointer :: p0, p1, p2, p3
     real(kind=8) :: dTdx, dTdy
     integer :: i, j, n_
+    
     ! Loop over each block.
     do n_ = 1, MyNBlocks
       MyBlock => Blocks(n_)
@@ -164,13 +164,13 @@ contains
           ! second derivative by adding the first times a constant during each time
           ! step. Pass out x and y second derivatives contributions.
           p1%tempT = p1%tempT + p1%const * &
-                           ( p0%yNN * dTdx + p0%xPP * dTdy )
+                   ( p0%yNN * dTdx + p0%xPP * dTdy )
           p0%tempT = p0%tempT + p0%const * &
-                           ( p0%yPN * dTdx + p0%xNP * dTdy )
+                   ( p0%yPN * dTdx + p0%xNP * dTdy )
           p2%tempT = p2%tempT + p2%const * &
-                           ( p0%yPP * dTdx + p0%xNN * dTdy )
+                   ( p0%yPP * dTdx + p0%xNN * dTdy )
           p3%tempT = p3%tempT + p3%const * &
-                           ( p0%yNP * dTdx + p0%xPN * dTdy )
+                   ( p0%yNP * dTdx + p0%xPN * dTdy )
         end do
       end do
 
@@ -193,53 +193,53 @@ contains
     ! North face ghost nodes
     northLocal => northLocalList
     do
-        if (.NOT. associated(northLocal)) exit
-        do i = 1, iBlockSize
-          b1 => Blocks(northLocal%id)
-          p1 => b1%Points(i, jBlockSize+1)%T
-          p2 => Blocks(b1%northFace%neighborLocalBlock)%Points(i, 2)%T
-          p1 = p2
-        end do
-        northLocal => northLocal%next
+      if (.NOT. associated(northLocal)) exit
+      do i = 1, iBlockSize
+        b1 => Blocks(northLocal%id)
+        p1 => b1%Points(i, jBlockSize+1)%T
+        p2 => Blocks(b1%northFace%neighborLocalBlock)%Points(i, 2)%T
+        p1 = p2
+      end do
+      northLocal => northLocal%next
     end do
 
     ! south face ghost nodes
     southLocal => southLocalList
     do
-        if (.NOT. associated(southLocal)) exit
-        do i = 1, iBlockSize
-          b1 => Blocks(southLocal%id)
-          p1 => b1%Points(i, 0)%T
-          p2 => Blocks(b1%southFace%neighborLocalBlock)%Points(i, jBlockSize-1)%T
-          p1 = p2
-        end do
-        southLocal => southLocal%next
+      if (.NOT. associated(southLocal)) exit
+      do i = 1, iBlockSize
+        b1 => Blocks(southLocal%id)
+        p1 => b1%Points(i, 0)%T
+        p2 => Blocks(b1%southFace%neighborLocalBlock)%Points(i, jBlockSize-1)%T
+        p1 = p2
+      end do
+      southLocal => southLocal%next
     end do
 
     ! east face ghost nodes
     eastLocal => eastLocalList
     do
-        if (.NOT. associated(eastLocal)) exit
-        do j = 1, jBlockSize
-          b1 => Blocks(eastLocal%id)
-          p1 => b1%Points(iBlockSize+1, j)%T
-          p2 => Blocks(b1%eastFace%neighborLocalBlock)%Points(2, j)%T
-          p1 = p2
-        end do
-        eastLocal => eastLocal%next
+      if (.NOT. associated(eastLocal)) exit
+      do j = 1, jBlockSize
+        b1 => Blocks(eastLocal%id)
+        p1 => b1%Points(iBlockSize+1, j)%T
+        p2 => Blocks(b1%eastFace%neighborLocalBlock)%Points(2, j)%T
+        p1 = p2
+      end do
+      eastLocal => eastLocal%next
     end do
 
     ! west face ghost nodes
     westLocal => westLocalList
     do
-        if (.NOT. associated(westLocal)) exit
-        do j = 1, jBlockSize
-          b1 => Blocks(westLocal%id)
-          p1 => b1%Points(0, j)%T
-          p2 => Blocks(b1%westFace%neighborLocalBlock)%Points(iBlockSize-1, j)%T
-          p1 = p2
-        end do
-        westLocal => westLocal%next
+      if (.NOT. associated(westLocal)) exit
+      do j = 1, jBlockSize
+        b1 => Blocks(westLocal%id)
+        p1 => b1%Points(0, j)%T
+        p2 => Blocks(b1%westFace%neighborLocalBlock)%Points(iBlockSize-1, j)%T
+        p1 = p2
+      end do
+      westLocal => westLocal%next
     end do
 
     ! ne corner ghost node
@@ -285,10 +285,11 @@ contains
       p1 = p2
       nwLocal => nwLocal%next
     end do
-
   end subroutine
 
-subroutine mpi_sends
+  ! Our neighbor block is on different proc, so it will also need information from
+  ! this block. We do a nonblocking send now and a blocking receive later.
+  subroutine mpi_sends
     type (BlockType), pointer :: b1
     real(kind=8), pointer :: p1
     integer :: i, j, tag, destination
@@ -298,8 +299,6 @@ subroutine mpi_sends
     northMPI => northMPIList
     do
       if (.NOT. associated(northMPI)) exit
-      ! Our neighbor block is on different proc, so it will also need information from
-      ! this block. We do a nonblocking send now and a blocking receive later.
       b1 => Blocks(northMPI%id)
 
       ! Pack our values to send into a buffer.
@@ -417,10 +416,9 @@ subroutine mpi_sends
                      request, ierror)
       nwMPI => nwMPI%next
     end do
-
   end subroutine
 
-
+  ! Our neighbor block is on different proc, we must receive with MPI.
   subroutine mpi_receives
     type (BlockType), pointer :: b1
     real(kind=8), pointer :: p1
@@ -428,115 +426,121 @@ subroutine mpi_sends
     real(kind = 8) :: i_buffer(iBlockSize), j_buffer(jBlockSize)
     real(kind = 8) :: buffer
 
-      ! Our neighbor block is on different proc, we must receive with MPI.
-      southMPI => southMPIList
-      do
-        if (.NOT. associated(southMPI)) exit
-        b1 => Blocks(southMPI%id)
-        source = b1%southFace%neighborProc
-        tag = nB + b1%id * 1000
-        call MPI_RECV(i_buffer, iBlockSize, MPI_DOUBLE_PRECISION, source, tag, mpi_comm_world, &
-                      status, ierror)
-        do i = 1, iBlockSize
-          p1 => b1%Points(i, 0)%T
-          p1 = i_buffer(i)
-        end do
-        southMPI => southMPI%next
+    ! south face receive
+    southMPI => southMPIList
+    do
+      if (.NOT. associated(southMPI)) exit
+      b1 => Blocks(southMPI%id)
+      source = b1%southFace%neighborProc
+      tag = nB + b1%id * 1000
+      call MPI_RECV(i_buffer, iBlockSize, MPI_DOUBLE_PRECISION, source, tag, mpi_comm_world, &
+                    status, ierror)
+      do i = 1, iBlockSize
+        p1 => b1%Points(i, 0)%T
+        p1 = i_buffer(i)
       end do
+      southMPI => southMPI%next
+    end do
 
-      northMPI => northMPIList
-      do
-        if (.NOT. associated(northMPI)) exit
-        b1 => Blocks(northMPI%id)
-        source = b1%northFace%neighborProc
-        tag = sB + b1%id * 1000
-        call MPI_RECV(i_buffer, iBlockSize, MPI_DOUBLE_PRECISION, source, tag, mpi_comm_world, &
-                      status, ierror)
-        do i = 1, iBlockSize
-          p1 => b1%Points(i, jBlockSize+1)%T
-          p1 = i_buffer(i)
-        end do
-        northMPI => northMPI%next
+    ! north face receive
+    northMPI => northMPIList
+    do
+      if (.NOT. associated(northMPI)) exit
+      b1 => Blocks(northMPI%id)
+      source = b1%northFace%neighborProc
+      tag = sB + b1%id * 1000
+      call MPI_RECV(i_buffer, iBlockSize, MPI_DOUBLE_PRECISION, source, tag, mpi_comm_world, &
+                    status, ierror)
+      do i = 1, iBlockSize
+        p1 => b1%Points(i, jBlockSize+1)%T
+        p1 = i_buffer(i)
       end do
+      northMPI => northMPI%next
+    end do
 
-      westMPI => westMPIList
-      do
-        if (.NOT. associated(westMPI)) exit
-        b1 => Blocks(westMPI%id)
-        source = b1%westFace%neighborProc
-        tag = eB + b1%id * 1000
-        call MPI_RECV(j_buffer, jBlockSize, MPI_DOUBLE_PRECISION, source, tag, mpi_comm_world, &
-                      status, ierror)
-        do j = 1, jBlockSize
-          p1 => b1%Points(0, j)%T
-          p1 = j_buffer(j)
-        end do
-        westMPI => westMPI%next
+    ! west face receive
+    westMPI => westMPIList
+    do
+      if (.NOT. associated(westMPI)) exit
+      b1 => Blocks(westMPI%id)
+      source = b1%westFace%neighborProc
+      tag = eB + b1%id * 1000
+      call MPI_RECV(j_buffer, jBlockSize, MPI_DOUBLE_PRECISION, source, tag, mpi_comm_world, &
+                    status, ierror)
+      do j = 1, jBlockSize
+        p1 => b1%Points(0, j)%T
+        p1 = j_buffer(j)
       end do
+      westMPI => westMPI%next
+    end do
 
-      eastMPI => eastMPIList
-      do
-        if (.NOT. associated(eastMPI)) exit
-        b1 => Blocks(eastMPI%id)
-        source = b1%eastFace%neighborProc
-        tag = wB + b1%id * 1000
-        call MPI_RECV(j_buffer, jBlockSize, MPI_DOUBLE_PRECISION, source, tag, mpi_comm_world, &
-                      status, ierror)
-        do j = 1, jBlockSize
-          p1 => b1%Points(iBlockSize+1, j)%T
-          p1 = j_buffer(j)
-        end do
-        eastMPI => eastMPI%next
+    ! east face receive
+    eastMPI => eastMPIList
+    do
+      if (.NOT. associated(eastMPI)) exit
+      b1 => Blocks(eastMPI%id)
+      source = b1%eastFace%neighborProc
+      tag = wB + b1%id * 1000
+      call MPI_RECV(j_buffer, jBlockSize, MPI_DOUBLE_PRECISION, source, tag, mpi_comm_world, &
+                    status, ierror)
+      do j = 1, jBlockSize
+        p1 => b1%Points(iBlockSize+1, j)%T
+        p1 = j_buffer(j)
       end do
+      eastMPI => eastMPI%next
+    end do
 
-      swMPI => swMPIList
-      do
-        if (.NOT. associated(swMPI)) exit
-        b1 => Blocks(swMPI%id)
-        source = b1%SWCorner%neighborProc
-        tag = nB + eB * 10 + b1%id * 1000
-        call MPI_RECV(buffer, 1, MPI_DOUBLE_PRECISION, source, tag, mpi_comm_world, status, ierror)
-        p1 => b1%Points(0,0)%T
-        p1 = buffer
-        swMPI => swMPI%next
-      end do
+    ! sw corner receive
+    swMPI => swMPIList
+    do
+      if (.NOT. associated(swMPI)) exit
+      b1 => Blocks(swMPI%id)
+      source = b1%SWCorner%neighborProc
+      tag = nB + eB * 10 + b1%id * 1000
+      call MPI_RECV(buffer, 1, MPI_DOUBLE_PRECISION, source, tag, mpi_comm_world, status, ierror)
+      p1 => b1%Points(0,0)%T
+      p1 = buffer
+      swMPI => swMPI%next
+    end do
 
-      nwMPI => nwMPIList
-      do
-        if (.NOT. associated(nwMPI)) exit
-        b1 => Blocks(nwMPI%id)
-        source = b1%NWCorner%neighborProc
-        tag = sB + eB * 10 + b1%id * 1000
-        call MPI_RECV(buffer, 1, MPI_DOUBLE_PRECISION, source, tag, mpi_comm_world, status, ierror)
-        p1 => b1%Points(0,jBlockSize+1)%T
-        p1 = buffer
-        nwMPI => nwMPI%next
-      end do
+    ! nw corner receive
+    nwMPI => nwMPIList
+    do
+      if (.NOT. associated(nwMPI)) exit
+      b1 => Blocks(nwMPI%id)
+      source = b1%NWCorner%neighborProc
+      tag = sB + eB * 10 + b1%id * 1000
+      call MPI_RECV(buffer, 1, MPI_DOUBLE_PRECISION, source, tag, mpi_comm_world, status, ierror)
+      p1 => b1%Points(0,jBlockSize+1)%T
+      p1 = buffer
+      nwMPI => nwMPI%next
+    end do
 
-      neMPI => neMPIList
-      do
-        if (.NOT. associated(neMPI)) exit
-        b1 => Blocks(neMPI%id)
-        source = b1%NECorner%neighborProc
-        tag = sB + wB * 10 + b1%id * 1000
-        call MPI_RECV(buffer, 1, MPI_DOUBLE_PRECISION, source, tag, mpi_comm_world, status, ierror)
-        p1 => b1%Points(iBlockSize+1,jBlockSize+1)%T
-        p1 = buffer
-        neMPI => neMPI%next
-      end do
+    ! ne corner receive
+    neMPI => neMPIList
+    do
+      if (.NOT. associated(neMPI)) exit
+      b1 => Blocks(neMPI%id)
+      source = b1%NECorner%neighborProc
+      tag = sB + wB * 10 + b1%id * 1000
+      call MPI_RECV(buffer, 1, MPI_DOUBLE_PRECISION, source, tag, mpi_comm_world, status, ierror)
+      p1 => b1%Points(iBlockSize+1,jBlockSize+1)%T
+      p1 = buffer
+      neMPI => neMPI%next
+    end do
 
-      seMPI => seMPIList
-      do
-        if (.NOT. associated(seMPI)) exit
-        b1 => Blocks(seMPI%id)
-        source = b1%SECorner%neighborProc
-        tag = nB + wB * 10 + b1%id * 1000
-        call MPI_RECV(buffer, 1, MPI_DOUBLE_PRECISION, source, tag, mpi_comm_world, status, ierror)
-        p1 => b1%Points(iBlockSize+1,0)%T
-        p1 = buffer
-        seMPI => seMPI%next
-      end do
-
+    ! se corner receive
+    seMPI => seMPIList
+    do
+      if (.NOT. associated(seMPI)) exit
+      b1 => Blocks(seMPI%id)
+      source = b1%SECorner%neighborProc
+      tag = nB + wB * 10 + b1%id * 1000
+      call MPI_RECV(buffer, 1, MPI_DOUBLE_PRECISION, source, tag, mpi_comm_world, status, ierror)
+      p1 => b1%Points(iBlockSize+1,0)%T
+      p1 = buffer
+      seMPI => seMPI%next
+    end do
   end subroutine
 
   subroutine initialize_linked_lists
@@ -682,87 +686,86 @@ subroutine mpi_sends
         end if
       end if
 
-    ! nw Corner
-    if (b%NWCorner%BC == INTERNAL_BOUNDARY) then
-      if (.not. associated(nwLocalList)) then
-        allocate(nwLocalList)
-        nwLocalTemp => nwLocalList
-        nullify(nwLocalTemp%next)
-        nwLocalTemp%id = n_
-      else
-        allocate(nwLocalTemp%next)
-        nwLocalTemp => nwLocalTemp%next
-        nullify(nwLocalTemp%next)
-        nwLocalTemp%id = n_
+      ! nw Corner
+      if (b%NWCorner%BC == INTERNAL_BOUNDARY) then
+        if (.not. associated(nwLocalList)) then
+          allocate(nwLocalList)
+          nwLocalTemp => nwLocalList
+          nullify(nwLocalTemp%next)
+          nwLocalTemp%id = n_
+        else
+          allocate(nwLocalTemp%next)
+          nwLocalTemp => nwLocalTemp%next
+          nullify(nwLocalTemp%next)
+          nwLocalTemp%id = n_
+        end if
+      else if (b%NWCorner%BC == PROC_BOUNDARY) then
+        if (.not. associated(nwMPIList)) then
+          allocate(nwMPIList)
+          nwMPITemp => nwMPIList
+          nullify(nwMPITemp%next)
+          nwMPITemp%id = n_
+        else
+          allocate(nwMPITemp%next)
+          nwMPITemp => nwMPITemp%next
+          nullify(nwMPITemp%next)
+          nwMPITemp%id = n_
+        end if
       end if
-    else if (b%NWCorner%BC == PROC_BOUNDARY) then
-      if (.not. associated(nwMPIList)) then
-        allocate(nwMPIList)
-        nwMPITemp => nwMPIList
-        nullify(nwMPITemp%next)
-        nwMPITemp%id = n_
-      else
-        allocate(nwMPITemp%next)
-        nwMPITemp => nwMPITemp%next
-        nullify(nwMPITemp%next)
-        nwMPITemp%id = n_
-      end if
-    end if
 
-    ! sw Corner
-    if (b%swCorner%BC == INTERNAL_BOUNDARY) then
-      if (.not. associated(swLocalList)) then
-        allocate(swLocalList)
-        swLocalTemp => swLocalList
-        nullify(swLocalTemp%next)
-        swLocalTemp%id = n_
-      else
-        allocate(swLocalTemp%next)
-        swLocalTemp => swLocalTemp%next
-        nullify(swLocalTemp%next)
-        swLocalTemp%id = n_
+      ! sw Corner
+      if (b%swCorner%BC == INTERNAL_BOUNDARY) then
+        if (.not. associated(swLocalList)) then
+          allocate(swLocalList)
+          swLocalTemp => swLocalList
+          nullify(swLocalTemp%next)
+          swLocalTemp%id = n_
+        else
+          allocate(swLocalTemp%next)
+          swLocalTemp => swLocalTemp%next
+          nullify(swLocalTemp%next)
+          swLocalTemp%id = n_
+        end if
+      else if (b%swCorner%BC == PROC_BOUNDARY) then
+        if (.not. associated(swMPIList)) then
+          allocate(swMPIList)
+          swMPITemp => swMPIList
+          nullify(swMPITemp%next)
+          swMPITemp%id = n_
+        else
+          allocate(swMPITemp%next)
+          swMPITemp => swMPITemp%next
+          nullify(swMPITemp%next)
+          swMPITemp%id = n_
+        end if
       end if
-    else if (b%swCorner%BC == PROC_BOUNDARY) then
-      if (.not. associated(swMPIList)) then
-        allocate(swMPIList)
-        swMPITemp => swMPIList
-        nullify(swMPITemp%next)
-        swMPITemp%id = n_
-      else
-        allocate(swMPITemp%next)
-        swMPITemp => swMPITemp%next
-        nullify(swMPITemp%next)
-        swMPITemp%id = n_
-      end if
-    end if
 
-    ! se Corner
-    if (b%seCorner%BC == INTERNAL_BOUNDARY) then
-      if (.not. associated(seLocalList)) then
-        allocate(seLocalList)
-        seLocalTemp => seLocalList
-        nullify(seLocalTemp%next)
-        seLocalTemp%id = n_
-      else
-        allocate(seLocalTemp%next)
-        seLocalTemp => seLocalTemp%next
-        nullify(seLocalTemp%next)
-        seLocalTemp%id = n_
+      ! se Corner
+      if (b%seCorner%BC == INTERNAL_BOUNDARY) then
+        if (.not. associated(seLocalList)) then
+          allocate(seLocalList)
+          seLocalTemp => seLocalList
+          nullify(seLocalTemp%next)
+          seLocalTemp%id = n_
+        else
+          allocate(seLocalTemp%next)
+          seLocalTemp => seLocalTemp%next
+          nullify(seLocalTemp%next)
+          seLocalTemp%id = n_
+        end if
+      else if (b%seCorner%BC == PROC_BOUNDARY) then
+        if (.not. associated(seMPIList)) then
+          allocate(seMPIList)
+          seMPITemp => seMPIList
+          nullify(seMPITemp%next)
+          seMPITemp%id = n_
+        else
+          allocate(seMPITemp%next)
+          seMPITemp => seMPITemp%next
+          nullify(seMPITemp%next)
+          seMPITemp%id = n_
+        end if
       end if
-    else if (b%seCorner%BC == PROC_BOUNDARY) then
-      if (.not. associated(seMPIList)) then
-        allocate(seMPIList)
-        seMPITemp => seMPIList
-        nullify(seMPITemp%next)
-        seMPITemp%id = n_
-      else
-        allocate(seMPITemp%next)
-        seMPITemp => seMPITemp%next
-        nullify(seMPITemp%next)
-        seMPITemp%id = n_
-      end if
-    end if
-
     end do
   end subroutine
 

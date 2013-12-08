@@ -57,7 +57,7 @@ program heat
 
   ! Write final temperature distribution.
   call plot3D(Blocks)
-  !
+
   ! Might as well be proper and cleanup before we leave.
   deallocate(Blocks)
 
