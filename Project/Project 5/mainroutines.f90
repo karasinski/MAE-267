@@ -20,12 +20,6 @@ MODULE MainRoutines
   TYPE(LinkedList), POINTER :: neLocalList, nwLocalList, swLocalList, seLocalList
   TYPE(LinkedList), POINTER :: neMPIList, nwMPIList, swMPIList, seMPIList
 
-  ! Temp lists
-  TYPE(LinkedList), POINTER :: northLocalTemp, southLocalTemp, eastLocalTemp, westLocalTemp
-  TYPE(LinkedList), POINTER :: northMPITemp, southMPITemp, eastMPITemp, westMPITemp
-  TYPE(LinkedList), POINTER :: neLocalTemp, nwLocalTemp, swLocalTemp, seLocalTemp
-  TYPE(LinkedList), POINTER :: neMPITemp, nwMPITemp, swMPITemp, seMPITemp
-
 CONTAINS
 
   ! This subroutine partitions the grid into blocks.
@@ -124,8 +118,8 @@ CONTAINS
   SUBROUTINE derivatives
     TYPE (BlockType), POINTER :: MyBlock
     TYPE (GridPoint), POINTER :: p0, p1, p2, p3
-    TYPE (KIND=8), POINTER :: tempT(:,:)
-    REAL(KIND=8) :: dTdx, dTdy
+    REAL (KIND=8), POINTER :: tempT(:,:)
+    REAL (KIND=8) :: dTdx, dTdy
     INTEGER :: i, j, n_
 
     ! Loop over each block.
@@ -563,6 +557,12 @@ CONTAINS
     TYPE (BlockType), POINTER :: b
     INTEGER :: n_
 
+    ! Temp lists
+    TYPE(LinkedList), POINTER :: northLocalTemp, southLocalTemp, eastLocalTemp, westLocalTemp
+    TYPE(LinkedList), POINTER :: northMPITemp, southMPITemp, eastMPITemp, westMPITemp
+    TYPE(LinkedList), POINTER :: neLocalTemp, nwLocalTemp, swLocalTemp, seLocalTemp
+    TYPE(LinkedList), POINTER :: neMPITemp, nwMPITemp, swMPITemp, seMPITemp
+
     ! For each block...
     DO n_ = 1, MyNBlocks
       b => Blocks(n_)
@@ -583,7 +583,6 @@ CONTAINS
           ! If the list is already allocated then we can
           ! allocate the next link in the linked list and
           ! assign the block to it.
-
           ALLOCATE(northLocalTemp%next)
           northLocalTemp => northLocalTemp%next
           NULLIFY(northLocalTemp%next)

@@ -414,25 +414,24 @@ CONTAINS
         MyBlock => MyProc%Blocks(b)
 
         ! Check to see if this block is a neighbor to another block on this processor.
-        ! The communication cost is equal to the length of the sides of the block.
-        northProc => MyBlock%northFace%neighborProc
-        southProc => MyBlock%southFace%neighborProc
-        eastProc  => MyBlock%eastFace%neighborProc
-        westProc  => MyBlock%westFace%neighborProc
-        NEProc    => MyBlock%NECorner%neighborProc
-        NWProc    => MyBlock%NWCorner%neighborProc
-        SEProc    => MyBlock%SECorner%neighborProc
-        SWProc    => MyBlock%SWCorner%neighborProc
+        ! The communication cost is equal to the number of points on the sides of the block.
+        northProc => MyBlock%northFace%BC
+        southProc => MyBlock%southFace%BC
+        eastProc  => MyBlock%eastFace%BC
+        westProc  => MyBlock%westFace%BC
+        NEProc    => MyBlock%NECorner%BC
+        NWProc    => MyBlock%NWCorner%BC
+        SEProc    => MyBlock%SECorner%BC
+        SWProc    => MyBlock%SWCorner%BC
 
-        IF (northProc /= MyProc%procID .and. northProc /= -1) comm = comm + ( MyBlock%localJMAX - MyBlock%localJMIN )
-        IF (southProc /= MyProc%procID .and. southProc /= -1) comm = comm + ( MyBlock%localJMAX - MyBlock%localJMIN )
-        IF (eastProc  /= MyProc%procID .and. eastProc /= -1)  comm = comm + ( MyBlock%localIMAX - MyBlock%localIMIN )
-        IF (westProc  /= MyProc%procID .and. westProc /= -1)  comm = comm + ( MyBlock%localIMAX - MyBlock%localIMIN )
-
-        IF (NEProc /= MyProc%procID .and. NEProc /= -1)       comm = comm + 1
-        IF (NWProc /= MyProc%procID .and. NWProc /= -1)       comm = comm + 1
-        IF (SEProc /= MyProc%procID .and. SEProc /= -1)       comm = comm + 1
-        IF (SWProc /= MyProc%procID .and. SWProc /= -1)       comm = comm + 1
+        IF (northProc == PROC_BOUNDARY) comm = comm + iBlockSize
+        IF (southProc == PROC_BOUNDARY) comm = comm + iBlockSize
+        IF (eastProc  == PROC_BOUNDARY) comm = comm + jBlockSize
+        IF (westProc  == PROC_BOUNDARY) comm = comm + jBlockSize
+        IF (NEProc == PROC_BOUNDARY)    comm = comm + 1
+        IF (NWProc == PROC_BOUNDARY)    comm = comm + 1
+        IF (SEProc == PROC_BOUNDARY)    comm = comm + 1
+        IF (SWProc == PROC_BOUNDARY)    comm = comm + 1
       END DO
 
       ! Set the communication cost.
@@ -470,8 +469,10 @@ CONTAINS
     TYPE (BlockType), TARGET :: BlocksCollection(:)
     TYPE (Proc), POINTER :: Procs(:)
     TYPE (BlockType), POINTER :: b
-    REAL(KIND=8) :: fudge_factor = 1.05d0
-    INTEGER :: optimal, method = 666, p_, n_, SUM = 0
+    REAL(KIND=8) :: fudge_factor = 1.05d0, REAL_LOAD, IDEAL_LOAD
+    INTEGER :: optimal, method = 666, p_, n_, LOAD_S = 0
+    INTEGER :: LPP = 0, TLPP = 0
+    REAL(KIND=8) :: PRED_IDEAL_SPEED = 0, PRED_REAL_SPEED = 0
     INTEGER :: largest_block = 0, largest_block_number = 0
 
     ! Set starting weights on each proc equal to zero.
@@ -482,11 +483,11 @@ CONTAINS
     ! This is an ideal we cannot meet.
     DO n_ = 1, nBlocks
       b => BlocksCollection(n_)
-      SUM = SUM + b%SIZE
+      LOAD_S = LOAD_S + b%SIZE
     END DO
 
     ! The optimal distribution is an equal weight on each block.
-    optimal = INT(DFLOAT(SUM)/DFLOAT(mpi_nprocs))
+    optimal = INT(DFLOAT(LOAD_S)/DFLOAT(mpi_nprocs))
 
     ! Pick our method depending on our settings.
     ! Hard coded for all the decompositions we're interested in.
@@ -661,15 +662,45 @@ CONTAINS
     ! Write the total weight, number of procs, ideal weight per proc.
     WRITE(*,*)
     WRITE(*,*), '      Weight  ', 'Ideal Weight/proc'
-    WRITE(*,*), SUM, optimal
+    WRITE(*,*), LOAD_S, optimal
     WRITE(*,*)
 
     ! Write out the weight on each proc.
-    WRITE(*, *), '     proc #     ', "nBlocks   ", "   Weight        ", "Comm        ", "  Err"
+    WRITE(*, *), '     proc #', '     nBlocks', '         LPP', &
+    '          % REAL LOAD', '              % IDEAL LOAD'
+
     DO n_ = 1, mpi_nprocs
-      WRITE(*, *), n_, Procs(n_)%nBlocks, Procs(n_)%weight, Procs(n_)%comm, &
-        100*REAL(Procs(n_)%weight + Procs(n_)%comm - optimal)/REAL(optimal)
+      LPP = Procs(n_)%weight + Procs(n_)%comm
+
+      ! Total load for all processors is the sum of the load on each.
+      TLPP = TLPP + LPP
     END DO
+
+    DO n_ = 1, mpi_nprocs
+      ! Load per processor is the sum of the weight and communication cost.
+      LPP = Procs(n_)%weight + Procs(n_)%comm
+      
+      ! Real load is the load on this proc divided by the total load for all.
+      REAL_LOAD = DFLOAT(LPP)/DFLOAT(TLPP)
+
+      ! Ideal load is the load on this proc divided by serial load divided
+      ! by the number of processors.
+      IDEAL_LOAD = DFLOAT(Procs(n_)%weight)/DFLOAT(LOAD_S)
+
+      WRITE(*, *), n_-1, Procs(n_)%nBlocks, LPP, REAL_LOAD, IDEAL_LOAD 
+
+      IF (REAL_LOAD > PRED_REAL_SPEED) THEN
+        PRED_REAL_SPEED = REAL_LOAD
+      END IF
+      IF (IDEAL_LOAD > PRED_IDEAL_SPEED) THEN
+        PRED_IDEAL_SPEED = IDEAL_LOAD
+      END IF
+    END DO
+
+    WRITE(*,*)
+    WRITE(*,*), "Ideal                   ", DFLOAT(mpi_nprocs)
+    WRITE(*,*), "Predicted Ideal Speedup ", 1.d0/PRED_IDEAL_SPEED
+    WRITE(*,*), "Predicted Real Speedup  ", 1.d0/PRED_REAL_SPEED
 
     ! If we screwed this up we need to terminated execution.
     DO n_ = 1, nBlocks

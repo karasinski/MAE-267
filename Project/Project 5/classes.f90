@@ -254,7 +254,7 @@ CONTAINS
           p2 => Blocks(n_)%Points(i+1,j)
           p3 => Blocks(n_)%Points(i,j+1)
           p1%V = ABS(( p2%xp - p1%xp) * &
-            ( p3%yp - p1%yp))
+                     ( p3%yp - p1%yp))
         END DO
       END DO
 
@@ -384,15 +384,15 @@ CONTAINS
     RETURN
   END
 
+  ! Call MPI time to determine solver wall time
   SUBROUTINE start_clock()
-    ! call system time to determine flow solver wall time
     start_time = MPI_Wtime()
     WRITE(*,*) "Start time: ", start_time
     CALL timestamp()
   END SUBROUTINE start_clock
 
-  SUBROUTINE end_clock()
-    ! determine total wall time for solver
+  ! Determine total wall time for solver
+  SUBROUTINE end_clock()    
     end_time = MPI_Wtime()
     WRITE(*,*) "End time: ", end_time
     CALL timestamp()
