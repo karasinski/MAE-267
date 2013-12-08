@@ -289,107 +289,135 @@ contains
   end subroutine
 
 subroutine mpi_sends
-    type (BlockType), pointer :: b
+    type (BlockType), pointer :: b1
     real(kind=8), pointer :: p1
-    integer :: n_, i, j, tag, destination
+    integer :: i, j, tag, destination
     real(kind = 8) :: i_buffer(iBlockSize), j_buffer(jBlockSize)
     real(kind = 8) :: buffer
     
-    ! For each block...
-    do n_ = 1, MyNBlocks
-      b => Blocks(n_)
+    northMPI => northMPIList
+    do
+      if (.NOT. associated(northMPI)) exit
+      ! Our neighbor block is on different proc, so it will also need information from
+      ! this block. We do a nonblocking send now and a blocking receive later.
+      b1 => Blocks(northMPI%id)
 
-      ! North face ghost nodes
-      if (b%northFace%BC == PROC_BOUNDARY) then
-        ! Our neighbor block is on different proc, so it will also need information from
-        ! this block. We do a nonblocking send now and a blocking receive later.
+      ! Pack our values to send into a buffer.
+      do i = 1, iBlockSize
+        p1 => b1%Points(i, jBlockSize-1)%T
+        i_buffer(i) = p1
+      end do
+    
+      ! Find the destination.
+      destination = b1%northFace%neighborProc
 
-        ! Pack our values to send into a buffer.
-        do i = 1, iBlockSize
-          p1 => Blocks(n_)%Points(i, jBlockSize-1)%T
-          i_buffer(i) = p1
-        end do
+      ! Generate a tag unique within the iteration.
+      tag = nB + b1%northFace%neighborBlock * 1000          
 
-        ! Find the destination.
-        destination = b%northFace%neighborProc
+      ! Send everything to the proc and continue without immediate confirmation.
+      call MPI_Isend(i_buffer, iBlockSize, MPI_DOUBLE_PRECISION, destination, tag, &
+                     mpi_comm_world, request, ierror)
 
-        ! Generate a tag unique within the iteration.
-        tag = nB + b%northFace%neighborBlock * 1000
-
-        ! Send everything to the proc and continue without immediate confirmation.
-        call MPI_Isend(i_buffer, iBlockSize, MPI_DOUBLE_PRECISION, destination, tag, mpi_comm_world, request, ierror)
-      end if
-
-      ! South face ghost nodes
-      if (b%southFace%BC == PROC_BOUNDARY) then
-        do i = 1, iBlockSize
-          p1 => Blocks(n_)%Points(i, 2)%T
-          i_buffer(i) = p1
-        end do
-        destination = b%southFace%neighborProc
-        tag = sB + b%southFace%neighborBlock * 1000
-        call MPI_Isend(i_buffer, iBlockSize, MPI_DOUBLE_PRECISION, destination, tag, mpi_comm_world, request, ierror)
-      end if
-
-      ! East face ghost nodes
-      if (b%eastFace%BC == PROC_BOUNDARY) then
-        do j = 1, jBlockSize
-          p1 => Blocks(n_)%Points(iBlockSize-1, j)%T
-          j_buffer(j) = p1
-        end do
-        destination = b%eastFace%neighborProc
-        tag = eB + b%eastFace%neighborBlock * 1000
-        call MPI_Isend(j_buffer, jBlockSize, MPI_DOUBLE_PRECISION, destination, tag, mpi_comm_world, request, ierror)
-      end if
-
-      ! West face ghost nodes
-      if (b%westFace%BC == PROC_BOUNDARY) then
-        do j = 1, jBlockSize
-          p1 => Blocks(n_)%Points(2, j)%T
-          j_buffer(j) = p1
-        end do
-        destination = b%westFace%neighborProc
-        tag = wB + b%westFace%neighborBlock * 1000
-        call MPI_Isend(j_buffer, jBlockSize, MPI_DOUBLE_PRECISION, destination, tag, mpi_comm_world, request, ierror)
-      end if
-
-      ! North east corner ghost node
-      if (b%NECorner%BC == PROC_BOUNDARY) then
-        destination = b%NECorner%neighborProc
-        p1 => Blocks(n_)%Points(iBlockSize-1,jBlockSize-1)%T
-        buffer = p1
-        tag = nB + eB * 10 + b%NECorner%neighborBlock * 1000
-        call MPI_Isend(buffer, 1, MPI_DOUBLE_PRECISION, destination, tag, mpi_comm_world, request, ierror)
-      end if
-
-      ! South east corner ghost node
-      if (b%SECorner%BC == PROC_BOUNDARY) then
-        destination = b%SECorner%neighborProc
-        p1 => Blocks(n_)%Points(iBlockSize-1,2)%T
-        buffer = p1
-        tag = sB + eB * 10 + b%SECorner%neighborBlock * 1000
-        call MPI_Isend(buffer, 1, MPI_DOUBLE_PRECISION, destination, tag, mpi_comm_world, request, ierror)
-      end if
-
-      ! South west corner ghost node
-      if (b%SWCorner%BC == PROC_BOUNDARY) then
-        destination = b%SWCorner%neighborProc
-        p1 => Blocks(n_)%Points(2,2)%T
-        buffer = p1
-        tag = sB + wB * 10 + b%SWCorner%neighborBlock * 1000
-        call MPI_Isend(buffer, 1, MPI_DOUBLE_PRECISION, destination, tag, mpi_comm_world, request, ierror)
-      end if
-
-      ! North west corner ghost node
-      if (b%NWCorner%BC == PROC_BOUNDARY) then
-        destination = b%NWCorner%neighborProc
-        p1 => Blocks(n_)%Points(2,jBlockSize-1)%T
-        buffer = p1
-        tag = nB + wB * 10 + b%NWCorner%neighborBlock * 1000
-        call MPI_Isend(buffer, 1, MPI_DOUBLE_PRECISION, destination, tag, mpi_comm_world, request, ierror)
-      end if
-
+      northMPI => northMPI%next
     end do
+
+    southMPI => southMPIList
+    do
+      if (.NOT. associated(southMPI)) exit
+      b1 => Blocks(southMPI%id)
+      do i = 1, iBlockSize
+        p1 => b1%Points(i, 2)%T
+        i_buffer(i) = p1
+      end do
+      destination = b1%southFace%neighborProc
+      tag = sB + b1%southFace%neighborBlock * 1000          
+      call MPI_Isend(i_buffer, iBlockSize, MPI_DOUBLE_PRECISION, destination, tag, &
+                     mpi_comm_world, request, ierror)
+      southMPI => southMPI%next
+    end do
+
+    eastMPI => eastMPIList
+    do
+      if (.NOT. associated(eastMPI)) exit
+      b1 => Blocks(eastMPI%id)
+      do j = 1, jBlockSize
+        p1 => b1%Points(iBlockSize-1, j)%T
+        j_buffer(j) = p1
+      end do
+      destination = b1%eastFace%neighborProc
+      tag = eB + b1%eastFace%neighborBlock * 1000          
+      call MPI_Isend(j_buffer, jBlockSize, MPI_DOUBLE_PRECISION, destination, tag, &
+                     mpi_comm_world, request, ierror)
+      eastMPI => eastMPI%next
+    end do
+
+    westMPI => westMPIList
+    do
+      if (.NOT. associated(westMPI)) exit
+      b1 => Blocks(westMPI%id)
+      do j = 1, jBlockSize
+        p1 => b1%Points(2, j)%T
+        j_buffer(j) = p1
+      end do
+      destination = b1%westFace%neighborProc
+      tag = wB + b1%westFace%neighborBlock * 1000          
+      call MPI_Isend(j_buffer, jBlockSize, MPI_DOUBLE_PRECISION, destination, tag, &
+                     mpi_comm_world, request, ierror)
+      westMPI => westMPI%next
+    end do
+
+    neMPI => neMPIList
+    do
+      if (.NOT. associated(neMPI)) exit
+      b1 => Blocks(neMPI%id)
+      p1 => b1%Points(iBlockSize-1,jBlockSize-1)%T
+      buffer = p1
+      destination = b1%NECorner%neighborProc
+      tag = nB + eB * 10 + b1%NECorner%neighborBlock * 1000
+      call MPI_Isend(buffer, 1, MPI_DOUBLE_PRECISION, destination, tag, mpi_comm_world, &
+                     request, ierror)
+      neMPI => neMPI%next
+    end do
+
+    seMPI => seMPIList
+    do
+      if (.NOT. associated(seMPI)) exit
+      b1 => Blocks(seMPI%id)
+      p1 => b1%Points(iBlockSize-1,2)%T
+      buffer = p1
+      destination = b1%SECorner%neighborProc
+      tag = sB + eB * 10 + b1%SECorner%neighborBlock * 1000
+      call MPI_Isend(buffer, 1, MPI_DOUBLE_PRECISION, destination, tag, mpi_comm_world, &
+                     request, ierror)
+      seMPI => seMPI%next
+    end do
+
+    swMPI => swMPIList
+    do
+      if (.NOT. associated(swMPI)) exit
+      b1 => Blocks(swMPI%id)
+      p1 => b1%Points(2,2)%T
+      buffer = p1
+      destination = b1%SWCorner%neighborProc
+      tag = sB + wB * 10 + b1%SWCorner%neighborBlock * 1000
+      call MPI_Isend(buffer, 1, MPI_DOUBLE_PRECISION, destination, tag, mpi_comm_world, &
+                     request, ierror)
+      swMPI => swMPI%next
+    end do
+
+    nwMPI => nwMPIList
+    do
+      if (.NOT. associated(nwMPI)) exit
+      b1 => Blocks(nwMPI%id)
+      p1 => b1%Points(2,jBlockSize-1)%T
+      buffer = p1
+      destination = b1%nwCorner%neighborProc
+      tag = nB + wB * 10 + b1%NWCorner%neighborBlock * 1000
+      call MPI_Isend(buffer, 1, MPI_DOUBLE_PRECISION, destination, tag, mpi_comm_world, &
+                     request, ierror)
+      nwMPI => nwMPI%next
+    end do
+
   end subroutine
 
 
