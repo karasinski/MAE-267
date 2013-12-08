@@ -8,47 +8,23 @@ module MainRoutines
   ! Block array for solver.
   type (BlockType), pointer :: Blocks(:)
 
-  ! Create pointers
-  type(LinkedList),pointer :: northLocalList
-  type(LinkedList),pointer :: southLocalList
-  type(LinkedList),pointer :: eastLocalList
-  type(LinkedList),pointer :: westLocalList
+  ! Iteration lists
+  type(LinkedList), pointer :: northLocal, southLocal, eastLocal, westLocal
+  type(LinkedList), pointer :: northMPI, southMPI, eastMPI, westMPI
+  type(LinkedList), pointer :: neLocal, nwLocal, swLocal, seLocal
+  type(LinkedList), pointer :: neMPI, nwMPI, swMPI, seMPI
 
-  type(LinkedList),pointer :: northMPIList
-  type(LinkedList),pointer :: southMPIList
-  type(LinkedList),pointer :: eastMPIList
-  type(LinkedList),pointer :: westMPIList
+  ! Linked lists
+  type(LinkedList), pointer :: northLocalList, southLocalList, eastLocalList, westLocalList
+  type(LinkedList), pointer :: northMPIList, southMPIList, eastMPIList, westMPIList
+  type(LinkedList), pointer :: neLocalList, nwLocalList, swLocalList, seLocalList
+  type(LinkedList), pointer :: neMPIList, nwMPIList, swMPIList, seMPIList
 
-  type(LinkedList),pointer :: neLocalList
-  type(LinkedList),pointer :: nwLocalList
-  type(LinkedList),pointer :: swLocalList
-  type(LinkedList),pointer :: seLocalList
-
-  type(LinkedList),pointer :: neMPIList
-  type(LinkedList),pointer :: nwMPIList
-  type(LinkedList),pointer :: swMPIList
-  type(LinkedList),pointer :: seMPIList
-
-    !Temp
-  type(LinkedList),pointer :: northLocalTemp
-  type(LinkedList),pointer :: southLocalTemp
-  type(LinkedList),pointer :: eastLocalTemp
-  type(LinkedList),pointer :: westLocalTemp
-
-  type(LinkedList),pointer :: northMPITemp
-  type(LinkedList),pointer :: southMPITemp
-  type(LinkedList),pointer :: eastMPITemp
-  type(LinkedList),pointer :: westMPITemp
-
-  type(LinkedList),pointer :: neLocalTemp
-  type(LinkedList),pointer :: nwLocalTemp
-  type(LinkedList),pointer :: swLocalTemp
-  type(LinkedList),pointer :: seLocalTemp
-
-  type(LinkedList),pointer :: neMPITemp
-  type(LinkedList),pointer :: nwMPITemp
-  type(LinkedList),pointer :: swMPITemp
-  type(LinkedList),pointer :: seMPITemp
+  ! Temp lists
+  type(LinkedList), pointer :: northLocalTemp, southLocalTemp, eastLocalTemp, westLocalTemp
+  type(LinkedList), pointer :: northMPITemp, southMPITemp, eastMPITemp, westMPITemp
+  type(LinkedList), pointer :: neLocalTemp, nwLocalTemp, swLocalTemp, seLocalTemp
+  type(LinkedList), pointer :: neMPITemp, nwMPITemp, swMPITemp, seMPITemp
 
 contains
 
@@ -107,9 +83,12 @@ contains
 
     !  Begin main loop, stop if we hit our mark or after max_steps iterations.
     do step = 1, max_steps
+      
       ! Calculate our first and second derivatives for all our points, and
       ! calculate the new temperature for all of our interior points.
       call derivatives
+
+      ! After each iteration of temperature updates we need to update our ghost nodes.
       call update_local_ghosts
       call mpi_sends
       call mpi_receives
@@ -205,82 +184,108 @@ contains
     end do
   end subroutine
 
-  ! After each iteration of temperature updates we need to update our ghost nodes.
+  ! Our neighbor block is on same proc, we can grab directly.
   subroutine update_local_ghosts
-    type (BlockType), pointer :: b
+    type (BlockType), pointer :: b1
     real(kind=8), pointer :: p1, p2
-    integer :: n_, i, j
+    integer :: i, j
     
-    ! For each block...
-    do n_ = 1, MyNBlocks
-      b => Blocks(n_)
-
-      ! North face ghost nodes
-      if (b%northFace%BC == INTERNAL_BOUNDARY) then
-        ! Our neighbor block is on same proc, we can grab directly.
+    ! North face ghost nodes
+    northLocal => northLocalList
+    do
+        if (.NOT. associated(northLocal)) exit
         do i = 1, iBlockSize
-          p1 => Blocks(n_)%Points(i, jBlockSize+1)%T
-          p2 => Blocks(b%northFace%neighborLocalBlock)%Points(i, 2)%T
+          b1 => Blocks(northLocal%id)
+          p1 => b1%Points(i, jBlockSize+1)%T
+          p2 => Blocks(b1%northFace%neighborLocalBlock)%Points(i, 2)%T
           p1 = p2
         end do
-      end if
-
-      ! South face ghost nodes
-      if (b%southFace%BC == INTERNAL_BOUNDARY) then
-        do i = 1, iBlockSize
-          p1 => Blocks(n_)%Points(i, 0)%T
-          p2 => Blocks(b%southFace%neighborLocalBlock)%Points(i, jBlockSize-1)%T
-          p1 = p2
-        end do
-      end if
-
-      ! East face ghost nodes
-      if (b%eastFace%BC == INTERNAL_BOUNDARY) then
-        do j = 1, jBlockSize
-          p1 => Blocks(n_)%Points(iBlockSize+1, j)%T
-          p2 => Blocks(b%eastFace%neighborLocalBlock)%Points(2, j)%T
-          p1 = p2
-        end do
-      end if
-
-      ! West face ghost nodes
-      if (b%westFace%BC == INTERNAL_BOUNDARY) then
-        do j = 1, jBlockSize
-          p1 => Blocks(n_)%Points(0, j)%T
-          p2 => Blocks(b%westFace%neighborLocalBlock)%Points(iBlockSize-1, j)%T
-          p1 = p2
-        end do
-      end if
-
-      ! North east corner ghost node
-      if (b%NECorner%BC == INTERNAL_BOUNDARY) then
-        p1 => Blocks(n_)%Points(iBlockSize+1,jBlockSize+1)%T
-        p2 => Blocks(b%NECorner%neighborLocalBlock)%Points(2,2)%T
-        p1 = p2
-      end if
-
-      ! South east corner ghost node
-      if (b%SECorner%BC == INTERNAL_BOUNDARY) then
-        p1 => Blocks(n_)%Points(iBlockSize+1,0)%T
-        p2 => Blocks(b%SECorner%neighborLocalBlock)%Points(2,jBlockSize-1)%T
-        p1 = p2
-      end if
-
-      ! South west corner ghost node
-      if (b%SWCorner%BC == INTERNAL_BOUNDARY) then
-        p1 => Blocks(n_)%Points(0,0)%T
-        p2 => Blocks(b%SWCorner%neighborLocalBlock)%Points(iBlockSize-1,jBlockSize-1)%T
-        p1 = p2
-      end if
-
-      ! North west corner ghost node
-      if (b%NWCorner%BC == INTERNAL_BOUNDARY) then
-        p1 => Blocks(n_)%Points(0,jBlockSize+1)%T
-        p2 => Blocks(b%NWCorner%neighborLocalBlock)%Points(iBlockSize-1,2)%T
-        p1 = p2
-      end if
-
+        northLocal => northLocal%next
     end do
+
+    ! south face ghost nodes
+    southLocal => southLocalList
+    do
+        if (.NOT. associated(southLocal)) exit
+        do i = 1, iBlockSize
+          b1 => Blocks(southLocal%id)
+          p1 => b1%Points(i, 0)%T
+          p2 => Blocks(b1%southFace%neighborLocalBlock)%Points(i, jBlockSize-1)%T
+          p1 = p2
+        end do
+        southLocal => southLocal%next
+    end do
+
+    ! east face ghost nodes
+    eastLocal => eastLocalList
+    do
+        if (.NOT. associated(eastLocal)) exit
+        do j = 1, jBlockSize
+          b1 => Blocks(eastLocal%id)
+          p1 => b1%Points(iBlockSize+1, j)%T
+          p2 => Blocks(b1%eastFace%neighborLocalBlock)%Points(2, j)%T
+          p1 = p2
+        end do
+        eastLocal => eastLocal%next
+    end do
+
+    ! west face ghost nodes
+    westLocal => westLocalList
+    do
+        if (.NOT. associated(westLocal)) exit
+        do j = 1, jBlockSize
+          b1 => Blocks(westLocal%id)
+          p1 => b1%Points(0, j)%T
+          p2 => Blocks(b1%westFace%neighborLocalBlock)%Points(iBlockSize-1, j)%T
+          p1 = p2
+        end do
+        westLocal => westLocal%next
+    end do
+
+    ! ne corner ghost node
+    neLocal => neLocalList
+    do
+      if (.NOT. associated(neLocal)) exit
+      b1 => Blocks(neLocal%id)
+      p1 => b1%Points(iBlockSize+1,jBlockSize+1)%T
+      p2 => Blocks(b1%NECorner%neighborLocalBlock)%Points(2,2)%T
+      p1 = p2
+      neLocal => neLocal%next
+    end do
+
+    ! se corner ghost node
+    seLocal => seLocalList
+    do
+      if (.NOT. associated(seLocal)) exit
+      b1 => Blocks(seLocal%id)
+      p1 => b1%Points(iBlockSize+1,0)%T
+      p2 => Blocks(b1%SECorner%neighborLocalBlock)%Points(2,jBlockSize-1)%T
+      p1 = p2
+      seLocal => seLocal%next
+    end do
+
+    ! sw corner ghost node
+    swLocal => swLocalList
+    do
+      if (.NOT. associated(swLocal)) exit
+      b1 => Blocks(swLocal%id)
+      p1 => b1%Points(0,0)%T
+      p2 => Blocks(b1%SWCorner%neighborLocalBlock)%Points(iBlockSize-1,jBlockSize-1)%T
+      p1 = p2
+      swLocal => swLocal%next
+    end do
+
+    ! nw corner ghost node
+    nwLocal => nwLocalList
+    do
+      if (.NOT. associated(nwLocal)) exit
+      b1 => Blocks(nwLocal%id)
+      p1 => b1%Points(0,jBlockSize+1)%T
+      p2 => Blocks(b1%NWCorner%neighborLocalBlock)%Points(iBlockSize-1,2)%T
+      p1 = p2
+      nwLocal => nwLocal%next
+    end do
+
   end subroutine
 
 subroutine mpi_sends
