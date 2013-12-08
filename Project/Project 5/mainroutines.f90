@@ -8,6 +8,48 @@ module MainRoutines
   ! Block array for solver.
   type (BlockType), pointer :: Blocks(:)
 
+  ! Create pointers
+  type(LinkedList),pointer :: northLocalList
+  type(LinkedList),pointer :: southLocalList
+  type(LinkedList),pointer :: eastLocalList
+  type(LinkedList),pointer :: westLocalList
+
+  type(LinkedList),pointer :: northMPIList
+  type(LinkedList),pointer :: southMPIList
+  type(LinkedList),pointer :: eastMPIList
+  type(LinkedList),pointer :: westMPIList
+
+  type(LinkedList),pointer :: neLocalList
+  type(LinkedList),pointer :: nwLocalList
+  type(LinkedList),pointer :: swLocalList
+  type(LinkedList),pointer :: seLocalList
+
+  type(LinkedList),pointer :: neMPIList
+  type(LinkedList),pointer :: nwMPIList
+  type(LinkedList),pointer :: swMPIList
+  type(LinkedList),pointer :: seMPIList
+
+    !Temp
+  type(LinkedList),pointer :: northLocalTemp
+  type(LinkedList),pointer :: southLocalTemp
+  type(LinkedList),pointer :: eastLocalTemp
+  type(LinkedList),pointer :: westLocalTemp
+
+  type(LinkedList),pointer :: northMPITemp
+  type(LinkedList),pointer :: southMPITemp
+  type(LinkedList),pointer :: eastMPITemp
+  type(LinkedList),pointer :: westMPITemp
+
+  type(LinkedList),pointer :: neLocalTemp
+  type(LinkedList),pointer :: nwLocalTemp
+  type(LinkedList),pointer :: swLocalTemp
+  type(LinkedList),pointer :: seLocalTemp
+
+  type(LinkedList),pointer :: neMPITemp
+  type(LinkedList),pointer :: nwMPITemp
+  type(LinkedList),pointer :: swMPITemp
+  type(LinkedList),pointer :: seMPITemp
+
 contains
 
   ! This subroutine partitions the grid into blocks.
@@ -46,6 +88,9 @@ contains
 
     ! Calculate constants for integration.
     call set_constants(Blocks)
+
+    ! Set up our linked lists.
+    call initialize_linked_lists
   end subroutine
 
   ! This is the main solver.
@@ -65,8 +110,9 @@ contains
       ! Calculate our first and second derivatives for all our points, and
       ! calculate the new temperature for all of our interior points.
       call derivatives
-      call update_ghosts
-      call cross_proc_talk
+      call update_local_ghosts
+      call mpi_sends
+      call mpi_receives
 
       ! Find block with largest residual.
       local_residual = 0.d0
@@ -160,12 +206,10 @@ contains
   end subroutine
 
   ! After each iteration of temperature updates we need to update our ghost nodes.
-  subroutine update_ghosts
+  subroutine update_local_ghosts
     type (BlockType), pointer :: b
     real(kind=8), pointer :: p1, p2
-    integer :: n_, i, j, tag, destination
-    real(kind = 8) :: i_buffer(iBlockSize), j_buffer(jBlockSize)
-    real(kind = 8) :: buffer
+    integer :: n_, i, j
     
     ! For each block...
     do n_ = 1, MyNBlocks
@@ -179,7 +223,79 @@ contains
           p2 => Blocks(b%northFace%neighborLocalBlock)%Points(i, 2)%T
           p1 = p2
         end do
-      else if (b%northFace%BC == PROC_BOUNDARY) then
+      end if
+
+      ! South face ghost nodes
+      if (b%southFace%BC == INTERNAL_BOUNDARY) then
+        do i = 1, iBlockSize
+          p1 => Blocks(n_)%Points(i, 0)%T
+          p2 => Blocks(b%southFace%neighborLocalBlock)%Points(i, jBlockSize-1)%T
+          p1 = p2
+        end do
+      end if
+
+      ! East face ghost nodes
+      if (b%eastFace%BC == INTERNAL_BOUNDARY) then
+        do j = 1, jBlockSize
+          p1 => Blocks(n_)%Points(iBlockSize+1, j)%T
+          p2 => Blocks(b%eastFace%neighborLocalBlock)%Points(2, j)%T
+          p1 = p2
+        end do
+      end if
+
+      ! West face ghost nodes
+      if (b%westFace%BC == INTERNAL_BOUNDARY) then
+        do j = 1, jBlockSize
+          p1 => Blocks(n_)%Points(0, j)%T
+          p2 => Blocks(b%westFace%neighborLocalBlock)%Points(iBlockSize-1, j)%T
+          p1 = p2
+        end do
+      end if
+
+      ! North east corner ghost node
+      if (b%NECorner%BC == INTERNAL_BOUNDARY) then
+        p1 => Blocks(n_)%Points(iBlockSize+1,jBlockSize+1)%T
+        p2 => Blocks(b%NECorner%neighborLocalBlock)%Points(2,2)%T
+        p1 = p2
+      end if
+
+      ! South east corner ghost node
+      if (b%SECorner%BC == INTERNAL_BOUNDARY) then
+        p1 => Blocks(n_)%Points(iBlockSize+1,0)%T
+        p2 => Blocks(b%SECorner%neighborLocalBlock)%Points(2,jBlockSize-1)%T
+        p1 = p2
+      end if
+
+      ! South west corner ghost node
+      if (b%SWCorner%BC == INTERNAL_BOUNDARY) then
+        p1 => Blocks(n_)%Points(0,0)%T
+        p2 => Blocks(b%SWCorner%neighborLocalBlock)%Points(iBlockSize-1,jBlockSize-1)%T
+        p1 = p2
+      end if
+
+      ! North west corner ghost node
+      if (b%NWCorner%BC == INTERNAL_BOUNDARY) then
+        p1 => Blocks(n_)%Points(0,jBlockSize+1)%T
+        p2 => Blocks(b%NWCorner%neighborLocalBlock)%Points(iBlockSize-1,2)%T
+        p1 = p2
+      end if
+
+    end do
+  end subroutine
+
+subroutine mpi_sends
+    type (BlockType), pointer :: b
+    real(kind=8), pointer :: p1
+    integer :: n_, i, j, tag, destination
+    real(kind = 8) :: i_buffer(iBlockSize), j_buffer(jBlockSize)
+    real(kind = 8) :: buffer
+    
+    ! For each block...
+    do n_ = 1, MyNBlocks
+      b => Blocks(n_)
+
+      ! North face ghost nodes
+      if (b%northFace%BC == PROC_BOUNDARY) then
         ! Our neighbor block is on different proc, so it will also need information from
         ! this block. We do a nonblocking send now and a blocking receive later.
 
@@ -200,13 +316,7 @@ contains
       end if
 
       ! South face ghost nodes
-      if (b%southFace%BC == INTERNAL_BOUNDARY) then
-        do i = 1, iBlockSize
-          p1 => Blocks(n_)%Points(i, 0)%T
-          p2 => Blocks(b%southFace%neighborLocalBlock)%Points(i, jBlockSize-1)%T
-          p1 = p2
-        end do
-      else if (b%southFace%BC == PROC_BOUNDARY) then
+      if (b%southFace%BC == PROC_BOUNDARY) then
         do i = 1, iBlockSize
           p1 => Blocks(n_)%Points(i, 2)%T
           i_buffer(i) = p1
@@ -217,13 +327,7 @@ contains
       end if
 
       ! East face ghost nodes
-      if (b%eastFace%BC == INTERNAL_BOUNDARY) then
-        do j = 1, jBlockSize
-          p1 => Blocks(n_)%Points(iBlockSize+1, j)%T
-          p2 => Blocks(b%eastFace%neighborLocalBlock)%Points(2, j)%T
-          p1 = p2
-        end do
-      else if (b%eastFace%BC == PROC_BOUNDARY) then
+      if (b%eastFace%BC == PROC_BOUNDARY) then
         do j = 1, jBlockSize
           p1 => Blocks(n_)%Points(iBlockSize-1, j)%T
           j_buffer(j) = p1
@@ -234,13 +338,7 @@ contains
       end if
 
       ! West face ghost nodes
-      if (b%westFace%BC == INTERNAL_BOUNDARY) then
-        do j = 1, jBlockSize
-          p1 => Blocks(n_)%Points(0, j)%T
-          p2 => Blocks(b%westFace%neighborLocalBlock)%Points(iBlockSize-1, j)%T
-          p1 = p2
-        end do
-      else if (b%westFace%BC == PROC_BOUNDARY) then
+      if (b%westFace%BC == PROC_BOUNDARY) then
         do j = 1, jBlockSize
           p1 => Blocks(n_)%Points(2, j)%T
           j_buffer(j) = p1
@@ -251,11 +349,7 @@ contains
       end if
 
       ! North east corner ghost node
-      if (b%NECorner%BC == INTERNAL_BOUNDARY) then
-        p1 => Blocks(n_)%Points(iBlockSize+1,jBlockSize+1)%T
-        p2 => Blocks(b%NECorner%neighborLocalBlock)%Points(2,2)%T
-        p1 = p2
-      else if (b%NECorner%BC == PROC_BOUNDARY) then
+      if (b%NECorner%BC == PROC_BOUNDARY) then
         destination = b%NECorner%neighborProc
         p1 => Blocks(n_)%Points(iBlockSize-1,jBlockSize-1)%T
         buffer = p1
@@ -264,11 +358,7 @@ contains
       end if
 
       ! South east corner ghost node
-      if (b%SECorner%BC == INTERNAL_BOUNDARY) then
-        p1 => Blocks(n_)%Points(iBlockSize+1,0)%T
-        p2 => Blocks(b%SECorner%neighborLocalBlock)%Points(2,jBlockSize-1)%T
-        p1 = p2
-      else if (b%SECorner%BC == PROC_BOUNDARY) then
+      if (b%SECorner%BC == PROC_BOUNDARY) then
         destination = b%SECorner%neighborProc
         p1 => Blocks(n_)%Points(iBlockSize-1,2)%T
         buffer = p1
@@ -277,11 +367,7 @@ contains
       end if
 
       ! South west corner ghost node
-      if (b%SWCorner%BC == INTERNAL_BOUNDARY) then
-        p1 => Blocks(n_)%Points(0,0)%T
-        p2 => Blocks(b%SWCorner%neighborLocalBlock)%Points(iBlockSize-1,jBlockSize-1)%T
-        p1 = p2
-      else if (b%SWCorner%BC == PROC_BOUNDARY) then
+      if (b%SWCorner%BC == PROC_BOUNDARY) then
         destination = b%SWCorner%neighborProc
         p1 => Blocks(n_)%Points(2,2)%T
         buffer = p1
@@ -290,11 +376,7 @@ contains
       end if
 
       ! North west corner ghost node
-      if (b%NWCorner%BC == INTERNAL_BOUNDARY) then
-        p1 => Blocks(n_)%Points(0,jBlockSize+1)%T
-        p2 => Blocks(b%NWCorner%neighborLocalBlock)%Points(iBlockSize-1,2)%T
-        p1 = p2
-      else if (b%NWCorner%BC == PROC_BOUNDARY) then
+      if (b%NWCorner%BC == PROC_BOUNDARY) then
         destination = b%NWCorner%neighborProc
         p1 => Blocks(n_)%Points(2,jBlockSize-1)%T
         buffer = p1
@@ -305,7 +387,8 @@ contains
     end do
   end subroutine
 
-  subroutine cross_proc_talk
+
+  subroutine mpi_receives
     type (BlockType), pointer :: b
     real(kind=8), pointer :: p1
     integer :: n_, i, j, tag, source
@@ -398,4 +481,232 @@ contains
 
     end do
   end subroutine
+
+  subroutine initialize_linked_lists
+    type (BlockType), pointer :: b
+    integer :: n_
+    
+    ! For each block...
+    do n_ = 1, MyNBlocks
+      b => Blocks(n_)
+
+      ! north Face
+      if (b%northFace%BC == INTERNAL_BOUNDARY) then
+        if (.not. associated(northLocalList)) then
+          allocate(northLocalList)
+          northLocalTemp => northLocalList
+          nullify(northLocalTemp%next)
+          northLocalTemp%id = n_
+        else
+          allocate(northLocalTemp%next)
+          northLocalTemp => northLocalTemp%next
+          nullify(northLocalTemp%next)
+          northLocalTemp%id = n_
+        end if
+      else if (b%northFace%BC == PROC_BOUNDARY) then
+        if (.not. associated(northMPIList)) then
+          allocate(northMPIList)
+          northMPITemp => northMPIList
+          nullify(northMPITemp%next)
+          northMPITemp%id = n_
+        else
+          allocate(northMPITemp%next)
+          northMPITemp => northMPITemp%next
+          nullify(northMPITemp%next)
+          northMPITemp%id = n_
+        end if
+      end if
+
+      ! south Face
+      if (b%southFace%BC == INTERNAL_BOUNDARY) then
+        if (.not. associated(southLocalList)) then
+          allocate(southLocalList)
+          southLocalTemp => southLocalList
+          nullify(southLocalTemp%next)
+          southLocalTemp%id = n_
+        else
+          allocate(southLocalTemp%next)
+          southLocalTemp => southLocalTemp%next
+          nullify(southLocalTemp%next)
+          southLocalTemp%id = n_
+        end if
+      else if (b%southFace%BC == PROC_BOUNDARY) then
+        if (.not. associated(southMPIList)) then
+          allocate(southMPIList)
+          southMPITemp => southMPIList
+          nullify(southMPITemp%next)
+          southMPITemp%id = n_
+        else
+          allocate(southMPITemp%next)
+          southMPITemp => southMPITemp%next
+          nullify(southMPITemp%next)
+          southMPITemp%id = n_
+        end if
+      end if
+
+      ! east Face
+      if (b%eastFace%BC == INTERNAL_BOUNDARY) then
+        if (.not. associated(eastLocalList)) then
+          allocate(eastLocalList)
+          eastLocalTemp => eastLocalList
+          nullify(eastLocalTemp%next)
+          eastLocalTemp%id = n_
+        else
+          allocate(eastLocalTemp%next)
+          eastLocalTemp => eastLocalTemp%next
+          nullify(eastLocalTemp%next)
+          eastLocalTemp%id = n_
+        end if
+      else if (b%eastFace%BC == PROC_BOUNDARY) then
+        if (.not. associated(eastMPIList)) then
+          allocate(eastMPIList)
+          eastMPITemp => eastMPIList
+          nullify(eastMPITemp%next)
+          eastMPITemp%id = n_
+        else
+          allocate(eastMPITemp%next)
+          eastMPITemp => eastMPITemp%next
+          nullify(eastMPITemp%next)
+          eastMPITemp%id = n_
+        end if
+      end if
+
+      ! west Face
+      if (b%westFace%BC == INTERNAL_BOUNDARY) then
+        if (.not. associated(westLocalList)) then
+          allocate(westLocalList)
+          westLocalTemp => westLocalList
+          nullify(westLocalTemp%next)
+          westLocalTemp%id = n_
+        else
+          allocate(westLocalTemp%next)
+          westLocalTemp => westLocalTemp%next
+          nullify(westLocalTemp%next)
+          westLocalTemp%id = n_
+        end if
+      else if (b%westFace%BC == PROC_BOUNDARY) then
+        if (.not. associated(westMPIList)) then
+          allocate(westMPIList)
+          westMPITemp => westMPIList
+          nullify(westMPITemp%next)
+          westMPITemp%id = n_
+        else
+          allocate(westMPITemp%next)
+          westMPITemp => westMPITemp%next
+          nullify(westMPITemp%next)
+          westMPITemp%id = n_
+        end if
+      end if
+
+      ! ne Corner
+      if (b%NECorner%BC == INTERNAL_BOUNDARY) then
+        if (.not. associated(neLocalList)) then
+          allocate(neLocalList)
+          neLocalTemp => neLocalList
+          nullify(neLocalTemp%next)
+          neLocalTemp%id = n_
+        else
+          allocate(neLocalTemp%next)
+          neLocalTemp => neLocalTemp%next
+          nullify(neLocalTemp%next)
+          neLocalTemp%id = n_
+        end if
+      else if (b%NECorner%BC == PROC_BOUNDARY) then
+        if (.not. associated(neMPIList)) then
+          allocate(neMPIList)
+          neMPITemp => neMPIList
+          nullify(neMPITemp%next)
+          neMPITemp%id = n_
+        else
+          allocate(neMPITemp%next)
+          neMPITemp => neMPITemp%next
+          nullify(neMPITemp%next)
+          neMPITemp%id = n_
+        end if
+      end if
+
+    ! nw Corner
+    if (b%NWCorner%BC == INTERNAL_BOUNDARY) then
+      if (.not. associated(nwLocalList)) then
+        allocate(nwLocalList)
+        nwLocalTemp => nwLocalList
+        nullify(nwLocalTemp%next)
+        nwLocalTemp%id = n_
+      else
+        allocate(nwLocalTemp%next)
+        nwLocalTemp => nwLocalTemp%next
+        nullify(nwLocalTemp%next)
+        nwLocalTemp%id = n_
+      end if
+    else if (b%NWCorner%BC == PROC_BOUNDARY) then
+      if (.not. associated(nwMPIList)) then
+        allocate(nwMPIList)
+        nwMPITemp => nwMPIList
+        nullify(nwMPITemp%next)
+        nwMPITemp%id = n_
+      else
+        allocate(nwMPITemp%next)
+        nwMPITemp => nwMPITemp%next
+        nullify(nwMPITemp%next)
+        nwMPITemp%id = n_
+      end if
+    end if
+
+    ! sw Corner
+    if (b%swCorner%BC == INTERNAL_BOUNDARY) then
+      if (.not. associated(swLocalList)) then
+        allocate(swLocalList)
+        swLocalTemp => swLocalList
+        nullify(swLocalTemp%next)
+        swLocalTemp%id = n_
+      else
+        allocate(swLocalTemp%next)
+        swLocalTemp => swLocalTemp%next
+        nullify(swLocalTemp%next)
+        swLocalTemp%id = n_
+      end if
+    else if (b%swCorner%BC == PROC_BOUNDARY) then
+      if (.not. associated(swMPIList)) then
+        allocate(swMPIList)
+        swMPITemp => swMPIList
+        nullify(swMPITemp%next)
+        swMPITemp%id = n_
+      else
+        allocate(swMPITemp%next)
+        swMPITemp => swMPITemp%next
+        nullify(swMPITemp%next)
+        swMPITemp%id = n_
+      end if
+    end if
+
+    ! se Corner
+    if (b%seCorner%BC == INTERNAL_BOUNDARY) then
+      if (.not. associated(seLocalList)) then
+        allocate(seLocalList)
+        seLocalTemp => seLocalList
+        nullify(seLocalTemp%next)
+        seLocalTemp%id = n_
+      else
+        allocate(seLocalTemp%next)
+        seLocalTemp => seLocalTemp%next
+        nullify(seLocalTemp%next)
+        seLocalTemp%id = n_
+      end if
+    else if (b%seCorner%BC == PROC_BOUNDARY) then
+      if (.not. associated(seMPIList)) then
+        allocate(seMPIList)
+        seMPITemp => seMPIList
+        nullify(seMPITemp%next)
+        seMPITemp%id = n_
+      else
+        allocate(seMPITemp%next)
+        seMPITemp => seMPITemp%next
+        nullify(seMPITemp%next)
+        seMPITemp%id = n_
+      end if
+    end if
+
+    end do
+  end subroutine
+
 end module MainRoutines

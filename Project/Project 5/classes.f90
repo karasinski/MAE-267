@@ -143,6 +143,11 @@ module BlockModule
     type (BlockType) :: Blocks(nBlocks)
   end type Proc
 
+  type LinkedList
+      type(LinkedList),pointer :: next
+      integer :: id
+  end type LinkedList
+
 contains
   ! Set the true bounds and ghost nodes for each block.
   subroutine set_bounds(Blocks)
