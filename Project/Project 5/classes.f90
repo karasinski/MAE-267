@@ -399,7 +399,7 @@ contains
     end_time = MPI_Wtime()
     write(*,*) "End time: ", end_time
     call timestamp()
-    wall_time = end_time - start_time
+    wall_time = (end_time - start_time) / MPI_Wtick()
     write(*,*) "Wall time: ", wall_time
   end subroutine end_clock
 end module

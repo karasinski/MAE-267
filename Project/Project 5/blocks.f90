@@ -494,7 +494,7 @@ contains
       if (mpi_nprocs == 10) then
         method = 101010
       else if (mpi_nprocs == 8) then
-        fudge_factor = 10108
+        method = 10108
       else if (mpi_nprocs == 6) then
         method = 10106
       else if (mpi_nprocs == 4) then
@@ -524,17 +524,17 @@ contains
       call add_blocks_to_proc(Procs(2), BlocksCollection, &
         [14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25])
       call add_blocks_to_proc(Procs(3), BlocksCollection, &
-        [26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38])
+        [26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37])
       call add_blocks_to_proc(Procs(4), BlocksCollection, &
-        [39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50])
+        [38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50])
       call add_blocks_to_proc(Procs(5), BlocksCollection, &
         [51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63])
       call add_blocks_to_proc(Procs(6), BlocksCollection, &
         [64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75])
       call add_blocks_to_proc(Procs(7), BlocksCollection, &
-        [76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88])
+        [76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87])
       call add_blocks_to_proc(Procs(8), BlocksCollection, &
-        [89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100])
+        [88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100])
 
     else if (method == 10106) then
       ! 10x10 blocks on 6 processors.
