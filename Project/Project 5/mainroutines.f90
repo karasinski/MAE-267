@@ -296,9 +296,22 @@ contains
     real(kind = 8) :: i_buffer(iBlockSize), j_buffer(jBlockSize)
     real(kind = 8) :: buffer
     
+    ! Set pointers to first elements in linked lists.
     northMPI => northMPIList
+    southMPI => southMPIList
+    eastMPI  => eastMPIList
+    westMPI  => westMPIList
+    neMPI    => neMPIList
+    seMPI    => seMPIList
+    swMPI    => swMPIList
+    nwMPI    => nwMPIList
+
+    ! North face MPI sends
     do
+      ! If it's associated, continue, otherwise we exit.
       if (.NOT. associated(northMPI)) exit
+
+      ! Identify our block from our linked list.
       b1 => Blocks(northMPI%id)
 
       ! Pack our values to send into a buffer.
@@ -310,17 +323,18 @@ contains
       ! Find the destination.
       destination = b1%northFace%neighborProc
 
-      ! Generate a tag unique within the iteration.
+      ! Generate a tag unique within the iteration and interproc communication.
       tag = nB! + b1%northFace%neighborBlock * 1000          
 
       ! Send everything to the proc and continue without immediate confirmation.
       call MPI_Isend(i_buffer, iBlockSize, MPI_REAL8, destination, tag, &
                      mpi_comm_world, request, ierror)
 
+      ! Traverse our linked list.
       northMPI => northMPI%next
     end do
 
-    southMPI => southMPIList
+    ! South face MPI sends
     do
       if (.NOT. associated(southMPI)) exit
       b1 => Blocks(southMPI%id)
@@ -329,13 +343,13 @@ contains
         i_buffer(i) = p1
       end do
       destination = b1%southFace%neighborProc
-      tag = sB! + b1%southFace%neighborBlock * 1000          
+      tag = sB        
       call MPI_Isend(i_buffer, iBlockSize, MPI_REAL8, destination, tag, &
                      mpi_comm_world, request, ierror)
       southMPI => southMPI%next
     end do
 
-    eastMPI => eastMPIList
+    ! East face MPI sends
     do
       if (.NOT. associated(eastMPI)) exit
       b1 => Blocks(eastMPI%id)
@@ -344,13 +358,13 @@ contains
         j_buffer(j) = p1
       end do
       destination = b1%eastFace%neighborProc
-      tag = eB! + b1%eastFace%neighborBlock * 1000          
+      tag = eB        
       call MPI_Isend(j_buffer, jBlockSize, MPI_REAL8, destination, tag, &
                      mpi_comm_world, request, ierror)
       eastMPI => eastMPI%next
     end do
 
-    westMPI => westMPIList
+    ! West face MPI sends
     do
       if (.NOT. associated(westMPI)) exit
       b1 => Blocks(westMPI%id)
@@ -359,59 +373,59 @@ contains
         j_buffer(j) = p1
       end do
       destination = b1%westFace%neighborProc
-      tag = wB! + b1%westFace%neighborBlock * 1000          
+      tag = wB     
       call MPI_Isend(j_buffer, jBlockSize, MPI_REAL8, destination, tag, &
                      mpi_comm_world, request, ierror)
       westMPI => westMPI%next
     end do
 
-    neMPI => neMPIList
+    ! North East corner MPI sends
     do
       if (.NOT. associated(neMPI)) exit
       b1 => Blocks(neMPI%id)
       p1 => b1%Points(iBlockSize-1,jBlockSize-1)%T
       buffer = p1
       destination = b1%NECorner%neighborProc
-      tag = nB + eB * 10! + b1%NECorner%neighborBlock * 1000
+      tag = nB + eB * 10
       call MPI_Isend(buffer, 1, MPI_REAL8, destination, tag, mpi_comm_world, &
                      request, ierror)
       neMPI => neMPI%next
     end do
 
-    seMPI => seMPIList
+    ! South East corner MPI sends
     do
       if (.NOT. associated(seMPI)) exit
       b1 => Blocks(seMPI%id)
       p1 => b1%Points(iBlockSize-1,2)%T
       buffer = p1
       destination = b1%SECorner%neighborProc
-      tag = sB + eB * 10! + b1%SECorner%neighborBlock * 1000
+      tag = sB + eB * 10
       call MPI_Isend(buffer, 1, MPI_REAL8, destination, tag, mpi_comm_world, &
                      request, ierror)
       seMPI => seMPI%next
     end do
 
-    swMPI => swMPIList
+    ! South West corner MPI sends
     do
       if (.NOT. associated(swMPI)) exit
       b1 => Blocks(swMPI%id)
       p1 => b1%Points(2,2)%T
       buffer = p1
       destination = b1%SWCorner%neighborProc
-      tag = sB + wB * 10! + b1%SWCorner%neighborBlock * 1000
+      tag = sB + wB * 10
       call MPI_Isend(buffer, 1, MPI_REAL8, destination, tag, mpi_comm_world, &
                      request, ierror)
       swMPI => swMPI%next
     end do
 
-    nwMPI => nwMPIList
+    ! North West corner MPI sends
     do
       if (.NOT. associated(nwMPI)) exit
       b1 => Blocks(nwMPI%id)
       p1 => b1%Points(2,jBlockSize-1)%T
       buffer = p1
       destination = b1%nwCorner%neighborProc
-      tag = nB + wB * 10! + b1%NWCorner%neighborBlock * 1000
+      tag = nB + wB * 10
       call MPI_Isend(buffer, 1, MPI_REAL8, destination, tag, mpi_comm_world, &
                      request, ierror)
       nwMPI => nwMPI%next
@@ -426,13 +440,22 @@ contains
     real(kind = 8) :: i_buffer(iBlockSize), j_buffer(jBlockSize)
     real(kind = 8) :: buffer
 
-    ! south face receive
+    ! Set pointers to first elements in linked lists
     southMPI => southMPIList
+    northMPI => northMPIList
+    westMPI  => westMPIList
+    eastMPI  => eastMPIList
+    swMPI    => swMPIList
+    nwMPI    => nwMPIList
+    neMPI    => neMPIList
+    seMPI    => seMPIList
+
+    ! South face MPI receives
     do
       if (.NOT. associated(southMPI)) exit
       b1 => Blocks(southMPI%id)
       source = b1%southFace%neighborProc
-      tag = nB! + b1%id * 1000
+      tag = nB
       call MPI_RECV(i_buffer, iBlockSize, MPI_REAL8, source, tag, mpi_comm_world, &
                     status, ierror)
       do i = 1, iBlockSize
@@ -442,13 +465,12 @@ contains
       southMPI => southMPI%next
     end do
 
-    ! north face receive
-    northMPI => northMPIList
+    ! North face MPI receives
     do
       if (.NOT. associated(northMPI)) exit
       b1 => Blocks(northMPI%id)
       source = b1%northFace%neighborProc
-      tag = sB! + b1%id * 1000
+      tag = sB
       call MPI_RECV(i_buffer, iBlockSize, MPI_REAL8, source, tag, mpi_comm_world, &
                     status, ierror)
       do i = 1, iBlockSize
@@ -458,13 +480,12 @@ contains
       northMPI => northMPI%next
     end do
 
-    ! west face receive
-    westMPI => westMPIList
+    ! West face MPI receives
     do
       if (.NOT. associated(westMPI)) exit
       b1 => Blocks(westMPI%id)
       source = b1%westFace%neighborProc
-      tag = eB! + b1%id * 1000
+      tag = eB
       call MPI_RECV(j_buffer, jBlockSize, MPI_REAL8, source, tag, mpi_comm_world, &
                     status, ierror)
       do j = 1, jBlockSize
@@ -474,13 +495,12 @@ contains
       westMPI => westMPI%next
     end do
 
-    ! east face receive
-    eastMPI => eastMPIList
+    ! East face MPI receives
     do
       if (.NOT. associated(eastMPI)) exit
       b1 => Blocks(eastMPI%id)
       source = b1%eastFace%neighborProc
-      tag = wB! + b1%id * 1000
+      tag = wB
       call MPI_RECV(j_buffer, jBlockSize, MPI_REAL8, source, tag, mpi_comm_world, &
                     status, ierror)
       do j = 1, jBlockSize
@@ -490,52 +510,48 @@ contains
       eastMPI => eastMPI%next
     end do
 
-    ! sw corner receive
-    swMPI => swMPIList
+    ! South West corner MPI sends
     do
       if (.NOT. associated(swMPI)) exit
       b1 => Blocks(swMPI%id)
       source = b1%SWCorner%neighborProc
-      tag = nB + eB * 10! + b1%id * 1000
+      tag = nB + eB * 10
       call MPI_RECV(buffer, 1, MPI_REAL8, source, tag, mpi_comm_world, status, ierror)
       p1 => b1%Points(0,0)%T
       p1 = buffer
       swMPI => swMPI%next
     end do
 
-    ! nw corner receive
-    nwMPI => nwMPIList
+    ! North West corner MPI sends
     do
       if (.NOT. associated(nwMPI)) exit
       b1 => Blocks(nwMPI%id)
       source = b1%NWCorner%neighborProc
-      tag = sB + eB * 10! + b1%id * 1000
+      tag = sB + eB * 10
       call MPI_RECV(buffer, 1, MPI_REAL8, source, tag, mpi_comm_world, status, ierror)
       p1 => b1%Points(0,jBlockSize+1)%T
       p1 = buffer
       nwMPI => nwMPI%next
     end do
 
-    ! ne corner receive
-    neMPI => neMPIList
+    ! North East corner MPI sends
     do
       if (.NOT. associated(neMPI)) exit
       b1 => Blocks(neMPI%id)
       source = b1%NECorner%neighborProc
-      tag = sB + wB * 10! + b1%id * 1000
+      tag = sB + wB * 10
       call MPI_RECV(buffer, 1, MPI_REAL8, source, tag, mpi_comm_world, status, ierror)
       p1 => b1%Points(iBlockSize+1,jBlockSize+1)%T
       p1 = buffer
       neMPI => neMPI%next
     end do
 
-    ! se corner receive
-    seMPI => seMPIList
+    ! South East corner MPI sends
     do
       if (.NOT. associated(seMPI)) exit
       b1 => Blocks(seMPI%id)
       source = b1%SECorner%neighborProc
-      tag = nB + wB * 10! + b1%id * 1000
+      tag = nB + wB * 10
       call MPI_RECV(buffer, 1, MPI_REAL8, source, tag, mpi_comm_world, status, ierror)
       p1 => b1%Points(iBlockSize+1,0)%T
       p1 = buffer
