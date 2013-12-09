@@ -70,7 +70,7 @@ CONTAINS
     INTEGER :: n_, i, j
 
     ALLOCATE(BlocksSolver(MyNBlocks))
-    ALLOCATE(PointsSolver(MyNBlocks, 0:iBlockSize + 1,0:jBlockSize + 1))
+    ALLOCATE(PointsSolver(0:iBlockSize + 1,0:jBlockSize + 1, MyNBlocks))
 
     DO n_ = 1, MyNBlocks
       BlocksSolver(n_)%ID = Blocks(n_)%ID
@@ -89,7 +89,7 @@ CONTAINS
       BlocksSolver(n_)%SWCorner = Blocks(n_)%SWCorner
       BlocksSolver(n_)%SECorner = Blocks(n_)%SECorner
 
-      PointsSolver(n_, :, :) = Blocks(n_)%Points
+      PointsSolver(:, :, n_) = Blocks(n_)%Points
     END DO
   END SUBROUTINE
 
@@ -124,7 +124,7 @@ CONTAINS
       local_residual = 0.d0
 
       DO n_ = 1, MyNBlocks
-        temp_residual = MAXVAL(ABS(PointsSolver(n_,2:iBlockSize-1, 2:jBlockSize-1)%tempT))
+        temp_residual = MAXVAL(ABS(PointsSolver(2:iBlockSize-1, 2:jBlockSize-1, n_)%tempT))
 
         IF (temp_residual > local_residual) THEN
           local_residual = temp_residual
@@ -144,6 +144,7 @@ CONTAINS
       CALL end_clock
     END IF
 
+    ! Copy back to original blocks array.
     DO n_ = 1, MyNBlocks
       Blocks(n_)%Points = PointsSolver(n_,:,:) 
     END DO
@@ -162,17 +163,17 @@ CONTAINS
     ! Loop over each block.
     DO n_ = 1, MyNBlocks
       MyBlock => BlocksSolver(n_)
-      tempT => PointsSolver(n_,:,:)%tempT
+      tempT => PointsSolver(:,:,n_)%tempT
 
       ! Reset the change in temperature to zero before we begin summing again.
       tempT = 0.d0
 
       DO j = MyBlock%localJMIN, MyBlock%localJMAX
         DO i =  MyBlock%localIMIN, MyBlock%localIMAX
-          p0 => PointsSolver(n_, i, j)
-          p1 => PointsSolver(n_, i+1, j)
-          p2 => PointsSolver(n_, i, j+1)
-          p3 => PointsSolver(n_, i+1, j+1)
+          p0 => PointsSolver(i, j, n_)
+          p1 => PointsSolver(i+1, j, n_)
+          p2 => PointsSolver(i, j+1, n_)
+          p3 => PointsSolver(i+1, j+1, n_)
 
           ! Trapezoidal counter-clockwise integration to get the first
           ! derivatives in the x/y directions at the cell-center using
@@ -208,7 +209,7 @@ CONTAINS
       ! Update temperatures in the block.
       DO j = MyBlock%lowJTemp, MyBlock%localJMAX
         DO i =  MyBlock%lowITemp, MyBlock%localIMAX
-          p0 => PointsSolver(n_,i,j)
+          p0 => PointsSolver(i,j,n_)
           p0%T = p0%T + p0%tempT
         END DO
       END DO
@@ -227,8 +228,8 @@ CONTAINS
       IF (.NOT. ASSOCIATED(northLocal)) EXIT
       DO i = 1, iBlockSize
         b1 => northLocal%id
-        p1 => PointsSolver(b1, i, jBlockSize+1)%T
-        p2 => PointsSolver(BlocksSolver(b1)%northFace%neighborLocalBlock, i, 2)%T
+        p1 => PointsSolver(i, jBlockSize+1, b1)%T
+        p2 => PointsSolver(i, 2,BlocksSolver(b1)%northFace%neighborLocalBlock)%T
         p1 = p2
       END DO
       northLocal => northLocal%next
@@ -240,8 +241,8 @@ CONTAINS
       IF (.NOT. ASSOCIATED(southLocal)) EXIT
       DO i = 1, iBlockSize
         b1 => southLocal%ID
-        p1 => PointsSolver(b1, i, 0)%T
-        p2 => PointsSolver(BlocksSolver(b1)%southFace%neighborLocalBlock, i, jBlockSize-1)%T
+        p1 => PointsSolver(i, 0, b1)%T
+        p2 => PointsSolver(i, jBlockSize-1,BlocksSolver(b1)%southFace%neighborLocalBlock)%T
         p1 = p2
       END DO
       southLocal => southLocal%next
@@ -253,8 +254,8 @@ CONTAINS
       IF (.NOT. ASSOCIATED(eastLocal)) EXIT
       DO j = 1, jBlockSize
         b1 => eastLocal%ID
-        p1 => PointsSolver(b1, iBlockSize+1, j)%T
-        p2 => PointsSolver(BlocksSolver(b1)%eastFace%neighborLocalBlock, 2, j)%T
+        p1 => PointsSolver(iBlockSize+1, j, b1)%T
+        p2 => PointsSolver(2, j,BlocksSolver(b1)%eastFace%neighborLocalBlock)%T
         p1 = p2
       END DO
       eastLocal => eastLocal%next
@@ -266,8 +267,8 @@ CONTAINS
       IF (.NOT. ASSOCIATED(westLocal)) EXIT
       DO j = 1, jBlockSize
         b1 => westLocal%ID
-        p1 => PointsSolver(b1, 0, j)%T
-        p2 => PointsSolver(BlocksSolver(b1)%westFace%neighborLocalBlock, iBlockSize-1, j)%T
+        p1 => PointsSolver(0, j, b1)%T
+        p2 => PointsSolver(iBlockSize-1, j, BlocksSolver(b1)%westFace%neighborLocalBlock)%T
         p1 = p2
       END DO
       westLocal => westLocal%next
@@ -278,8 +279,8 @@ CONTAINS
     DO
       IF (.NOT. ASSOCIATED(neLocal)) EXIT
       b1 => neLocal%ID
-      p1 => PointsSolver(b1, iBlockSize+1,jBlockSize+1)%T
-      p2 => PointsSolver(BlocksSolver(b1)%NECorner%neighborLocalBlock,2,2)%T
+      p1 => PointsSolver(iBlockSize+1,jBlockSize+1, b1)%T
+      p2 => PointsSolver(2,2,BlocksSolver(b1)%NECorner%neighborLocalBlock)%T
       p1 = p2
       neLocal => neLocal%next
     END DO
@@ -289,8 +290,8 @@ CONTAINS
     DO
       IF (.NOT. ASSOCIATED(seLocal)) EXIT
       b1 => seLocal%ID
-      p1 => PointsSolver(b1, iBlockSize+1,0)%T
-      p2 => PointsSolver(BlocksSolver(b1)%SECorner%neighborLocalBlock, 2,jBlockSize-1)%T
+      p1 => PointsSolver(iBlockSize+1,0, b1)%T
+      p2 => PointsSolver(2,jBlockSize-1,BlocksSolver(b1)%SECorner%neighborLocalBlock)%T
       p1 = p2
       seLocal => seLocal%next
     END DO
@@ -300,8 +301,8 @@ CONTAINS
     DO
       IF (.NOT. ASSOCIATED(swLocal)) EXIT
       b1 => swLocal%ID
-      p1 => PointsSolver(b1, 0,0)%T
-      p2 => PointsSolver(BlocksSolver(b1)%SWCorner%neighborLocalBlock, iBlockSize-1,jBlockSize-1)%T
+      p1 => PointsSolver(0,0, b1)%T
+      p2 => PointsSolver(iBlockSize-1,jBlockSize-1,BlocksSolver(b1)%SWCorner%neighborLocalBlock)%T
       p1 = p2
       swLocal => swLocal%next
     END DO
@@ -311,8 +312,8 @@ CONTAINS
     DO
       IF (.NOT. ASSOCIATED(nwLocal)) EXIT
       b1 => nwLocal%ID
-      p1 => PointsSolver(b1, 0,jBlockSize+1)%T
-      p2 => PointsSolver(BlocksSolver(b1)%NWCorner%neighborLocalBlock, iBlockSize-1,2)%T
+      p1 => PointsSolver(0,jBlockSize+1, b1)%T
+      p2 => PointsSolver(iBlockSize-1,2,BlocksSolver(b1)%NWCorner%neighborLocalBlock)%T
       p1 = p2
       nwLocal => nwLocal%next
     END DO
@@ -347,7 +348,7 @@ CONTAINS
 
       ! Pack our values to send into a buffer.
       DO i = 1, iBlockSize
-        p1 => PointsSolver(b1, i, jBlockSize-1)%T
+        p1 => PointsSolver(i, jBlockSize-1, b1)%T
         i_buffer(i) = p1
       END DO
 
@@ -370,7 +371,7 @@ CONTAINS
       IF (.NOT. ASSOCIATED(southMPI)) EXIT
       b1 => southMPI%ID
       DO i = 1, iBlockSize
-        p1 => PointsSolver(b1, i, 2)%T
+        p1 => PointsSolver(i, 2, b1)%T
         i_buffer(i) = p1
       END DO
       destination = BlocksSolver(b1)%southFace%neighborProc
@@ -385,7 +386,7 @@ CONTAINS
       IF (.NOT. ASSOCIATED(eastMPI)) EXIT
       b1 => eastMPI%ID
       DO j = 1, jBlockSize
-        p1 => PointsSolver(b1, iBlockSize-1, j)%T
+        p1 => PointsSolver(iBlockSize-1, j, b1)%T
         j_buffer(j) = p1
       END DO
       destination = BlocksSolver(b1)%eastFace%neighborProc
@@ -400,7 +401,7 @@ CONTAINS
       IF (.NOT. ASSOCIATED(westMPI)) EXIT
       b1 => westMPI%ID
       DO j = 1, jBlockSize
-        p1 => PointsSolver(b1, 2, j)%T
+        p1 => PointsSolver(2, j, b1)%T
         j_buffer(j) = p1
       END DO
       destination = BlocksSolver(b1)%westFace%neighborProc
@@ -414,7 +415,7 @@ CONTAINS
     DO
       IF (.NOT. ASSOCIATED(neMPI)) EXIT
       b1 => neMPI%ID
-      p1 => PointsSolver(b1, iBlockSize-1,jBlockSize-1)%T
+      p1 => PointsSolver(iBlockSize-1,jBlockSize-1, b1)%T
       buffer = p1
       destination = BlocksSolver(b1)%NECorner%neighborProc
       tag = nB + eB * 10
@@ -427,7 +428,7 @@ CONTAINS
     DO
       IF (.NOT. ASSOCIATED(seMPI)) EXIT
       b1 => seMPI%ID
-      p1 => PointsSolver(b1, iBlockSize-1,2)%T
+      p1 => PointsSolver(iBlockSize-1,2, b1)%T
       buffer = p1
       destination = BlocksSolver(b1)%SECorner%neighborProc
       tag = sB + eB * 10
@@ -440,7 +441,7 @@ CONTAINS
     DO
       IF (.NOT. ASSOCIATED(swMPI)) EXIT
       b1 => swMPI%ID
-      p1 => PointsSolver(b1, 2,2)%T
+      p1 => PointsSolver(2,2, b1)%T
       buffer = p1
       destination = BlocksSolver(b1)%SWCorner%neighborProc
       tag = sB + wB * 10
@@ -453,7 +454,7 @@ CONTAINS
     DO
       IF (.NOT. ASSOCIATED(nwMPI)) EXIT
       b1 => nwMPI%ID
-      p1 => PointsSolver(b1, 2,jBlockSize-1)%T
+      p1 => PointsSolver(2,jBlockSize-1, b1)%T
       buffer = p1
       destination = BlocksSolver(b1)%nwCorner%neighborProc
       tag = nB + wB * 10
@@ -490,7 +491,7 @@ CONTAINS
       CALL MPI_RECV(i_buffer, iBlockSize, MPI_REAL8, source, tag, mpi_comm_world, &
         STATUS, ierror)
       DO i = 1, iBlockSize
-        p1 => PointsSolver(b1, i, 0)%T
+        p1 => PointsSolver(i, 0, b1)%T
         p1 = i_buffer(i)
       END DO
       southMPI => southMPI%next
@@ -505,7 +506,7 @@ CONTAINS
       CALL MPI_RECV(i_buffer, iBlockSize, MPI_REAL8, source, tag, mpi_comm_world, &
         STATUS, ierror)
       DO i = 1, iBlockSize
-        p1 => PointsSolver(b1, i, jBlockSize+1)%T
+        p1 => PointsSolver(i, jBlockSize+1, b1)%T
         p1 = i_buffer(i)
       END DO
       northMPI => northMPI%next
@@ -520,7 +521,7 @@ CONTAINS
       CALL MPI_RECV(j_buffer, jBlockSize, MPI_REAL8, source, tag, mpi_comm_world, &
         STATUS, ierror)
       DO j = 1, jBlockSize
-        p1 => PointsSolver(b1, 0, j)%T
+        p1 => PointsSolver(0, j, b1)%T
         p1 = j_buffer(j)
       END DO
       westMPI => westMPI%next
@@ -535,7 +536,7 @@ CONTAINS
       CALL MPI_RECV(j_buffer, jBlockSize, MPI_REAL8, source, tag, mpi_comm_world, &
         STATUS, ierror)
       DO j = 1, jBlockSize
-        p1 => PointsSolver(b1, iBlockSize+1, j)%T
+        p1 => PointsSolver(iBlockSize+1, j, b1)%T
         p1 = j_buffer(j)
       END DO
       eastMPI => eastMPI%next
@@ -548,7 +549,7 @@ CONTAINS
       source = BlocksSolver(b1)%SWCorner%neighborProc
       tag = nB + eB * 10
       CALL MPI_RECV(buffer, 1, MPI_REAL8, source, tag, mpi_comm_world, STATUS, ierror)
-      p1 => PointsSolver(b1, 0,0)%T
+      p1 => PointsSolver(0,0, b1)%T
       p1 = buffer
       swMPI => swMPI%next
     END DO
@@ -560,7 +561,7 @@ CONTAINS
       source = BlocksSolver(b1)%NWCorner%neighborProc
       tag = sB + eB * 10
       CALL MPI_RECV(buffer, 1, MPI_REAL8, source, tag, mpi_comm_world, STATUS, ierror)
-      p1 => PointsSolver(b1, 0,jBlockSize+1)%T
+      p1 => PointsSolver(0,jBlockSize+1, b1)%T
       p1 = buffer
       nwMPI => nwMPI%next
     END DO
@@ -572,7 +573,7 @@ CONTAINS
       source = BlocksSolver(b1)%NECorner%neighborProc
       tag = sB + wB * 10
       CALL MPI_RECV(buffer, 1, MPI_REAL8, source, tag, mpi_comm_world, STATUS, ierror)
-      p1 => PointsSolver(b1, iBlockSize+1,jBlockSize+1)%T
+      p1 => PointsSolver(iBlockSize+1,jBlockSize+1, b1)%T
       p1 = buffer
       neMPI => neMPI%next
     END DO
@@ -584,7 +585,7 @@ CONTAINS
       source = BlocksSolver(b1)%SECorner%neighborProc
       tag = nB + wB * 10
       CALL MPI_RECV(buffer, 1, MPI_REAL8, source, tag, mpi_comm_world, STATUS, ierror)
-      p1 => PointsSolver(b1, iBlockSize+1,0)%T
+      p1 => PointsSolver(iBlockSize+1,0, b1)%T
       p1 = buffer
       seMPI => seMPI%next
     END DO
