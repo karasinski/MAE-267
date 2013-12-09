@@ -59,6 +59,13 @@ MODULE BlockModule
     TYPE (Neighbor) :: NECorner, SECorner, SWCorner, NWCorner
   END TYPE BlockType
 
+  TYPE BlockSolver
+    INTEGER :: ID, lowITemp, lowJTemp
+    INTEGER :: localJMIN, localIMIN, localJMAX, localIMAX
+    TYPE (Neighbor) :: northFace, southFace, eastFace, westFace
+    TYPE (Neighbor) :: NECorner, SECorner, SWCorner, NWCorner
+  END TYPE BlockSolver
+
   TYPE Proc
     INTEGER :: procID, weight, comm, nBlocks
     ! Number of blocks on each proc should be roughly nBlocks/nProcs.
